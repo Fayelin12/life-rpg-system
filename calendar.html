@@ -1390,6 +1390,76 @@
             color: var(--bg-deep);
         }
 
+        /* Toast 提示 */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 3000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .toast {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-gold);
+            border-radius: 6px;
+            padding: 12px 16px;
+            min-width: 200px;
+            max-width: 300px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            animation: toastSlideIn 0.3s ease;
+        }
+
+        .toast.hiding {
+            animation: toastSlideOut 0.3s ease forwards;
+        }
+
+        .toast-icon {
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+
+        .toast-message {
+            font-size: 13px;
+            color: var(--text-primary);
+            line-height: 1.4;
+        }
+
+        .toast-warning {
+            border-color: var(--accent-ember);
+        }
+
+        .toast-warning .toast-icon {
+            color: var(--accent-ember);
+        }
+
+        @keyframes toastSlideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes toastSlideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+
         @media (max-width: 1024px) {
             .sanctum-layout {
                 grid-template-columns: 1fr;
@@ -2417,6 +2487,18 @@
                             return;
                         }
 
+                        // 检查该日期是否已有相同检查项
+                        const existingEntries = adminData.calendarEntries[dateStr] || [];
+                        const hasDuplicate = existingEntries.some(entry =>
+                            entry.checkpointId === draggedCheckpoint.id
+                        );
+
+                        if (hasDuplicate) {
+                            showToast(`该日期已存在「${draggedCheckpoint.name}」检查项`, 'warning');
+                            draggedCheckpoint = null;
+                            return;
+                        }
+
                         const entry = {
                             id: Date.now().toString(),
                             checkpointId: draggedCheckpoint.id,
@@ -3133,6 +3215,40 @@
          * @param {Function} options.onConfirm - 确认回调
          * @param {Function} options.onCancel - 取消回调
          */
+
+        /**
+         * 显示 Toast 提示
+         * @param {string} message - 提示消息
+         * @param {string} type - 类型：'info' | 'warning' | 'success'
+         * @param {number} duration - 显示时长（毫秒）
+         */
+        function showToast(message, type = 'info', duration = 3000) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+
+            const iconMap = {
+                info: 'ℹ️',
+                warning: '⚠️',
+                success: '✅'
+            };
+
+            toast.innerHTML = `
+                <span class="toast-icon">${iconMap[type] || 'ℹ️'}</span>
+                <span class="toast-message">${LifeRPG.security.escapeHtml(message)}</span>
+            `;
+
+            container.appendChild(toast);
+
+            // 自动移除
+            setTimeout(() => {
+                toast.classList.add('hiding');
+                setTimeout(() => {
+                    toast.remove();
+                }, 300);
+            }, duration);
+        }
+
         function showConfirmModal(options) {
             const modal = document.getElementById('confirmModal');
             const icon = document.getElementById('confirmIcon');
@@ -3206,5 +3322,8 @@
             </div>
         </div>
     </div>
+
+    <!-- Toast 提示 -->
+    <div class="toast-container" id="toastContainer"></div>
 </body>
 </html>
