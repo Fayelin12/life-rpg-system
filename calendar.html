@@ -349,12 +349,13 @@
             color: var(--bg-deep);
         }
 
+        /* ==================== 分层 Grid 布局 ==================== */
+
+        /* 主网格容器 - 只负责星期标题，日期区域使用普通文档流 */
         .chamber-grid {
             flex: 1;
-            display: grid;
-            grid-template-columns: repeat(7, 1fr);
-            grid-template-rows: 20px repeat(6, 1fr);
-            gap: 1px;
+            display: flex;
+            flex-direction: column;
             background: transparent;
             border: none;
             margin: 0 20px 20px;
@@ -362,25 +363,177 @@
             overflow: visible;
             position: relative;
             min-height: 500px;
+            transition: all 0.3s ease;
         }
 
-        .chamber-grid[data-rows="4"] {
-            grid-template-rows: 20px repeat(4, 1fr);
+        /* 星期标题行 */
+        .weekday-header {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 0;
         }
 
-        .chamber-grid[data-rows="5"] {
-            grid-template-rows: 20px repeat(5, 1fr);
+        /* 周末折叠状态 */
+        .chamber-grid.weekend-collapsed .weekday-header {
+            grid-template-columns: repeat(5, 1fr) 0 0;
         }
 
-        .chamber-grid[data-rows="6"] {
-            grid-template-rows: 20px repeat(6, 1fr);
+        .chamber-grid.weekend-collapsed .weekday-pillar:nth-child(6),
+        .chamber-grid.weekend-collapsed .weekday-pillar:nth-child(7) {
+            width: 0;
+            padding: 0;
+            min-width: 0;
+            overflow: hidden;
+            opacity: 0;
         }
 
-        /* 检查项条带 - 跨天条带绝对定位 */
-        .checkpoint-stripe {
-            position: absolute;
+        /* 星期标题 */
+        .weekday-pillar {
+            background: var(--bg-panel);
+            padding: 2px;
+            text-align: center;
+            font-family: var(--font-display);
+            font-size: 8px;
+            letter-spacing: 1px;
+            color: var(--accent-gold);
+            border-bottom: 1px solid var(--border-gold);
+            transition: all 0.3s ease;
             height: 20px;
-            border-radius: 4px;
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 0;
+        }
+
+        /* 日期区域容器 */
+        .calendar-body {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+        }
+
+        /* 日历行容器 - 每行是一个独立的grid */
+        .calendar-row {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            grid-template-rows: auto auto;
+            position: relative;
+            transition: all 0.3s ease;
+            gap: 0;
+        }
+
+        /* 周末折叠时隐藏周末列 */
+        .chamber-grid.weekend-collapsed .calendar-row {
+            grid-template-columns: repeat(5, 1fr) 0 0;
+        }
+
+        .chamber-grid.weekend-collapsed .time-chamber:nth-child(6),
+        .chamber-grid.weekend-collapsed .time-chamber:nth-child(7) {
+            width: 0;
+            padding: 0;
+            min-width: 0;
+            overflow: hidden;
+            opacity: 0;
+            border: none;
+        }
+
+        /* 周末折叠时调整条带网格 */
+        .chamber-grid.weekend-collapsed .row-stripes {
+            grid-template-columns: repeat(5, 1fr) 0 0;
+        }
+
+        /* 时间格子 - 占据第一行 */
+        .time-chamber {
+            background: var(--bg-panel);
+            height: auto;
+            min-height: 18px;
+            padding: 8px 8px 4px;
+            position: relative;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            overflow: visible;
+            border: none;
+            grid-row: 1;
+        }
+
+        /* 为日期格子明确指定列位置 */
+        .calendar-row .time-chamber:nth-child(1) { grid-column: 1; }
+        .calendar-row .time-chamber:nth-child(2) { grid-column: 2; }
+        .calendar-row .time-chamber:nth-child(3) { grid-column: 3; }
+        .calendar-row .time-chamber:nth-child(4) { grid-column: 4; }
+        .calendar-row .time-chamber:nth-child(5) { grid-column: 5; }
+        .calendar-row .time-chamber:nth-child(6) { grid-column: 6; }
+        .calendar-row .time-chamber:nth-child(7) { grid-column: 7; }
+
+        /* 日期数字 */
+        .chamber-date {
+            font-family: var(--font-display);
+            font-size: 10px;
+            font-weight: 600;
+            margin-bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: auto;
+            line-height: 1.2;
+        }
+
+        .time-chamber.today .chamber-date {
+            color: var(--accent-gold);
+        }
+
+        .time-chamber.other-month {
+            opacity: 0.4;
+        }
+
+        .time-chamber.empty {
+            background: var(--bg-panel);
+        }
+
+        .time-chamber.today::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--gradient-gold);
+        }
+
+        .time-chamber.drag-over {
+            background: rgba(201, 162, 39, 0.15);
+            box-shadow: inset 0 0 30px rgba(201, 162, 39, 0.2);
+        }
+
+        /* 条带容器 - 占据行的第二行 */
+        .row-stripes {
+            grid-column: 1 / -1;
+            grid-row: 2;
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            grid-auto-rows: 20px;
+            gap: 2px 0;
+            padding: 2px;
+            pointer-events: none;
+            min-height: 72px;
+            background: var(--bg-panel);
+            z-index: 1;
+            border: none;
+        }
+
+        /* 周末折叠时调整条带网格 */
+        .chamber-grid.weekend-collapsed .row-stripes {
+            grid-template-columns: repeat(5, 1fr) 0 0;
+        }
+
+        /* 检查点条带 - 使用 CSS Grid 定位 */
+        .checkpoint-stripe {
+            grid-column: var(--start) / var(--end);
+            grid-row: var(--level, 1);
+            height: 18px;
+            border-radius: 3px;
             font-size: 11px;
             display: flex;
             align-items: center;
@@ -390,13 +543,12 @@
             text-overflow: ellipsis;
             cursor: pointer;
             transition: all 0.2s ease;
-            z-index: 5;
+            pointer-events: auto;
             box-sizing: border-box;
             line-height: 1;
         }
 
         .checkpoint-stripe:hover {
-            z-index: 100;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
             filter: brightness(1.15);
         }
@@ -481,9 +633,7 @@
             opacity: 0.8;
         }
 
-
-
-        /* 条带关卡名称 - 使用标签样式 */
+        /* 条带关卡名称 */
         .stripe-level {
             font-size: 9px;
             color: var(--text-secondary);
@@ -500,50 +650,6 @@
             color: var(--border-gold);
             opacity: 0.5;
             flex-shrink: 0;
-        }
-
-        .weekday-pillar {
-            background: var(--bg-panel);
-            padding: 2px;
-            text-align: center;
-            font-family: var(--font-display);
-            font-size: 8px;
-            letter-spacing: 1px;
-            color: var(--accent-gold);
-            border-bottom: 1px solid var(--border-gold);
-            transition: all 0.3s ease;
-            height: 20px;
-            box-sizing: border-box;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        /* 周末折叠状态 - 使用 grid-template-columns */
-        .chamber-grid {
-            transition: all 0.3s ease;
-        }
-
-        .chamber-grid.weekend-collapsed {
-            grid-template-columns: repeat(5, 1fr) 0 0;
-        }
-
-        .chamber-grid.weekend-collapsed .weekday-pillar:nth-child(6),
-        .chamber-grid.weekend-collapsed .weekday-pillar:nth-child(7) {
-            width: 0;
-            padding: 0;
-            min-width: 0;
-            overflow: hidden;
-            opacity: 0;
-        }
-
-        .chamber-grid.weekend-collapsed .time-chamber:nth-child(7n+6),
-        .chamber-grid.weekend-collapsed .time-chamber:nth-child(7n+7) {
-            width: 0;
-            padding: 0;
-            min-width: 0;
-            overflow: hidden;
-            opacity: 0;
         }
 
         /* 周末切换按钮 - 内联样式 */
@@ -601,71 +707,6 @@
 
         .toggle-icon {
             font-size: 14px;
-        }
-
-        .time-chamber {
-            background: var(--bg-deep);
-            min-height: 80px;
-            padding: 8px;
-            position: relative;
-            transition: all 0.3s ease;
-            cursor: pointer;
-            overflow-y: auto;
-            overflow-x: hidden;
-        }
-
-        /* 自定义滚动条 */
-        .time-chamber::-webkit-scrollbar {
-            width: 4px;
-        }
-        .time-chamber::-webkit-scrollbar-track {
-            background: transparent;
-        }
-        .time-chamber::-webkit-scrollbar-thumb {
-            background: var(--border-gold);
-            border-radius: 2px;
-        }
-
-        .time-chamber:hover {
-            background: var(--bg-panel);
-        }
-
-        .time-chamber.other-month {
-            opacity: 0.4;
-        }
-
-        .time-chamber.empty {
-            background: transparent;
-        }
-
-        .time-chamber.today::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: var(--gradient-gold);
-        }
-
-        .time-chamber.drag-over {
-            background: rgba(201, 162, 39, 0.15);
-            box-shadow: inset 0 0 30px rgba(201, 162, 39, 0.2);
-        }
-
-        .chamber-date {
-            font-family: var(--font-display);
-            font-size: 10px;
-            font-weight: 600;
-            margin-bottom: 4px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            height: 20px;
-        }
-
-        .time-chamber.today .chamber-date {
-            color: var(--accent-gold);
         }
 
         .chamber-count {
@@ -1692,30 +1733,7 @@
                 btn.classList.add('active');
                 btn.innerHTML = '<span>📅</span><span>隐藏周末</span>';
             }
-
-            // 重新计算条带位置
-            setTimeout(() => {
-                const rowStripes = {};
-                const stripes = grid.querySelectorAll('.checkpoint-stripe');
-                stripes.forEach(stripe => {
-                    const startCol = parseInt(stripe.dataset.startCol) || 0;
-                    const endCol = parseInt(stripe.dataset.endCol) || startCol;
-                    const startRow = parseInt(stripe.dataset.startRow) || 0;
-                    const duration = parseInt(stripe.dataset.duration) || 1;
-
-                    if (!rowStripes[startRow]) rowStripes[startRow] = [];
-                    rowStripes[startRow].push({
-                        stripe,
-                        startCol,
-                        endCol,
-                        duration,
-                        startRow,
-                        endRow: startRow
-                    });
-                });
-                const rowsNeeded = parseInt(grid.getAttribute('data-rows') || '5');
-                calculateStripePositions(grid, rowStripes, rowsNeeded);
-            }, 310); // 等待 CSS 过渡完成
+            // Grid 布局会自动处理条带位置，无需重新计算
         }
 
         function init() {
@@ -1726,49 +1744,13 @@
                 updateStats();
                 bindModalEvents();
                 applyWeekendToggle();
-
-                // 监听窗口大小变化，重新渲染日历
-                let resizeTimer;
-                window.addEventListener('resize', () => {
-                    clearTimeout(resizeTimer);
-                    resizeTimer = setTimeout(() => {
-                        renderChamberGrid();
-                    }, 200);
-                });
+                // Grid 布局会自动适应窗口大小，无需监听 resize
             } catch (error) {
                 console.error('初始化失败:', error);
             }
         }
 
-        /**
-         * 重新计算条带位置（窗口大小变化时调用）
-         */
-        function recalculateStripePositions() {
-            const grid = document.getElementById('chamberGrid');
-            if (!grid) return;
 
-            const rowStripes = {};
-            const stripes = grid.querySelectorAll('.checkpoint-stripe');
-            stripes.forEach(stripe => {
-                const startCol = parseInt(stripe.dataset.startCol) || 0;
-                const endCol = parseInt(stripe.dataset.endCol) || startCol;
-                const startRow = parseInt(stripe.dataset.startRow) || 0;
-                const duration = parseInt(stripe.dataset.duration) || 1;
-
-                if (!rowStripes[startRow]) rowStripes[startRow] = [];
-                rowStripes[startRow].push({
-                    stripe,
-                    startCol,
-                    endCol,
-                    duration,
-                    startRow,
-                    endRow: startRow
-                });
-            });
-
-            const rowsNeeded = parseInt(grid.getAttribute('data-rows') || '5');
-            calculateStripePositions(grid, rowStripes, rowsNeeded);
-        }
 
         /**
          * 绑定弹窗事件
@@ -2166,7 +2148,7 @@
         }
 
         /**
-         * 渲染时间密室网格（条带化布局 - 跨格子延伸）
+         * 渲染时间密室网格（分层 Grid 布局）
          */
         function renderChamberGrid() {
             try {
@@ -2182,7 +2164,12 @@
 
                 // 星期标题
                 const weekdays = LifeRPG.constants.WEEKDAYS;
-                let html = weekdays.map(d => `<div class="weekday-pillar">${d}</div>`).join('');
+                let html = '<div class="weekday-header">';
+                html += weekdays.map(d => `<div class="weekday-pillar">${d}</div>`).join('');
+                html += '</div>';
+
+                // 日期区域
+                html += '<div class="calendar-body">';
 
                 const today = new Date();
 
@@ -2197,38 +2184,59 @@
                 const daysInMonth = lastDayOfMonth.getDate();
                 const totalCells = firstDayWeekday + daysInMonth;
                 const rowsNeeded = Math.ceil(totalCells / 7);
-                const totalGridCells = rowsNeeded * 7;
 
-                // 生成当月日期格子
-                for (let i = 0; i < totalGridCells; i++) {
-                    const dayOffset = i - firstDayWeekday;
-                    const date = new Date(year, month, dayOffset + 1);
+                // 按行生成日历
+                for (let row = 0; row < rowsNeeded; row++) {
+                    html += `<div class="calendar-row" data-row="${row}">`;
 
-                    // 只显示当月日期
-                    if (date.getMonth() !== month) {
-                        // 非当月日期显示为空格子（保持grid结构）
-                        html += `<div class="time-chamber empty" data-index="${i}"></div>`;
-                        continue;
+                    // 先收集每列是否为空
+                    const emptyCols = [];
+                    for (let col = 0; col < 7; col++) {
+                        const cellIndex = row * 7 + col;
+                        const dayOffset = cellIndex - firstDayWeekday;
+                        const date = new Date(year, month, dayOffset + 1);
+                        if (date.getMonth() !== month) {
+                            emptyCols.push(col);
+                        }
                     }
 
-                    const isToday = date.toDateString() === today.toDateString();
-                    const dateStr = formatDate(date);
+                    for (let col = 0; col < 7; col++) {
+                        const cellIndex = row * 7 + col;
+                        const dayOffset = cellIndex - firstDayWeekday;
+                        const date = new Date(year, month, dayOffset + 1);
 
-                    html += `
-                        <div class="time-chamber ${isToday ? 'today' : ''}"
-                            data-date="${dateStr}" data-index="${i}">
-                            <div class="chamber-date">
-                                <span>${date.getDate()}</span>
+                        // 只显示当月日期
+                        if (date.getMonth() !== month) {
+                            // 非当月日期显示为空格子
+                            html += `<div class="time-chamber empty" data-index="${cellIndex}" data-col="${col}"></div>`;
+                            continue;
+                        }
+
+                        const isToday = date.toDateString() === today.toDateString();
+                        const dateStr = formatDate(date);
+
+                        html += `
+                            <div class="time-chamber ${isToday ? 'today' : ''}"
+                                data-date="${dateStr}" data-index="${cellIndex}" data-col="${col}">
+                                <div class="chamber-date">
+                                    <span>${date.getDate()}</span>
+                                </div>
                             </div>
-                        </div>
-                    `;
+                        `;
+                    }
+
+                    // 条带容器 - 放在行内，标记空列
+                    const emptyColsAttr = emptyCols.length > 0 ? `data-empty-cols="${emptyCols.join(',')}"` : '';
+                    html += `<div class="row-stripes" data-row="${row}" ${emptyColsAttr}></div>`;
+                    html += `</div>`; // 结束 calendar-row
                 }
 
-                // 设置grid行数
+                html += '</div>'; // 结束 calendar-body
+
                 grid.setAttribute('data-rows', rowsNeeded.toString());
                 grid.innerHTML = html;
 
-                // 渲染跨格子的检查点条带
+                // 渲染检查点条带
                 renderCheckpointStripes(grid, year, month, firstDayWeekday, daysInMonth);
 
                 bindChamberDragEvents();
@@ -2286,20 +2294,24 @@
         }
 
         /**
-         * 渲染检查点条带（跨格子延伸）
+         * 渲染检查点条带（分层 Grid 布局）
          */
         function renderCheckpointStripes(grid, year, month, firstDayWeekday, daysInMonth) {
             const themeColors = ['theme-gold', 'theme-ember', 'theme-mist', 'theme-magic', 'theme-slate'];
             const checkpointThemes = {};
             let themeIndex = 0;
 
-            // 构建日期索引映射（用于计算条带位置）- 只包含当月日期
+            // 构建日期索引映射 - 只包含当月日期
             const dateIndexMap = {};
             for (let day = 1; day <= daysInMonth; day++) {
                 const date = new Date(year, month, day);
                 const dateStr = formatDate(date);
                 const index = firstDayWeekday + (day - 1);
-                dateIndexMap[dateStr] = index;
+                dateIndexMap[dateStr] = {
+                    index: index,
+                    row: Math.floor(index / 7),
+                    col: index % 7
+                };
             }
 
             // 收集每个检查点的所有条目
@@ -2328,8 +2340,8 @@
                 });
             });
 
-            // 按行收集条带信息，用于后续位置计算
-            const rowStripes = {}; // { rowIndex: [stripeInfo, ...] }
+            // 按行收集条带，用于计算层级
+            const rowStripes = {}; // { rowIndex: [{startCol, endCol}, ...] }
 
             // 为每个检查点计算连续范围并渲染条带
             Object.keys(checkpointData).forEach(checkpointId => {
@@ -2337,15 +2349,17 @@
                 const ranges = calculateStripeRanges(checkpointId);
 
                 ranges.forEach(range => {
-                    const startIdx = dateIndexMap[range.startDate];
-                    const endIdx = dateIndexMap[range.endDate];
+                    const startInfo = dateIndexMap[range.startDate];
+                    const endInfo = dateIndexMap[range.endDate];
 
                     // 只渲染在当前视图范围内的条带
-                    if (startIdx === undefined || endIdx === undefined) return;
+                    if (!startInfo || !endInfo) return;
 
+                    const startRow = startInfo.row;
+                    const startCol = startInfo.col;
+                    const endCol = endInfo.col;
+                    const duration = endCol - startCol + 1;
 
-
-                    const duration = endIdx - startIdx + 1;
                     const firstEntry = cpData.entries.find(e => e.date === range.startDate);
                     if (!firstEntry) return;
 
@@ -2362,16 +2376,10 @@
                     // 判断是否连续条带（跨越多天）
                     const isContinuous = range.startDate !== range.endDate;
 
-                    // 计算条带位置
-                    const startRow = Math.floor(startIdx / 7);
-                    const startCol = startIdx % 7;
-                    const endCol = endIdx % 7;
-                    const endRow = Math.floor(endIdx / 7);
-
                     // 确定条带样式类
                     let stripeClass = checkpointThemes[checkpointId];
                     if (isContinuous) {
-                        stripeClass += ' stripe-continuous';
+                        stripeClass += ' continuous';
                     }
                     if (isArchived) {
                         stripeClass += ' archived';
@@ -2380,18 +2388,37 @@
                     // 构建条带内容
                     let stripeContent;
                     if (isContinuous) {
-                        // 连续条带：显示关卡名 › 检查点名 + 历时
                         stripeContent = `<span class="stripe-level">${LifeRPG.security.escapeHtml(cpData.levelName)}</span><span class="stripe-separator">›</span><span class="stripe-name">${LifeRPG.security.escapeHtml(cpData.name)}</span><span class="stripe-duration">${totalDuration}天</span>`;
                     } else {
-                        // 单日条带：只显示检查点名 + 历时
                         stripeContent = `<span class="stripe-name">${LifeRPG.security.escapeHtml(cpData.name)}</span><span class="stripe-duration">${totalDuration}天</span>`;
                     }
 
-                    // 创建条带元素（一个条带横跨整个连续范围）
+                    // 计算层级（避免重叠）
+                    if (!rowStripes[startRow]) rowStripes[startRow] = [];
+                    const occupied = rowStripes[startRow];
+                    let level = 1;
+                    let found = false;
+                    while (!found) {
+                        const conflict = occupied.some(o =>
+                            o.level === level &&
+                            !(endCol < o.startCol || startCol > o.endCol)
+                        );
+                        if (!conflict) {
+                            found = true;
+                        } else {
+                            level++;
+                        }
+                    }
+                    occupied.push({ level, startCol, endCol });
+
+                    // 创建条带元素
                     const stripe = document.createElement('div');
                     stripe.className = `checkpoint-stripe ${stripeClass}`;
                     stripe.innerHTML = stripeContent;
                     stripe.draggable = true;
+                    stripe.style.setProperty('--start', startCol + 1); // CSS grid 是 1-based
+                    stripe.style.setProperty('--end', endCol + 2);     // end 是 exclusive
+                    stripe.style.setProperty('--level', level);
                     stripe.dataset.checkpointId = checkpointId;
                     stripe.dataset.startDate = range.startDate;
                     stripe.dataset.endDate = range.endDate;
@@ -2403,10 +2430,6 @@
                     stripe.dataset.level = LifeRPG.security.escapeHtml(cpData.levelName);
                     stripe.dataset.cpName = LifeRPG.security.escapeHtml(cpData.name);
                     stripe.dataset.sourceDate = range.startDate;
-                    stripe.dataset.startCol = startCol;
-                    stripe.dataset.endCol = endCol;
-                    stripe.dataset.startRow = startRow;
-                    stripe.dataset.duration = duration;
 
                     // 点击打开弹窗
                     stripe.onclick = function(e) {
@@ -2439,218 +2462,17 @@
                         document.body.classList.remove('dragging');
                     };
 
-                    grid.appendChild(stripe);
-
-                    // 记录条带信息用于位置计算
-                    if (!rowStripes[startRow]) rowStripes[startRow] = [];
-                    rowStripes[startRow].push({
-                        stripe: stripe,
-                        startCol: startCol,
-                        endCol: endCol,
-                        duration: duration,
-                        startRow: startRow,
-                        endRow: endRow
-                    });
-                }); // end ranges.forEach
-            }); // end checkpointData.forEach
-
-            // 计算并设置条带位置（延迟执行确保DOM布局完成）
-            requestAnimationFrame(() => {
-                const rowsNeeded = parseInt(grid.getAttribute('data-rows') || '5');
-                calculateStripePositions(grid, rowStripes, rowsNeeded);
+                    // 添加到对应行的条带容器
+                    const rowStripesContainer = grid.querySelector(`.row-stripes[data-row="${startRow}"]`);
+                    if (rowStripesContainer) {
+                        rowStripesContainer.appendChild(stripe);
+                    }
+                });
             });
+
         }
 
-        /**
-         * 计算条带位置（考虑跨行和重叠）
-         */
-        function calculateStripePositions(grid, rowStripes, totalRows = 5) {
-            // 获取格子尺寸
-            const gridRect = grid.getBoundingClientRect();
-            const isCollapsed = grid.classList.contains('weekend-collapsed');
-            const visibleCols = isCollapsed ? 5 : 7;
-            const cellWidth = gridRect.width / visibleCols;
 
-            // 星期标题行高度
-            const weekdayHeight = 20;
-
-            // 重置所有格子的高度，确保获取正确的初始高度
-            const allChambers = grid.querySelectorAll('.time-chamber');
-            allChambers.forEach(chamber => {
-                chamber.style.minHeight = '';
-            });
-
-            // 强制重绘以获取正确的初始高度
-            grid.offsetHeight;
-
-            // 第一步：计算每行需要的最大层级数
-            const rowMaxLevels = {};
-            Object.keys(rowStripes).forEach(rowStr => {
-                const row = parseInt(rowStr);
-                const stripes = rowStripes[row];
-                const occupied = [];
-                let maxLevel = 0;
-
-                stripes.forEach(({ startCol, endCol }) => {
-                    // 跳过周末折叠的条带
-                    if (isCollapsed && (startCol === 5 || startCol === 6)) return;
-
-                    let level = 0;
-                    let found = false;
-                    while (!found) {
-                        const conflict = occupied.some(o =>
-                            o.level === level &&
-                            !(endCol < o.startCol || startCol > o.endCol)
-                        );
-                        if (!conflict) {
-                            found = true;
-                        } else {
-                            level++;
-                        }
-                    }
-                    occupied.push({ level, startCol, endCol });
-                    maxLevel = Math.max(maxLevel, level);
-                });
-
-                rowMaxLevels[row] = maxLevel;
-            });
-
-            // 第二步：设置每行格子的高度
-            const minChamberHeight = 80;
-            const stripeHeight = 22;
-
-            for (let row = 0; row < totalRows; row++) {
-                const maxLevel = rowMaxLevels[row] || 0;
-                const rowHeight = minChamberHeight + (maxLevel + 1) * stripeHeight;
-
-                for (let col = 0; col < (isCollapsed ? 5 : 7); col++) {
-                    const chamberIndex = row * 7 + col;
-                    const chamber = grid.querySelector(`.time-chamber[data-index="${chamberIndex}"]`);
-                    if (chamber) {
-                        chamber.style.minHeight = `${rowHeight}px`;
-                    }
-                }
-            }
-
-            // 第三步：使用双重 requestAnimationFrame 确保布局完全稳定后，计算条带位置
-            requestAnimationFrame(() => {
-                requestAnimationFrame(() => {
-                const rowTops = {};
-                const gridRectAfter = grid.getBoundingClientRect();
-
-                for (let row = 0; row < totalRows; row++) {
-                    // 找到该行第一个非空格子
-                    let firstChamber = null;
-                    for (let col = 0; col < 7; col++) {
-                        const chamberIndex = row * 7 + col;
-                        const chamber = grid.querySelector(`.time-chamber[data-index="${chamberIndex}"]`);
-                        if (chamber && !chamber.classList.contains('empty')) {
-                            firstChamber = chamber;
-                            break;
-                        }
-                    }
-
-                    if (firstChamber) {
-                        const chamberRect = firstChamber.getBoundingClientRect();
-                        rowTops[row] = chamberRect.top - gridRectAfter.top;
-                    } else {
-                        // 如果该行没有非空格子，使用计算值
-                        let prevRowTop = row > 0 ? rowTops[row - 1] : weekdayHeight;
-                        let prevRowHeight = row > 0 ? (minChamberHeight + (rowMaxLevels[row - 1] || 0) * stripeHeight) : 0;
-                        rowTops[row] = prevRowTop + prevRowHeight;
-                    }
-                }
-
-                // 处理每一行的条带
-            Object.keys(rowStripes).forEach(rowStr => {
-                const row = parseInt(rowStr);
-                const stripes = rowStripes[row];
-
-                // 按开始列排序
-                stripes.sort((a, b) => a.startCol - b.startCol);
-
-                // 为每个条带找到合适的垂直层级
-                const occupied = []; // [{level, startCol, endCol}, ...]
-
-                stripes.forEach(({ stripe, startCol, endCol, duration }) => {
-                    // 如果折叠周末，且条带完全在周末（列5或6，即周六或周日），则隐藏
-                    if (isCollapsed && (startCol === 5 || startCol === 6)) {
-                        stripe.style.display = 'none';
-                        return;
-                    }
-
-                    // 检查条带起始格子是否是非当月，如果是则隐藏
-                    const chamberIndex = row * 7 + startCol;
-                    const chamber = grid.querySelector(`.time-chamber[data-index="${chamberIndex}"]`);
-                    if (chamber && chamber.classList.contains('other-month')) {
-                        stripe.style.display = 'none';
-                        return;
-                    }
-
-                    // 如果折叠周末，且条带跨越周末，需要截断
-                    let visibleStartCol = startCol;
-                    let visibleEndCol = endCol;
-                    let visibleDuration = duration;
-
-                    if (isCollapsed) {
-                        // 处理跨越周六（第5列）的情况
-                        if (startCol === 5 && endCol > 5) {
-                            visibleStartCol = 5; // 实际上会被隐藏，这里做保险处理
-                        }
-                        if (endCol >= 5) {
-                            visibleEndCol = 4; // 截断到周五
-                        }
-                        visibleDuration = visibleEndCol - visibleStartCol + 1;
-                    }
-
-                    // 找到不重叠的层级
-                    let level = 0;
-                    let found = false;
-
-                    while (!found) {
-                        const conflict = occupied.some(o =>
-                            o.level === level &&
-                            !(visibleEndCol < o.startCol || visibleStartCol > o.endCol)
-                        );
-
-                        if (!conflict) {
-                            found = true;
-                        } else {
-                            level++;
-                        }
-                    }
-
-
-
-                    // 计算位置
-                    // 使用预先计算的该行顶部位置
-                    const rowTop = rowTops[row];
-                    // 条带在日期格子内部显示
-                    // 格子有8px padding，日期数字高度约20px，条带从日期下方开始显示
-                    // 8px(padding) + 20px(日期) + 4px(间距) = 32px
-                    const stripeTop = rowTop + 32 + (level * 22); // 32px是日期高度偏移，22px是条带高度+间距
-                    // 折叠周末时，需要重新计算列位置（0-4对应周一到周五）
-                    let renderStartCol = visibleStartCol;
-                    if (isCollapsed) {
-                        // 周一到周五保持 0-4，周六日已被过滤掉
-                        renderStartCol = visibleStartCol;
-                    }
-                    const stripeLeft = renderStartCol * cellWidth + 2; // 2px边距
-                    const stripeWidth = visibleDuration * cellWidth - 4; // 4px总边距
-
-                    // 设置样式
-                    stripe.style.display = 'flex';
-                    stripe.style.top = `${stripeTop}px`;
-                    stripe.style.left = `${stripeLeft}px`;
-                    stripe.style.width = `${stripeWidth}px`;
-
-                    // 记录占用
-                    occupied.push({ level, startCol, endCol });
-                });
-            });
-        });
-    });
-}
 
         /**
          * 绑定密室拖拽事件
