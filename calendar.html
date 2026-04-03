@@ -510,7 +510,7 @@
             grid-template-columns: repeat(5, 1fr) 0 0;
         }
 
-        .chamber-grid.weekend-collapsed .weekday-pillar:nth-child(6),
+        .chamber-grid.weekend-collapsed .weekday-pillar:nth-child(1),
         .chamber-grid.weekend-collapsed .weekday-pillar:nth-child(7) {
             width: 0;
             padding: 0;
@@ -519,7 +519,7 @@
             opacity: 0;
         }
 
-        .chamber-grid.weekend-collapsed .time-chamber:nth-child(7n+6),
+        .chamber-grid.weekend-collapsed .time-chamber:nth-child(7n+1),
         .chamber-grid.weekend-collapsed .time-chamber:nth-child(7n+7) {
             width: 0;
             padding: 0;
@@ -2330,8 +2330,8 @@
                 const occupied = []; // [{level, startCol, endCol}, ...]
 
                 stripes.forEach(({ stripe, startCol, endCol, duration }) => {
-                    // 如果折叠周末，且条带完全在周末（列5或6），则隐藏
-                    if (isCollapsed && startCol >= 5) {
+                    // 如果折叠周末，且条带完全在周末（列0或6，即周日或周六），则隐藏
+                    if (isCollapsed && (startCol === 0 || startCol === 6)) {
                         stripe.style.display = 'none';
                         return;
                     }
@@ -2342,10 +2342,15 @@
                     let visibleDuration = duration;
 
                     if (isCollapsed) {
-                        if (endCol >= 5) {
-                            visibleEndCol = 4;
-                            visibleDuration = visibleEndCol - visibleStartCol + 1;
+                        // 处理跨越周日（第0列）的情况
+                        if (startCol === 0 && endCol > 0) {
+                            visibleStartCol = 1;
                         }
+                        // 处理跨越周六（第6列）的情况
+                        if (endCol === 6) {
+                            visibleEndCol = 5;
+                        }
+                        visibleDuration = visibleEndCol - visibleStartCol + 1;
                     }
 
                     // 找到不重叠的层级
