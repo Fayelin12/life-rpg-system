@@ -1,0 +1,1703 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>时间圣殿 | 人生开放系统</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Noto+Serif+SC:wght@400;600;900&display=block" rel="stylesheet">
+    <link rel="stylesheet" href="common.css">
+    <script src="common.js"></script>
+    <style>
+        /* 页面特有样式 - 时间圣殿主题 */
+        .sanctum-layout {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            height: calc(100vh - 80px);
+            margin-top: 80px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* 左侧卷轴库 */
+        .scroll-archive {
+            background: var(--bg-panel);
+            border-right: 1px solid var(--border-gold);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .archive-header {
+            padding: 24px 20px 16px;
+            border-bottom: 1px solid var(--border-gold);
+        }
+
+        .archive-title {
+            font-family: var(--font-display);
+            font-size: 14px;
+            letter-spacing: 3px;
+            color: var(--accent-gold);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .archive-title::before {
+            content: '📜';
+            font-size: 16px;
+        }
+
+        .archive-subtitle {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 4px;
+            padding-left: 26px;
+        }
+
+        .scroll-collection {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+
+        .landmark-tome {
+            margin-bottom: 16px;
+            border: 1px solid var(--border-gold);
+            border-radius: 8px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .landmark-tome:hover {
+            border-color: rgba(201, 162, 39, 0.3);
+        }
+
+        .tome-header {
+            padding: 12px 14px;
+            background: rgba(201, 162, 39, 0.05);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.2s ease;
+        }
+
+        .tome-header:hover {
+            background: rgba(201, 162, 39, 0.1);
+        }
+
+        .tome-title {
+            font-family: var(--font-display);
+            font-size: 13px;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tome-toggle {
+            color: var(--text-secondary);
+            font-size: 12px;
+            transition: transform 0.3s ease;
+        }
+
+        .landmark-tome.collapsed .tome-toggle {
+            transform: rotate(-90deg);
+        }
+
+        .tome-content {
+            max-height: 1000px;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .landmark-tome.collapsed .tome-content {
+            max-height: 0;
+        }
+
+        .quest-scroll {
+            padding: 12px 14px;
+            border-bottom: 1px solid var(--border-gold);
+        }
+
+        .quest-scroll:last-child {
+            border-bottom: none;
+        }
+
+        .quest-name {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+            padding-left: 8px;
+            border-left: 2px solid var(--accent-gold-dim);
+        }
+
+        .checkpoint-parchment {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-gold);
+            border-radius: 6px;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            cursor: grab;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .checkpoint-parchment::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: var(--accent-gold-dim);
+            border-radius: 6px 0 0 6px;
+            opacity: 0.5;
+        }
+
+        .checkpoint-parchment:hover {
+            background: var(--bg-panel);
+            border-color: var(--accent-gold);
+            transform: translateX(4px);
+            box-shadow: -4px 0 20px rgba(201, 162, 39, 0.2);
+        }
+
+        .checkpoint-parchment.dragging {
+            opacity: 0.6;
+            cursor: grabbing;
+            transform: rotate(2deg) scale(1.02);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .checkpoint-parchment.completed {
+            opacity: 0.5;
+        }
+
+        .checkpoint-parchment.completed::before {
+            background: var(--accent-mist);
+        }
+
+        .parchment-text {
+            flex: 1;
+            font-size: 13px;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .checkpoint-parchment.completed .parchment-text {
+            text-decoration: line-through;
+            color: var(--text-secondary);
+        }
+
+        .parchment-days {
+            font-size: 11px;
+            color: var(--text-muted);
+            background: rgba(201, 162, 39, 0.1);
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
+        .sanctum-stats {
+            padding: 20px;
+            border-top: 1px solid var(--border-gold);
+            background: linear-gradient(180deg, transparent 0%, rgba(201, 162, 39, 0.03) 100%);
+        }
+
+        .stats-title {
+            font-family: var(--font-display);
+            font-size: 12px;
+            letter-spacing: 2px;
+            color: var(--accent-gold);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+
+        .stat-relic {
+            text-align: center;
+            padding: 14px 8px;
+            background: var(--bg-deep);
+            border: 1px solid var(--border-gold);
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .stat-relic::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 40%;
+            height: 2px;
+            background: var(--gradient-gold);
+            opacity: 0.5;
+        }
+
+        .stat-number {
+            font-family: var(--font-display);
+            font-size: 26px;
+            font-weight: 600;
+            color: var(--accent-gold);
+            line-height: 1;
+            margin-bottom: 6px;
+        }
+
+        .stat-label {
+            font-size: 10px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* 右侧时间圣殿 */
+        .time-sanctum {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .sanctum-nav {
+            padding: 20px 30px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border-gold);
+        }
+
+        .chronicle-controls {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .chronicle-arrow {
+            width: 40px;
+            height: 40px;
+            border: 1px solid var(--border-gold);
+            background: transparent;
+            color: var(--text-secondary);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .chronicle-arrow:hover {
+            border-color: var(--accent-gold);
+            color: var(--accent-gold);
+            background: rgba(201, 162, 39, 0.1);
+        }
+
+        .chronicle-title {
+            font-family: var(--font-display);
+            font-size: 24px;
+            letter-spacing: 3px;
+            min-width: 180px;
+            text-align: center;
+        }
+
+        .view-glyphs {
+            display: flex;
+            gap: 4px;
+            background: var(--bg-panel);
+            padding: 4px;
+            border-radius: 8px;
+            border: 1px solid var(--border-gold);
+        }
+
+        .glyph-btn {
+            padding: 10px 24px;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-family: var(--font-display);
+            font-size: 12px;
+            letter-spacing: 2px;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+        }
+
+        .glyph-btn:hover {
+            color: var(--accent-gold);
+        }
+
+        .glyph-btn.active {
+            background: var(--gradient-gold);
+            color: var(--bg-deep);
+        }
+
+        .chamber-grid {
+            flex: 1;
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 1px;
+            background: var(--border-gold);
+            border: 1px solid var(--border-gold);
+            margin: 0 30px 30px;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .weekday-pillar {
+            background: var(--bg-panel);
+            padding: 16px;
+            text-align: center;
+            font-family: var(--font-display);
+            font-size: 12px;
+            letter-spacing: 3px;
+            color: var(--accent-gold);
+            border-bottom: 1px solid var(--border-gold);
+        }
+
+        .time-chamber {
+            background: var(--bg-deep);
+            min-height: 120px;
+            padding: 12px;
+            position: relative;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .time-chamber:hover {
+            background: var(--bg-panel);
+            z-index: 10;
+        }
+
+        .time-chamber.other-month {
+            opacity: 0.4;
+        }
+
+        .time-chamber.today {
+            background: linear-gradient(135deg, rgba(201, 162, 39, 0.1) 0%, transparent 100%);
+        }
+
+        .time-chamber.today::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--gradient-gold);
+        }
+
+        .time-chamber.drag-over {
+            background: rgba(201, 162, 39, 0.15);
+            box-shadow: inset 0 0 30px rgba(201, 162, 39, 0.2);
+        }
+
+        .chamber-date {
+            font-family: var(--font-display);
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .time-chamber.today .chamber-date {
+            color: var(--accent-gold);
+        }
+
+        .chamber-count {
+            font-size: 11px;
+            background: rgba(201, 162, 39, 0.2);
+            color: var(--accent-gold);
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
+        .chamber-scrolls {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            max-height: 80px;
+            overflow-y: auto;
+        }
+
+        .chamber-scroll {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-gold);
+            border-radius: 4px;
+            padding: 8px 10px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .chamber-scroll:hover {
+            border-color: var(--accent-gold);
+            background: var(--bg-panel);
+        }
+
+        .chamber-scroll.completed {
+            opacity: 0.6;
+        }
+
+        .chamber-scroll.completed .scroll-title {
+            text-decoration: line-through;
+            color: var(--text-secondary);
+        }
+
+        .chamber-scroll.before-archive {
+            opacity: 0.5;
+        }
+
+        .chamber-scroll.before-archive .scroll-title {
+            text-decoration: line-through;
+            color: var(--text-muted);
+        }
+
+        .chamber-scroll.archive-day {
+            background: rgba(201, 162, 39, 0.15);
+            border-color: var(--accent-gold);
+            box-shadow: 0 0 10px rgba(201, 162, 39, 0.2);
+        }
+
+        .chamber-scroll.archive-day .scroll-title {
+            color: var(--accent-gold);
+            font-weight: 600;
+        }
+
+        .scroll-title {
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: var(--text-primary);
+        }
+
+        .scroll-meta {
+            font-size: 10px;
+            color: var(--text-muted);
+            flex-shrink: 0;
+        }
+
+        .chamber-more {
+            text-align: center;
+            padding: 6px;
+            font-size: 11px;
+            color: var(--accent-gold);
+            background: rgba(201, 162, 39, 0.1);
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .empty-archive {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-muted);
+        }
+
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        /* 弹窗 */
+        .scroll-modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(10, 10, 12, 0.95);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .scroll-modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .scroll-modal {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-gold);
+            border-radius: 8px;
+            width: 90%;
+            max-width: 480px;
+            max-height: 90vh;
+            overflow: hidden;
+            transform: scaleY(0) translateY(50px);
+            transform-origin: bottom;
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .scroll-modal-overlay.active .scroll-modal {
+            transform: scaleY(1) translateY(0);
+        }
+
+        .modal-header {
+            padding: 24px 28px;
+            border-bottom: 1px solid var(--border-gold);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            font-family: var(--font-display);
+            font-size: 18px;
+            letter-spacing: 2px;
+        }
+
+        .modal-date {
+            font-size: 12px;
+            color: var(--accent-gold);
+            margin-top: 4px;
+        }
+
+        .modal-close {
+            width: 36px;
+            height: 36px;
+            border: 1px solid var(--border-gold);
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 20px;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+        }
+
+        .modal-close:hover {
+            border-color: var(--accent-ember);
+            color: var(--accent-ember);
+        }
+
+        .modal-body {
+            padding: 24px 28px;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .form-chamber {
+            margin-bottom: 20px;
+        }
+
+        .form-chamber label {
+            display: block;
+            font-family: var(--font-display);
+            font-size: 11px;
+            letter-spacing: 2px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+
+        .form-chamber input,
+        .form-chamber textarea,
+        .form-chamber select {
+            width: 100%;
+            background: var(--bg-deep);
+            border: 1px solid var(--border-gold);
+            border-radius: 6px;
+            padding: 12px 14px;
+            color: var(--text-primary);
+            font-family: var(--font-body);
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .form-chamber input:focus,
+        .form-chamber textarea:focus,
+        .form-chamber select:focus {
+            outline: none;
+            border-color: var(--accent-gold);
+            box-shadow: 0 0 15px rgba(201, 162, 39, 0.2);
+        }
+
+        .form-chamber textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .checkpoint-display {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-gold);
+            border-radius: 6px;
+            padding: 14px;
+            font-size: 14px;
+            color: var(--text-primary);
+            border-left: 3px solid var(--accent-gold);
+        }
+
+        .checkpoint-path {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        .duration-display {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-gold);
+            border-radius: 6px;
+            padding: 12px 14px;
+            font-size: 14px;
+            color: var(--accent-gold);
+            font-family: var(--font-display);
+        }
+
+        .history-timeline {
+            max-height: 150px;
+            overflow-y: auto;
+            padding-left: 20px;
+            border-left: 2px solid var(--border-gold);
+        }
+
+        .timeline-item {
+            position: relative;
+            padding: 12px 16px;
+            margin-bottom: 12px;
+            background: var(--bg-elevated);
+            border-radius: 6px;
+            border: 1px solid var(--border-gold);
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -26px;
+            top: 16px;
+            width: 10px;
+            height: 10px;
+            background: var(--accent-gold);
+            border-radius: 50%;
+            box-shadow: 0 0 10px rgba(201, 162, 39, 0.5);
+        }
+
+        .timeline-item.archived::before {
+            background: var(--accent-mist);
+            box-shadow: 0 0 10px rgba(74, 155, 139, 0.5);
+        }
+
+        .timeline-item.current {
+            border-color: var(--accent-gold);
+            background: rgba(201, 162, 39, 0.1);
+        }
+
+        .timeline-date {
+            font-family: var(--font-display);
+            font-size: 12px;
+            color: var(--accent-gold);
+            margin-bottom: 4px;
+        }
+
+        .timeline-item.archived .timeline-date {
+            color: var(--accent-mist);
+        }
+
+        .timeline-desc {
+            font-size: 13px;
+            color: var(--text-primary);
+            line-height: 1.5;
+        }
+
+        .timeline-empty {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        .modal-footer {
+            padding: 20px 28px;
+            border-top: 1px solid var(--border-gold);
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        .rune-btn {
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-family: var(--font-display);
+            font-size: 12px;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: none;
+        }
+
+        .rune-btn-primary {
+            background: var(--gradient-gold);
+            color: var(--bg-deep);
+        }
+
+        .rune-btn-primary:hover {
+            box-shadow: 0 0 25px rgba(201, 162, 39, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .rune-btn-secondary {
+            background: transparent;
+            border: 1px solid var(--border-gold);
+            color: var(--text-secondary);
+        }
+
+        .rune-btn-secondary:hover {
+            border-color: var(--accent-gold);
+            color: var(--accent-gold);
+        }
+
+        .rune-btn-danger {
+            background: transparent;
+            border: 1px solid var(--accent-ember);
+            color: var(--accent-ember);
+        }
+
+        .rune-btn-danger:hover {
+            background: var(--accent-ember);
+            color: var(--bg-deep);
+        }
+
+        .rune-btn-archive {
+            background: var(--gradient-magic);
+            color: var(--text-primary);
+            border: 1px solid rgba(123, 104, 238, 0.5);
+        }
+
+        .rune-btn-archive:hover {
+            box-shadow: 0 0 25px rgba(123, 104, 238, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .rune-btn-archive.archived {
+            background: var(--accent-mist);
+            color: var(--bg-deep);
+            border-color: var(--accent-mist);
+        }
+
+        body.dragging {
+            cursor: grabbing;
+        }
+
+        .chamber-scroll.dragging {
+            opacity: 0.6;
+            cursor: grabbing;
+            transform: rotate(2deg) scale(1.02);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        @media (max-width: 1024px) {
+            .sanctum-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .scroll-archive {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-texture"></div>
+
+    <header class="temple-header">
+        <div class="temple-brand">
+            <div class="temple-seal">⚔️</div>
+            <div class="temple-title">LIFE RPG</div>
+        </div>
+        <nav class="temple-nav">
+            <a href="index.html" class="nav-rune">世界地图</a>
+            <a href="admin.html" class="nav-rune">命名管理</a>
+            <a href="quest-admin.html" class="nav-rune">任务管理</a>
+            <a href="level-admin.html" class="nav-rune">关卡管理</a>
+            <a href="calendar.html" class="nav-rune active">日历视图</a>
+        </nav>
+    </header>
+
+    <main class="sanctum-layout">
+        <!-- 左侧卷轴库 -->
+        <aside class="scroll-archive">
+            <div class="archive-header">
+                <div class="archive-title">待分配卷轴</div>
+                <div class="archive-subtitle">拖拽卷轴至时间密室</div>
+            </div>
+
+            <div class="scroll-collection" id="scrollCollection">
+                <!-- 动态生成 -->
+            </div>
+
+            <div class="sanctum-stats">
+                <div class="stats-title">📊 本月洞察</div>
+                <div class="stats-grid">
+                    <div class="stat-relic">
+                        <div class="stat-number" id="statCompleted">0</div>
+                        <div class="stat-label">已完成</div>
+                    </div>
+                    <div class="stat-relic">
+                        <div class="stat-number" id="statActive">0</div>
+                        <div class="stat-label">活跃日</div>
+                    </div>
+                    <div class="stat-relic">
+                        <div class="stat-number" id="statStreak">0</div>
+                        <div class="stat-label">连续</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- 右侧时间圣殿 -->
+        <section class="time-sanctum">
+            <div class="sanctum-nav">
+                <div class="chronicle-controls">
+                    <button class="chronicle-arrow" onclick="changeMonth(-1)">◀</button>
+                    <h2 class="chronicle-title" id="chronicleTitle">2025年 一月</h2>
+                    <button class="chronicle-arrow" onclick="changeMonth(1)">▶</button>
+                </div>
+                <div class="view-glyphs">
+                    <button class="glyph-btn active" onclick="switchView('month')">月</button>
+                    <button class="glyph-btn" onclick="switchView('week')">周</button>
+                </div>
+            </div>
+
+            <div class="chamber-grid" id="chamberGrid">
+                <!-- 动态生成 -->
+            </div>
+        </section>
+    </main>
+
+    <!-- 卷轴编辑弹窗 -->
+    <div class="scroll-modal-overlay" id="scrollModal">
+        <div class="scroll-modal">
+            <div class="modal-header">
+                <div>
+                    <div class="modal-title">📜 卷轴记录</div>
+                    <div class="modal-date" id="modalDate">2025年1月15日</div>
+                </div>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-chamber">
+                    <label>卷轴来源</label>
+                    <div class="checkpoint-display" id="modalCheckpoint">
+                        史东薇尔城 › 探索外围 › 检查点1
+                        <div class="checkpoint-path">关卡路径</div>
+                    </div>
+                </div>
+
+                <div class="form-chamber">
+                    <label>完成记录</label>
+                    <textarea id="entryDescription" placeholder="记录今日进展、感悟与反思..."></textarea>
+                </div>
+
+                <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div class="form-chamber">
+                        <label>总历时</label>
+                        <div class="duration-display" id="totalDurationDisplay">1 天</div>
+                    </div>
+                    <div class="form-chamber">
+                        <label>实际历时</label>
+                        <div class="duration-display" id="actualDurationDisplay">1 天</div>
+                    </div>
+                </div>
+
+                <div class="form-chamber" id="historyTimelineContainer" style="display: none;">
+                    <label>历史记录</label>
+                    <div class="history-timeline" id="historyTimeline">
+                        <!-- 动态生成 -->
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="rune-btn rune-btn-danger" id="deleteBtn" onclick="deleteEntry()">销毁</button>
+                <button class="rune-btn rune-btn-archive" id="archiveBtn" onclick="archiveEntry()" title="归档后该检查项将被标记为完成，历史日期的相同检查项将显示删除线">归档</button>
+                <button class="rune-btn rune-btn-primary" onclick="saveEntry()">铭刻</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 数据存储
+        let adminData = {
+            tags: [],
+            landmarks: [],
+            landmarkQuests: {},
+            questLevels: {},
+            calendarEntries: {},
+            checkpointCompletions: {}
+        };
+
+        // 状态
+        let currentDate = new Date();
+        let currentView = 'month';
+        let draggedCheckpoint = null;
+        let selectedDate = null;
+        let editingEntryId = null;
+
+        /**
+         * 初始化
+         */
+        function init() {
+            try {
+                loadData();
+                renderScrollArchive();
+                renderChamberGrid();
+                updateStats();
+                bindModalEvents();
+            } catch (error) {
+                console.error('初始化失败:', error);
+            }
+        }
+
+        /**
+         * 绑定弹窗事件
+         */
+        function bindModalEvents() {
+            const modal = document.getElementById('scrollModal');
+            if (modal) {
+                LifeRPG.events.add(modal, 'click', function(e) {
+                    if (e.target === this) closeModal();
+                });
+            }
+        }
+
+        /**
+         * 加载数据
+         */
+        function loadData() {
+            try {
+                const savedData = LifeRPG.data.load();
+                if (savedData) {
+                    adminData = {
+                        ...adminData,
+                        ...savedData
+                    };
+                    if (!adminData.calendarEntries) adminData.calendarEntries = {};
+                    if (!adminData.checkpointCompletions) adminData.checkpointCompletions = {};
+                }
+            } catch (error) {
+                console.error('加载数据失败:', error);
+            }
+        }
+
+        /**
+         * 保存数据
+         */
+        function saveData() {
+            try {
+                LifeRPG.data.save(adminData);
+            } catch (error) {
+                console.error('保存数据失败:', error);
+            }
+        }
+
+        /**
+         * 获取检查点的完成历史
+         */
+        function getCheckpointHistory(checkpointId) {
+            return adminData.checkpointCompletions[checkpointId] || [];
+        }
+
+        /**
+         * 获取检查点的完成日期（归档日期）
+         */
+        function getCheckpointArchiveDate(checkpointId) {
+            const history = getCheckpointHistory(checkpointId);
+            const archived = history.find(h => h.archived);
+            return archived ? archived.date : null;
+        }
+
+        /**
+         * 判断检查项在指定日期的显示状态
+         */
+        function getEntryStatusForDate(checkpointId, dateStr) {
+            const history = getCheckpointHistory(checkpointId);
+            const currentRecord = history.find(h => h.date === dateStr);
+            const archivedRecord = history.find(h => h.archived);
+
+            if (currentRecord && currentRecord.archived) {
+                return 'archive-day';
+            }
+
+            if (archivedRecord) {
+                const entryTime = new Date(dateStr).getTime();
+                const archiveTime = new Date(archivedRecord.date).getTime();
+
+                if (entryTime < archiveTime) return 'before-archive';
+                if (entryTime === archiveTime) return 'archive-day';
+                return 'no-archive';
+            }
+
+            return 'no-archive';
+        }
+
+        /**
+         * 渲染卷轴库（左侧）
+         */
+        function renderScrollArchive() {
+            try {
+                const container = document.getElementById('scrollCollection');
+                if (!container) return;
+
+                let html = '';
+
+                (adminData.landmarks || []).forEach(landmark => {
+                    const quests = adminData.landmarkQuests[landmark.id] || [];
+                    if (quests.length === 0) return;
+
+                    html += `
+                        <div class="landmark-tome" data-landmark="${landmark.id}">
+                            <div class="tome-header" onclick="toggleTome(this)">
+                                <div class="tome-title">
+                                    ${landmark.icon} ${LifeRPG.security.escapeHtml(landmark.name)}
+                                </div>
+                                <span class="tome-toggle">▼</span>
+                            </div>
+                            <div class="tome-content">
+                    `;
+
+                    quests.forEach(quest => {
+                        const levels = adminData.questLevels[quest.id] || [];
+
+                        levels.forEach(level => {
+                            html += `
+                                <div class="quest-scroll">
+                                    <div class="quest-name">${LifeRPG.security.escapeHtml(quest.name)} › ${LifeRPG.security.escapeHtml(level.name)}</div>
+                            `;
+
+                            level.checkpoints.forEach((cp, idx) => {
+                                const archiveDate = getCheckpointArchiveDate(cp.id);
+                                const isArchived = !!archiveDate;
+                                const history = getCheckpointHistory(cp.id);
+                                const actualDays = history.length;
+                                html += `
+                                    <div class="checkpoint-parchment ${isArchived ? 'completed' : ''}"
+                                        draggable="true"
+                                        data-cp-id="${cp.id}"
+                                        data-level-id="${level.id}"
+                                        data-quest-id="${quest.id}"
+                                        data-cp-name="${LifeRPG.security.escapeHtml(cp.name || '检查点' + (idx + 1))}"
+                                        data-landmark="${LifeRPG.security.escapeHtml(landmark.name)}"
+                                        data-quest="${LifeRPG.security.escapeHtml(quest.name)}"
+                                        data-level="${LifeRPG.security.escapeHtml(level.name)}"
+                                        data-days="${actualDays}">
+                                        <div class="parchment-text">${LifeRPG.security.escapeHtml(cp.name || '检查点' + (idx + 1))}</div>
+                                        <div class="parchment-days">${isArchived ? '已归档 ' + archiveDate : (actualDays > 0 ? actualDays + '天' : '未开始')}</div>
+                                    </div>
+                                `;
+                            });
+
+                            html += '</div>';
+                        });
+                    });
+
+                    html += '</div></div>';
+                });
+
+                container.innerHTML = html || `
+                    <div class="empty-archive">
+                        <div class="empty-icon">📜</div>
+                        <div>暂无卷轴</div>
+                        <div style="font-size: 11px; margin-top: 8px;">请先创建关卡</div>
+                    </div>
+                `;
+
+                bindParchmentDragEvents();
+            } catch (error) {
+                console.error('渲染卷轴库失败:', error);
+            }
+        }
+
+        /**
+         * 折叠/展开卷轴
+         */
+        function toggleTome(header) {
+            try {
+                const tome = header.closest('.landmark-tome');
+                if (tome) tome.classList.toggle('collapsed');
+            } catch (error) {
+                console.error('切换卷轴失败:', error);
+            }
+        }
+
+        /**
+         * 绑定卷轴拖拽事件
+         */
+        function bindParchmentDragEvents() {
+            try {
+                const parchments = document.querySelectorAll('.checkpoint-parchment');
+                parchments.forEach(p => {
+                    LifeRPG.events.add(p, 'dragstart', function(e) {
+                        draggedCheckpoint = {
+                            id: this.dataset.cpId,
+                            levelId: this.dataset.levelId,
+                            questId: this.dataset.questId,
+                            name: this.dataset.cpName,
+                            landmark: this.dataset.landmark,
+                            quest: this.dataset.quest,
+                            level: this.dataset.level,
+                            days: this.dataset.days
+                        };
+                        this.classList.add('dragging');
+                        document.body.classList.add('dragging');
+                        e.dataTransfer.effectAllowed = 'copy';
+                    });
+
+                    LifeRPG.events.add(p, 'dragend', function() {
+                        this.classList.remove('dragging');
+                        document.body.classList.remove('dragging');
+                    });
+                });
+            } catch (error) {
+                console.error('绑定卷轴拖拽事件失败:', error);
+            }
+        }
+
+        /**
+         * 渲染时间密室网格
+         */
+        function renderChamberGrid() {
+            try {
+                const grid = document.getElementById('chamberGrid');
+                if (!grid) return;
+
+                const year = currentDate.getFullYear();
+                const month = currentDate.getMonth();
+
+                // 更新标题
+                const monthNames = LifeRPG.constants.MONTH_NAMES;
+                document.getElementById('chronicleTitle').textContent = `${year}年 ${monthNames[month]}`;
+
+                // 星期标题
+                const weekdays = LifeRPG.constants.WEEKDAYS;
+                let html = weekdays.map(d => `<div class="weekday-pillar">${d}</div>`).join('');
+
+                // 计算日期范围
+                const firstDay = new Date(year, month, 1);
+                const startDate = new Date(firstDay);
+                startDate.setDate(startDate.getDate() - firstDay.getDay());
+
+                const today = new Date();
+
+                // 生成42天
+                for (let i = 0; i < 42; i++) {
+                    const date = new Date(startDate);
+                    date.setDate(startDate.getDate() + i);
+
+                    const isToday = date.toDateString() === today.toDateString();
+                    const isOtherMonth = date.getMonth() !== month;
+                    const dateStr = formatDate(date);
+                    const entries = adminData.calendarEntries[dateStr] || [];
+
+                    html += `
+                        <div class="time-chamber ${isToday ? 'today' : ''} ${isOtherMonth ? 'other-month' : ''}"
+                            data-date="${dateStr}">
+                            <div class="chamber-date">
+                                <span>${date.getDate()}</span>
+                                ${entries.length > 0 ? `<span class="chamber-count">${entries.length}</span>` : ''}
+                            </div>
+                            <div class="chamber-scrolls">
+                                ${entries.slice(0, 4).map(e => {
+                                    const status = getEntryStatusForDate(e.checkpointId, dateStr);
+                                    const statusClass = status === 'before-archive' ? 'before-archive' :
+                                                       status === 'archive-day' ? 'archive-day' : '';
+                                    const cpHistory = getCheckpointHistory(e.checkpointId);
+                                    const actualDays = cpHistory.length;
+                                    return `
+                                    <div class="chamber-scroll ${statusClass}"
+                                        draggable="true"
+                                        data-entry-id="${e.id}"
+                                        data-cp-id="${e.checkpointId}"
+                                        data-cp-name="${LifeRPG.security.escapeHtml(e.checkpointName)}"
+                                        data-level-id="${e.levelId}"
+                                        data-quest-id="${e.questId}"
+                                        data-landmark="${LifeRPG.security.escapeHtml(e.landmarkName)}"
+                                        data-quest="${LifeRPG.security.escapeHtml(e.questName)}"
+                                        data-level="${LifeRPG.security.escapeHtml(e.levelName)}"
+                                        data-source-date="${dateStr}"
+                                        onclick="openEntryModal('${dateStr}', '${e.id}')">
+                                        <div class="scroll-title">${LifeRPG.security.escapeHtml(e.checkpointName)}</div>
+                                        <div class="scroll-meta">${actualDays}天</div>
+                                    </div>
+                                `}).join('')}
+                                ${entries.length > 4 ? `
+                                    <div class="chamber-more" onclick="event.stopPropagation();">
+                                        +${entries.length - 4} 更多
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                grid.innerHTML = html;
+                bindChamberDragEvents();
+                bindScrollDragEvents();
+            } catch (error) {
+                console.error('渲染时间密室网格失败:', error);
+            }
+        }
+
+        /**
+         * 绑定日历内检查项拖拽事件
+         */
+        function bindScrollDragEvents() {
+            try {
+                const scrolls = document.querySelectorAll('.chamber-scroll[draggable="true"]');
+                scrolls.forEach(scroll => {
+                    LifeRPG.events.add(scroll, 'dragstart', function(e) {
+                        e.stopPropagation();
+                        draggedCheckpoint = {
+                            id: this.dataset.cpId,
+                            entryId: this.dataset.entryId,
+                            levelId: this.dataset.levelId,
+                            questId: this.dataset.questId,
+                            name: this.dataset.cpName,
+                            landmark: this.dataset.landmark,
+                            quest: this.dataset.quest,
+                            level: this.dataset.level,
+                            sourceDate: this.dataset.sourceDate,
+                            isMoving: true
+                        };
+                        this.classList.add('dragging');
+                        document.body.classList.add('dragging');
+                        e.dataTransfer.effectAllowed = 'move';
+                    });
+
+                    LifeRPG.events.add(scroll, 'dragend', function() {
+                        this.classList.remove('dragging');
+                        document.body.classList.remove('dragging');
+                    });
+                });
+            } catch (error) {
+                console.error('绑定检查项拖拽事件失败:', error);
+            }
+        }
+
+        /**
+         * 绑定密室拖拽事件
+         */
+        function bindChamberDragEvents() {
+            try {
+                const chambers = document.querySelectorAll('.time-chamber');
+                chambers.forEach(chamber => {
+                    LifeRPG.events.add(chamber, 'dragover', function(e) {
+                        e.preventDefault();
+                        this.classList.add('drag-over');
+                    });
+
+                    LifeRPG.events.add(chamber, 'dragleave', function() {
+                        this.classList.remove('drag-over');
+                    });
+
+                    LifeRPG.events.add(chamber, 'drop', function(e) {
+                        e.preventDefault();
+                        this.classList.remove('drag-over');
+
+                        if (!draggedCheckpoint) return;
+
+                        const dateStr = this.dataset.date;
+
+                        if (draggedCheckpoint.isMoving && draggedCheckpoint.sourceDate === dateStr) {
+                            draggedCheckpoint = null;
+                            return;
+                        }
+
+                        const entry = {
+                            id: Date.now().toString(),
+                            checkpointId: draggedCheckpoint.id,
+                            levelId: draggedCheckpoint.levelId,
+                            questId: draggedCheckpoint.questId,
+                            checkpointName: draggedCheckpoint.name,
+                            landmarkName: draggedCheckpoint.landmark,
+                            questName: draggedCheckpoint.quest,
+                            levelName: draggedCheckpoint.level,
+                            date: dateStr,
+                            description: '',
+                            completed: false
+                        };
+
+                        if (!adminData.calendarEntries[dateStr]) {
+                            adminData.calendarEntries[dateStr] = [];
+                        }
+                        adminData.calendarEntries[dateStr].push(entry);
+
+                        if (!adminData.checkpointCompletions[draggedCheckpoint.id]) {
+                            adminData.checkpointCompletions[draggedCheckpoint.id] = [];
+                        }
+                        adminData.checkpointCompletions[draggedCheckpoint.id].push({
+                            date: dateStr,
+                            entryId: entry.id,
+                            archived: false
+                        });
+
+                        saveData();
+                        renderScrollArchive();
+                        renderChamberGrid();
+                        updateStats();
+                        openEntryModal(dateStr, entry.id);
+                    });
+                });
+            } catch (error) {
+                console.error('绑定密室拖拽事件失败:', error);
+            }
+        }
+
+        /**
+         * 打开编辑弹窗
+         */
+        function openEntryModal(dateStr, entryId) {
+            try {
+                event.stopPropagation();
+                selectedDate = dateStr;
+                editingEntryId = entryId;
+
+                const entry = adminData.calendarEntries[dateStr].find(e => e.id === entryId);
+                if (!entry) return;
+
+                const date = new Date(dateStr);
+                document.getElementById('modalDate').textContent =
+                    `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+
+                document.getElementById('modalCheckpoint').innerHTML = `
+                    ${LifeRPG.security.escapeHtml(entry.checkpointName)}
+                    <div class="checkpoint-path">${LifeRPG.security.escapeHtml(entry.landmarkName)} › ${LifeRPG.security.escapeHtml(entry.questName)} › ${LifeRPG.security.escapeHtml(entry.levelName)}</div>
+                `;
+
+                document.getElementById('entryDescription').value = entry.description || '';
+
+                const history = getCheckpointHistory(entry.checkpointId);
+                const firstDate = history.length > 0 ? history[0].date : selectedDate;
+                const totalDuration = calculateDuration(firstDate, selectedDate);
+                document.getElementById('totalDurationDisplay').textContent = totalDuration + ' 天';
+
+                const actualDuration = history.length;
+                document.getElementById('actualDurationDisplay').textContent = actualDuration + ' 天';
+
+                renderHistoryTimeline(entry.checkpointId, selectedDate);
+
+                const archiveBtn = document.getElementById('archiveBtn');
+                const archiveDate = getCheckpointArchiveDate(entry.checkpointId);
+                const isArchivedOnThisDay = archiveDate === dateStr;
+
+                if (isArchivedOnThisDay) {
+                    archiveBtn.textContent = '✓ 已归档';
+                    archiveBtn.classList.add('archived');
+                    archiveBtn.title = '该检查项已在此日期归档';
+                } else if (archiveDate) {
+                    archiveBtn.textContent = '已归档于 ' + archiveDate;
+                    archiveBtn.classList.add('archived');
+                    archiveBtn.disabled = true;
+                    archiveBtn.title = `该检查项已于 ${archiveDate} 归档`;
+                } else {
+                    archiveBtn.textContent = '归档';
+                    archiveBtn.classList.remove('archived');
+                    archiveBtn.disabled = false;
+                    archiveBtn.title = '归档后该检查项将被标记为完成，历史日期的相同检查项将显示删除线';
+                }
+
+                document.getElementById('deleteBtn').style.display = 'block';
+                document.getElementById('scrollModal').classList.add('active');
+            } catch (error) {
+                console.error('打开编辑弹窗失败:', error);
+            }
+        }
+
+        /**
+         * 计算两个日期之间的天数
+         */
+        function calculateDuration(startDateStr, endDateStr) {
+            const start = new Date(startDateStr);
+            const end = new Date(endDateStr);
+            const diffTime = Math.abs(end - start);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+            return diffDays;
+        }
+
+        /**
+         * 渲染历史时间轴
+         */
+        function renderHistoryTimeline(checkpointId, currentDateStr) {
+            try {
+                const history = getCheckpointHistory(checkpointId);
+                const container = document.getElementById('historyTimelineContainer');
+                const timeline = document.getElementById('historyTimeline');
+
+                if (!container || !timeline) return;
+
+                if (history.length === 0) {
+                    container.style.display = 'none';
+                    return;
+                }
+
+                container.style.display = 'block';
+
+                const sortedHistory = [...history].sort((a, b) =>
+                    new Date(a.date) - new Date(b.date)
+                );
+
+                let html = '';
+                sortedHistory.forEach(h => {
+                    const entry = findEntryById(h.date, h.entryId);
+                    if (!entry) return;
+
+                    const isCurrentDay = h.date === currentDateStr;
+                    const isArchived = h.archived;
+
+                    html += `
+                        <div class="timeline-item ${isArchived ? 'archived' : ''} ${isCurrentDay ? 'current' : ''}">
+                            <div class="timeline-date">${h.date} ${isArchived ? '✓ 归档' : ''} ${isCurrentDay ? '(当前)' : ''}</div>
+                            <div class="timeline-desc">${entry.description ? LifeRPG.security.escapeHtml(entry.description) : '<span class="timeline-empty">暂无记录</span>'}</div>
+                        </div>
+                    `;
+                });
+
+                timeline.innerHTML = html || '<div class="timeline-empty">暂无历史记录</div>';
+            } catch (error) {
+                console.error('渲染历史时间轴失败:', error);
+            }
+        }
+
+        /**
+         * 根据日期和条目ID查找条目
+         */
+        function findEntryById(dateStr, entryId) {
+            const entries = adminData.calendarEntries[dateStr] || [];
+            return entries.find(e => e.id === entryId);
+        }
+
+        /**
+         * 关闭弹窗
+         */
+        function closeModal() {
+            try {
+                document.getElementById('scrollModal').classList.remove('active');
+                selectedDate = null;
+                editingEntryId = null;
+            } catch (error) {
+                console.error('关闭弹窗失败:', error);
+            }
+        }
+
+        /**
+         * 保存条目（铭刻）
+         */
+        function saveEntry() {
+            try {
+                if (!selectedDate || !editingEntryId) return;
+
+                const entry = adminData.calendarEntries[selectedDate].find(e => e.id === editingEntryId);
+                if (!entry) return;
+
+                entry.description = document.getElementById('entryDescription').value;
+                entry.completed = true;
+
+                if (!adminData.checkpointCompletions[entry.checkpointId]) {
+                    adminData.checkpointCompletions[entry.checkpointId] = [];
+                }
+
+                const existingIndex = adminData.checkpointCompletions[entry.checkpointId]
+                    .findIndex(h => h.date === selectedDate);
+
+                if (existingIndex === -1) {
+                    adminData.checkpointCompletions[entry.checkpointId].push({
+                        date: selectedDate,
+                        entryId: entry.id,
+                        archived: false
+                    });
+                }
+
+                saveData();
+                renderChamberGrid();
+                updateStats();
+                closeModal();
+            } catch (error) {
+                console.error('保存条目失败:', error);
+            }
+        }
+
+        /**
+         * 归档条目
+         */
+        function archiveEntry() {
+            try {
+                if (!selectedDate || !editingEntryId) return;
+
+                const entry = adminData.calendarEntries[selectedDate].find(e => e.id === editingEntryId);
+                if (!entry) return;
+
+                entry.description = document.getElementById('entryDescription').value;
+                entry.completed = true;
+                entry.archived = true;
+
+                if (!adminData.checkpointCompletions[entry.checkpointId]) {
+                    adminData.checkpointCompletions[entry.checkpointId] = [];
+                }
+
+                adminData.checkpointCompletions[entry.checkpointId].forEach(h => {
+                    h.archived = false;
+                });
+
+                const existingIndex = adminData.checkpointCompletions[entry.checkpointId]
+                    .findIndex(h => h.date === selectedDate);
+
+                if (existingIndex !== -1) {
+                    adminData.checkpointCompletions[entry.checkpointId][existingIndex].archived = true;
+                } else {
+                    adminData.checkpointCompletions[entry.checkpointId].push({
+                        date: selectedDate,
+                        entryId: entry.id,
+                        archived: true
+                    });
+                }
+
+                saveData();
+                renderChamberGrid();
+                updateStats();
+                closeModal();
+            } catch (error) {
+                console.error('归档条目失败:', error);
+            }
+        }
+
+        /**
+         * 删除条目
+         */
+        function deleteEntry() {
+            try {
+                if (!selectedDate || !editingEntryId) return;
+                if (!confirm('确定销毁此卷轴记录吗？')) return;
+
+                const entry = adminData.calendarEntries[selectedDate].find(e => e.id === editingEntryId);
+
+                adminData.calendarEntries[selectedDate] = adminData.calendarEntries[selectedDate]
+                    .filter(e => e.id !== editingEntryId);
+
+                if (adminData.calendarEntries[selectedDate].length === 0) {
+                    delete adminData.calendarEntries[selectedDate];
+                }
+
+                if (entry && adminData.checkpointCompletions[entry.checkpointId]) {
+                    adminData.checkpointCompletions[entry.checkpointId] =
+                        adminData.checkpointCompletions[entry.checkpointId].filter(h =>
+                            !(h.date === selectedDate && h.entryId === editingEntryId)
+                        );
+                    if (adminData.checkpointCompletions[entry.checkpointId].length === 0) {
+                        delete adminData.checkpointCompletions[entry.checkpointId];
+                    }
+                }
+
+                saveData();
+                renderScrollArchive();
+                renderChamberGrid();
+                updateStats();
+                closeModal();
+            } catch (error) {
+                console.error('删除条目失败:', error);
+            }
+        }
+
+        /**
+         * 切换月份
+         */
+        function changeMonth(delta) {
+            try {
+                currentDate.setMonth(currentDate.getMonth() + delta);
+                renderChamberGrid();
+                updateStats();
+            } catch (error) {
+                console.error('切换月份失败:', error);
+            }
+        }
+
+        /**
+         * 切换视图
+         */
+        function switchView(view) {
+            try {
+                currentView = view;
+                document.querySelectorAll('.glyph-btn').forEach(b => b.classList.remove('active'));
+                event.target.classList.add('active');
+            } catch (error) {
+                console.error('切换视图失败:', error);
+            }
+        }
+
+        /**
+         * 更新统计
+         */
+        function updateStats() {
+            try {
+                const year = currentDate.getFullYear();
+                const month = currentDate.getMonth();
+
+                let completed = 0;
+                let activeDays = 0;
+                let currentStreak = 0;
+
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const dateStr = formatDate(new Date(year, month, day));
+                    const entries = adminData.calendarEntries[dateStr] || [];
+
+                    if (entries.length > 0) {
+                        activeDays++;
+                        completed += entries.filter(e => e.completed).length;
+                    }
+                }
+
+                const today = new Date();
+                for (let i = 0; i < 365; i++) {
+                    const d = new Date(today);
+                    d.setDate(d.getDate() - i);
+                    const dateStr = formatDate(d);
+                    const entries = adminData.calendarEntries[dateStr] || [];
+
+                    if (entries.some(e => e.completed)) {
+                        if (i === 0 || currentStreak > 0) currentStreak++;
+                    } else {
+                        if (i > 0) break;
+                    }
+                }
+
+                document.getElementById('statCompleted').textContent = completed;
+                document.getElementById('statActive').textContent = activeDays;
+                document.getElementById('statStreak').textContent = currentStreak;
+            } catch (error) {
+                console.error('更新统计失败:', error);
+            }
+        }
+
+        /**
+         * 格式化日期
+         */
+        function formatDate(date) {
+            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+        }
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
