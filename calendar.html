@@ -355,6 +355,93 @@
             margin: 0 30px 30px;
             border-radius: 8px;
             overflow: hidden;
+            position: relative;
+        }
+
+        /* 检查项条带 */
+        .checkpoint-stripe {
+            position: absolute;
+            height: 24px;
+            border-radius: 4px;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            padding: 0 8px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            z-index: 5;
+        }
+
+        .checkpoint-stripe:hover {
+            z-index: 10;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            transform: translateY(-1px);
+        }
+
+        /* 跨天条带 */
+        .checkpoint-stripe.continuous {
+            border-radius: 0;
+        }
+
+        .checkpoint-stripe.continuous-start {
+            border-radius: 4px 0 0 4px;
+        }
+
+        .checkpoint-stripe.continuous-end {
+            border-radius: 0 4px 4px 0;
+        }
+
+        .checkpoint-stripe.continuous-start.continuous-end {
+            border-radius: 4px;
+        }
+
+        /* 条带颜色主题 */
+        .checkpoint-stripe.theme-gold {
+            background: rgba(201, 162, 39, 0.25);
+            border: 1px solid rgba(201, 162, 39, 0.5);
+            color: var(--accent-gold);
+        }
+
+        .checkpoint-stripe.theme-ember {
+            background: rgba(183, 94, 65, 0.25);
+            border: 1px solid rgba(183, 94, 65, 0.5);
+            color: var(--accent-ember);
+        }
+
+        .checkpoint-stripe.theme-mist {
+            background: rgba(74, 155, 139, 0.25);
+            border: 1px solid rgba(74, 155, 139, 0.5);
+            color: var(--accent-mist);
+        }
+
+        .checkpoint-stripe.theme-magic {
+            background: rgba(123, 104, 238, 0.25);
+            border: 1px solid rgba(123, 104, 238, 0.5);
+            color: var(--accent-magic);
+        }
+
+        .checkpoint-stripe.theme-slate {
+            background: rgba(139, 119, 101, 0.25);
+            border: 1px solid rgba(139, 119, 101, 0.5);
+            color: var(--text-secondary);
+        }
+
+        /* 归档状态 */
+        .checkpoint-stripe.archived {
+            opacity: 0.5;
+            text-decoration: line-through;
+        }
+
+        /* 条带标签 */
+        .stripe-tag {
+            font-size: 9px;
+            margin-left: 6px;
+            padding: 1px 4px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 3px;
         }
 
         .weekday-pillar {
@@ -435,66 +522,146 @@
             overflow-y: auto;
         }
 
-        .chamber-scroll {
-            background: var(--bg-elevated);
-            border: 1px solid var(--border-gold);
-            border-radius: 4px;
-            padding: 8px 10px;
-            font-size: 12px;
+        .checkpoint-stripe {
             display: flex;
             align-items: center;
-            gap: 8px;
+            padding: 6px 8px;
+            border-radius: 4px;
             cursor: pointer;
             transition: all 0.2s ease;
-            position: relative;
+            min-height: 28px;
         }
 
-        .chamber-scroll:hover {
-            border-color: var(--accent-gold);
-            background: var(--bg-panel);
-        }
-
-        .chamber-scroll.completed {
-            opacity: 0.6;
-        }
-
-        .chamber-scroll.completed .scroll-title {
-            text-decoration: line-through;
-            color: var(--text-secondary);
-        }
-
-        .chamber-scroll.before-archive {
-            opacity: 0.5;
-        }
-
-        .chamber-scroll.before-archive .scroll-title {
-            text-decoration: line-through;
-            color: var(--text-muted);
-        }
-
-        .chamber-scroll.archive-day {
-            background: rgba(201, 162, 39, 0.15);
-            border-color: var(--accent-gold);
-            box-shadow: 0 0 10px rgba(201, 162, 39, 0.2);
-        }
-
-        .chamber-scroll.archive-day .scroll-title {
-            color: var(--accent-gold);
-            font-weight: 600;
-        }
-
-        .scroll-title {
+        .stripe-name {
             flex: 1;
+            font-size: 12px;
+            color: var(--text-primary);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            color: var(--text-primary);
         }
 
-        .scroll-meta {
-            font-size: 10px;
-            color: var(--text-muted);
+        .stripe-tags {
+            display: flex;
+            gap: 4px;
+            margin: 0 8px;
             flex-shrink: 0;
+        }
+
+        .stripe-tag {
+            font-size: 9px;
+            padding: 1px 4px;
+            background: rgba(255,255,255,0.15);
+            border-radius: 2px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+
+        .stripe-streak {
+            font-size: 10px;
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            color: var(--accent-gold);
+            flex-shrink: 0;
+        }
+
+        /* 条带颜色编码 - 根据关卡/任务类型 */
+        .checkpoint-stripe.stripe-quest-explore {
+            background: rgba(74, 155, 139, 0.25);
+            border-left: 3px solid var(--accent-mist);
+        }
+
+        .checkpoint-stripe.stripe-quest-battle {
+            background: rgba(201, 100, 100, 0.25);
+            border-left: 3px solid var(--accent-ember);
+        }
+
+        .checkpoint-stripe.stripe-quest-study {
+            background: rgba(123, 104, 238, 0.25);
+            border-left: 3px solid var(--accent-magic);
+        }
+
+        .checkpoint-stripe.stripe-quest-health {
+            background: rgba(100, 180, 100, 0.25);
+            border-left: 3px solid #64b464;
+        }
+
+        .checkpoint-stripe.stripe-quest-creative {
+            background: rgba(201, 162, 39, 0.25);
+            border-left: 3px solid var(--accent-gold);
+        }
+
+        .checkpoint-stripe.stripe-default {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-gold);
+        }
+
+        .checkpoint-stripe:hover {
+            filter: brightness(1.1);
+        }
+
+        .checkpoint-stripe.before-archive {
+            opacity: 0.5;
+        }
+
+        .checkpoint-stripe.before-archive .stripe-name {
+            text-decoration: line-through;
+            color: var(--text-muted);
+        }
+
+        .checkpoint-stripe.archive-day {
+            background: rgba(201, 162, 39, 0.35);
+            border-color: var(--accent-gold);
+            box-shadow: 0 0 8px rgba(201, 162, 39, 0.3);
+        }
+
+        /* 单独条带 */
+        .checkpoint-stripe.solo {
+            border-radius: 4px;
+        }
+
+        /* 连续段开始 */
+        .checkpoint-stripe.start {
+            border-radius: 4px 0 0 4px;
+            border-right: none;
+        }
+
+        /* 连续段中间 */
+        .checkpoint-stripe.middle {
+            border-radius: 0;
+            border-left: 1px dashed rgba(255,255,255,0.3);
+            border-right: none;
+        }
+
+        /* 连续段结束 */
+        .checkpoint-stripe.end {
+            border-radius: 0 4px 4px 0;
+            border-left: 1px dashed rgba(255,255,255,0.3);
+        }
+
+        /* 连续条带渐变色 */
+        .checkpoint-stripe.continuous {
+            background: linear-gradient(90deg, var(--stripe-color) 0%, var(--stripe-color-light) 100%);
+        }
+
+        /* 连续段悬停高亮 */
+        .checkpoint-stripe.continuous:hover,
+        .checkpoint-stripe.continuous.highlight {
+            filter: brightness(1.2);
+            box-shadow: 0 0 10px rgba(201, 162, 39, 0.5);
+            z-index: 100;
+        }
+
+        /* 连续天数徽章 */
+        .streak-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+            font-size: 10px;
+            color: var(--accent-ember);
+            margin-left: 4px;
+            font-weight: 600;
         }
 
         .chamber-more {
@@ -1012,7 +1179,7 @@
             cursor: grabbing;
         }
 
-        .chamber-scroll.dragging {
+        .checkpoint-stripe.dragging {
             opacity: 0.6;
             cursor: grabbing;
             transform: rotate(2deg) scale(1.02);
@@ -1330,6 +1497,91 @@
         }
 
         /**
+         * 计算检查项的连续日期段
+         * @param {string} checkpointId - 检查点ID
+         * @returns {Array} - 连续日期段数组 [{startDate, endDate, duration}, ...]
+         */
+        function calculateContinuousRanges(checkpointId) {
+            const history = getCheckpointHistory(checkpointId);
+            if (history.length === 0) return [];
+
+            // 提取所有日期并排序
+            const dates = history.map(h => h.date).sort();
+
+            const ranges = [];
+            let currentRange = {
+                startDate: dates[0],
+                endDate: dates[0]
+            };
+
+            for (let i = 1; i < dates.length; i++) {
+                const prevDate = new Date(dates[i - 1]);
+                const currDate = new Date(dates[i]);
+
+                // 计算日期差（天数）
+                const diffTime = currDate - prevDate;
+                const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+                if (diffDays === 1) {
+                    // 连续日期，扩展当前段
+                    currentRange.endDate = dates[i];
+                } else {
+                    // 不连续，保存当前段并开始新段
+                    currentRange.duration = calculateDuration(currentRange.startDate, currentRange.endDate);
+                    ranges.push(currentRange);
+                    currentRange = {
+                        startDate: dates[i],
+                        endDate: dates[i]
+                    };
+                }
+            }
+
+            // 保存最后一个段
+            currentRange.duration = calculateDuration(currentRange.startDate, currentRange.endDate);
+            ranges.push(currentRange);
+
+            return ranges;
+        }
+
+        /**
+         * 获取指定日期在连续段中的位置类型
+         * @param {string} checkpointId - 检查点ID
+         * @param {string} dateStr - 日期字符串
+         * @returns {Object} - { type: 'solo'|'start'|'middle'|'end'|'none', range: Object|null, streak: number }
+         */
+        function getStripePosition(checkpointId, dateStr) {
+            const ranges = calculateContinuousRanges(checkpointId);
+
+            for (const range of ranges) {
+                if (dateStr >= range.startDate && dateStr <= range.endDate) {
+                    const dates = [];
+                    let current = new Date(range.startDate);
+                    const end = new Date(range.endDate);
+
+                    while (current <= end) {
+                        dates.push(formatDate(new Date(current)));
+                        current.setDate(current.getDate() + 1);
+                    }
+
+                    const index = dates.indexOf(dateStr);
+                    const total = dates.length;
+
+                    if (total === 1) {
+                        return { type: 'solo', range, streak: 1 };
+                    } else if (index === 0) {
+                        return { type: 'start', range, streak: total };
+                    } else if (index === total - 1) {
+                        return { type: 'end', range, streak: total };
+                    } else {
+                        return { type: 'middle', range, streak: total };
+                    }
+                }
+            }
+
+            return { type: 'none', range: null, streak: 0 };
+        }
+
+        /**
          * 获取检查点的完成日期（归档日期）
          */
         function getCheckpointArchiveDate(checkpointId) {
@@ -1360,6 +1612,112 @@
             }
 
             return 'no-archive';
+        }
+
+        /**
+         * 计算检查项的连续天数（从指定日期往前连续的天数）
+         */
+        function calculateStreak(checkpointId, dateStr) {
+            const history = getCheckpointHistory(checkpointId);
+            if (history.length === 0) return 0;
+
+            // 按日期排序
+            const sortedDates = history
+                .map(h => h.date)
+                .sort((a, b) => new Date(b) - new Date(a));
+
+            const targetDate = new Date(dateStr);
+            let streak = 0;
+
+            // 检查目标日期是否有记录
+            const hasRecordOnTarget = sortedDates.includes(dateStr);
+            if (!hasRecordOnTarget) return 0;
+
+            // 从目标日期往前数连续天数
+            for (let i = 0; i < 365; i++) {
+                const checkDate = new Date(targetDate);
+                checkDate.setDate(targetDate.getDate() - i);
+                const checkDateStr = formatDate(checkDate);
+
+                if (sortedDates.includes(checkDateStr)) {
+                    streak++;
+                } else {
+                    break;
+                }
+            }
+
+            return streak;
+        }
+
+        /**
+         * 高亮显示连续段中的所有条带
+         * @param {string} checkpointId - 检查点ID
+         * @param {string} startDate - 连续段开始日期
+         * @param {string} endDate - 连续段结束日期
+         */
+        function highlightStreak(checkpointId, startDate, endDate) {
+            if (!startDate || !endDate || startDate === endDate) return;
+
+            // 找到同一检查点在同一连续段中的所有条带
+            const stripes = document.querySelectorAll(`.checkpoint-stripe[data-cp-id="${checkpointId}"]`);
+            stripes.forEach(stripe => {
+                const stripeStart = stripe.dataset.streakStart;
+                const stripeEnd = stripe.dataset.streakEnd;
+                if (stripeStart === startDate && stripeEnd === endDate) {
+                    stripe.classList.add('highlight');
+                }
+            });
+        }
+
+        /**
+         * 取消高亮所有条带
+         */
+        function unhighlightStreak() {
+            const highlighted = document.querySelectorAll('.checkpoint-stripe.highlight');
+            highlighted.forEach(stripe => {
+                stripe.classList.remove('highlight');
+            });
+        }
+
+        /**
+         * 根据任务名称获取颜色编码类名
+         */
+        function getQuestTypeClass(questName) {
+            if (!questName) return 'stripe-default';
+
+            const name = questName.toLowerCase();
+
+            // 探索类任务
+            if (name.includes('探索') || name.includes('发现') || name.includes('调研') ||
+                name.includes('考察') || name.includes('调查') || name.includes('观察')) {
+                return 'stripe-quest-explore';
+            }
+
+            // 战斗/挑战类任务
+            if (name.includes('战斗') || name.includes('挑战') || name.includes('攻克') ||
+                name.includes('突破') || name.includes('对抗') || name.includes('竞争')) {
+                return 'stripe-quest-battle';
+            }
+
+            // 学习/研究类任务
+            if (name.includes('学习') || name.includes('研究') || name.includes('阅读') ||
+                name.includes('技能') || name.includes('知识') || name.includes('课程')) {
+                return 'stripe-quest-study';
+            }
+
+            // 健康/运动类任务
+            if (name.includes('健康') || name.includes('运动') || name.includes('健身') ||
+                name.includes('锻炼') || name.includes('体能') || name.includes('养生')) {
+                return 'stripe-quest-health';
+            }
+
+            // 创造/艺术类任务
+            if (name.includes('创造') || name.includes('创作') || name.includes('艺术') ||
+                name.includes('写作') || name.includes('设计') || name.includes('制作')) {
+                return 'stripe-quest-creative';
+            }
+
+            return 'stripe-default';
         }
 
         /**
@@ -1485,7 +1843,7 @@
         }
 
         /**
-         * 渲染时间密室网格
+         * 渲染时间密室网格（条带化布局 - 跨格子延伸）
          */
         function renderChamberGrid() {
             try {
@@ -1510,7 +1868,7 @@
 
                 const today = new Date();
 
-                // 生成42天
+                // 生成42天的格子（仅包含日期数字，条带将使用绝对定位渲染）
                 for (let i = 0; i < 42; i++) {
                     const date = new Date(startDate);
                     date.setDate(startDate.getDate() + i);
@@ -1518,91 +1876,261 @@
                     const isToday = date.toDateString() === today.toDateString();
                     const isOtherMonth = date.getMonth() !== month;
                     const dateStr = formatDate(date);
-                    const entries = adminData.calendarEntries[dateStr] || [];
 
                     html += `
                         <div class="time-chamber ${isToday ? 'today' : ''} ${isOtherMonth ? 'other-month' : ''}"
-                            data-date="${dateStr}">
+                            data-date="${dateStr}" data-index="${i}">
                             <div class="chamber-date">
                                 <span>${date.getDate()}</span>
-                                ${entries.length > 0 ? `<span class="chamber-count">${entries.length}</span>` : ''}
-                            </div>
-                            <div class="chamber-scrolls">
-                                ${entries.slice(0, 4).map(e => {
-                                    const status = getEntryStatusForDate(e.checkpointId, dateStr);
-                                    const statusClass = status === 'before-archive' ? 'before-archive' :
-                                                       status === 'archive-day' ? 'archive-day' : '';
-                                    const cpHistory = getCheckpointHistory(e.checkpointId);
-                                    const actualDays = cpHistory.length;
-                                    return `
-                                    <div class="chamber-scroll ${statusClass}"
-                                        draggable="true"
-                                        data-entry-id="${e.id}"
-                                        data-cp-id="${e.checkpointId}"
-                                        data-cp-name="${LifeRPG.security.escapeHtml(e.checkpointName)}"
-                                        data-level-id="${e.levelId}"
-                                        data-quest-id="${e.questId}"
-                                        data-landmark="${LifeRPG.security.escapeHtml(e.landmarkName)}"
-                                        data-quest="${LifeRPG.security.escapeHtml(e.questName)}"
-                                        data-level="${LifeRPG.security.escapeHtml(e.levelName)}"
-                                        data-source-date="${dateStr}"
-                                        onclick="openEntryModal('${dateStr}', '${e.id}')">
-                                        <div class="scroll-title">${LifeRPG.security.escapeHtml(e.checkpointName)}</div>
-                                        <div class="scroll-meta">${actualDays}天</div>
-                                    </div>
-                                `}).join('')}
-                                ${entries.length > 4 ? `
-                                    <div class="chamber-more" onclick="event.stopPropagation();">
-                                        +${entries.length - 4} 更多
-                                    </div>
-                                ` : ''}
                             </div>
                         </div>
                     `;
                 }
 
                 grid.innerHTML = html;
+
+                // 渲染跨格子的检查点条带
+                renderCheckpointStripes(grid, startDate, year, month);
+
                 bindChamberDragEvents();
-                bindScrollDragEvents();
             } catch (error) {
                 console.error('渲染时间密室网格失败:', error);
             }
         }
 
         /**
-         * 绑定日历内检查项拖拽事件
+         * 计算检查点的连续日期范围
          */
-        function bindScrollDragEvents() {
-            try {
-                const scrolls = document.querySelectorAll('.chamber-scroll[draggable="true"]');
-                scrolls.forEach(scroll => {
-                    LifeRPG.events.add(scroll, 'dragstart', function(e) {
+        function calculateStripeRanges(checkpointId) {
+            const history = getCheckpointHistory(checkpointId);
+            if (history.length === 0) return [];
+
+            // 提取所有日期并排序
+            const dates = history.map(h => h.date).sort();
+
+            const ranges = [];
+            let currentRange = {
+                startDate: dates[0],
+                endDate: dates[0],
+                entries: [history.find(h => h.date === dates[0])]
+            };
+
+            for (let i = 1; i < dates.length; i++) {
+                const prevDate = new Date(dates[i - 1]);
+                const currDate = new Date(dates[i]);
+                const diffDays = Math.round((currDate - prevDate) / (1000 * 60 * 60 * 24));
+
+                if (diffDays === 1) {
+                    // 连续日期，扩展当前范围
+                    currentRange.endDate = dates[i];
+                    currentRange.entries.push(history.find(h => h.date === dates[i]));
+                } else {
+                    // 不连续，保存当前范围并开始新范围
+                    ranges.push({...currentRange});
+                    currentRange = {
+                        startDate: dates[i],
+                        endDate: dates[i],
+                        entries: [history.find(h => h.date === dates[i])]
+                    };
+                }
+            }
+
+            // 保存最后一个范围
+            ranges.push(currentRange);
+
+            // 计算每个范围的持续时间
+            ranges.forEach(range => {
+                range.duration = calculateDuration(range.startDate, range.endDate);
+            });
+
+            return ranges;
+        }
+
+        /**
+         * 渲染检查点条带（跨格子延伸）
+         */
+        function renderCheckpointStripes(grid, startDate, year, month) {
+            const themeColors = ['theme-gold', 'theme-ember', 'theme-mist', 'theme-magic', 'theme-slate'];
+            const checkpointThemes = {};
+            let themeIndex = 0;
+
+            // 构建日期索引映射（用于计算条带位置）
+            const dateIndexMap = {};
+            for (let i = 0; i < 42; i++) {
+                const date = new Date(startDate);
+                date.setDate(startDate.getDate() + i);
+                const dateStr = formatDate(date);
+                dateIndexMap[dateStr] = i;
+            }
+
+            // 收集每个检查点的所有条目
+            const checkpointData = {};
+            Object.keys(adminData.calendarEntries || {}).forEach(dateStr => {
+                const entries = adminData.calendarEntries[dateStr];
+                entries.forEach(entry => {
+                    if (!checkpointData[entry.checkpointId]) {
+                        checkpointData[entry.checkpointId] = {
+                            name: entry.checkpointName,
+                            entries: [],
+                            levelId: entry.levelId,
+                            questId: entry.questId,
+                            landmarkName: entry.landmarkName,
+                            questName: entry.questName,
+                            levelName: entry.levelName
+                        };
+                        // 分配主题色
+                        checkpointThemes[entry.checkpointId] = themeColors[themeIndex % themeColors.length];
+                        themeIndex++;
+                    }
+                    checkpointData[entry.checkpointId].entries.push({
+                        ...entry,
+                        date: dateStr
+                    });
+                });
+            });
+
+            // 为每个检查点计算连续范围并渲染条带
+            Object.keys(checkpointData).forEach(checkpointId => {
+                const cpData = checkpointData[checkpointId];
+                const ranges = calculateStripeRanges(checkpointId);
+
+                ranges.forEach(range => {
+                    const startIdx = dateIndexMap[range.startDate];
+                    const endIdx = dateIndexMap[range.endDate];
+
+                    // 只渲染在当前视图范围内的条带
+                    if (startIdx === undefined || endIdx === undefined) return;
+
+                    const duration = endIdx - startIdx + 1;
+                    const firstEntry = cpData.entries.find(e => e.date === range.startDate);
+                    if (!firstEntry) return;
+
+                    const archiveDate = getCheckpointArchiveDate(checkpointId);
+                    const isArchived = !!archiveDate;
+
+                    // 确定条带样式类
+                    let stripeClass = checkpointThemes[checkpointId];
+                    if (duration > 1) {
+                        stripeClass += ' continuous continuous-start';
+                    }
+                    if (isArchived) {
+                        stripeClass += ' archived';
+                    }
+
+                    // 计算条带位置（基于CSS Grid的百分比）
+                    const row = Math.floor(startIdx / 7);
+                    const col = startIdx % 7;
+                    const stripeWidth = duration * (100 / 7);
+
+                    // 获取标签
+                    const tags = firstEntry.tags || (firstEntry.tag ? [firstEntry.tag] : []);
+                    const tagHtml = tags.length > 0 ? `<span class="stripe-tag">${LifeRPG.security.escapeHtml(tags[0])}</span>` : '';
+
+                    // 创建条带元素
+                    const stripe = document.createElement('div');
+                    stripe.className = `checkpoint-stripe ${stripeClass}`;
+                    stripe.style.left = `${col * (100 / 7)}%`;
+                    stripe.style.top = `${row * 120 + 40}px`;
+                    stripe.style.width = `calc(${stripeWidth}% - 4px)`;
+                    stripe.style.margin = '2px';
+                    stripe.innerHTML = `${LifeRPG.security.escapeHtml(cpData.name)}${tagHtml}`;
+                    stripe.draggable = true;
+                    stripe.dataset.checkpointId = checkpointId;
+                    stripe.dataset.startDate = range.startDate;
+                    stripe.dataset.endDate = range.endDate;
+                    stripe.dataset.entryId = firstEntry.id;
+                    stripe.dataset.levelId = cpData.levelId;
+                    stripe.dataset.questId = cpData.questId;
+                    stripe.dataset.landmark = LifeRPG.security.escapeHtml(cpData.landmarkName);
+                    stripe.dataset.quest = LifeRPG.security.escapeHtml(cpData.questName);
+                    stripe.dataset.level = LifeRPG.security.escapeHtml(cpData.levelName);
+                    stripe.dataset.cpName = LifeRPG.security.escapeHtml(cpData.name);
+                    stripe.dataset.sourceDate = range.startDate;
+
+                    // 点击打开弹窗
+                    stripe.onclick = function(e) {
+                        e.stopPropagation();
+                        openEntryModal(range.startDate, firstEntry.id);
+                    };
+
+                    // 拖拽事件
+                    stripe.ondragstart = function(e) {
                         e.stopPropagation();
                         draggedCheckpoint = {
-                            id: this.dataset.cpId,
-                            entryId: this.dataset.entryId,
-                            levelId: this.dataset.levelId,
-                            questId: this.dataset.questId,
-                            name: this.dataset.cpName,
-                            landmark: this.dataset.landmark,
-                            quest: this.dataset.quest,
-                            level: this.dataset.level,
-                            sourceDate: this.dataset.sourceDate,
+                            id: checkpointId,
+                            entryId: firstEntry.id,
+                            levelId: cpData.levelId,
+                            questId: cpData.questId,
+                            name: cpData.name,
+                            landmark: cpData.landmarkName,
+                            quest: cpData.questName,
+                            level: cpData.levelName,
+                            sourceDate: range.startDate,
                             isMoving: true
                         };
                         this.classList.add('dragging');
                         document.body.classList.add('dragging');
                         e.dataTransfer.effectAllowed = 'move';
-                    });
+                    };
 
-                    LifeRPG.events.add(scroll, 'dragend', function() {
+                    stripe.ondragend = function() {
                         this.classList.remove('dragging');
                         document.body.classList.remove('dragging');
-                    });
+                    };
+
+                    grid.appendChild(stripe);
                 });
-            } catch (error) {
-                console.error('绑定检查项拖拽事件失败:', error);
-            }
+            });
+
+            // 调整条带垂直位置以避免重叠
+            adjustStripePositions(grid);
+        }
+
+        /**
+         * 调整条带垂直位置避免重叠
+         */
+        function adjustStripePositions(grid) {
+            const stripes = Array.from(grid.querySelectorAll('.checkpoint-stripe'));
+            const rowStripes = {};
+
+            // 按行分组
+            stripes.forEach(stripe => {
+                const top = parseInt(stripe.style.top);
+                const row = Math.floor((top - 40) / 120);
+                if (!rowStripes[row]) rowStripes[row] = [];
+                rowStripes[row].push(stripe);
+            });
+
+            // 每行内按开始位置排序并调整
+            Object.keys(rowStripes).forEach(row => {
+                const rowList = rowStripes[row];
+                rowList.sort((a, b) => parseFloat(a.style.left) - parseFloat(b.style.left));
+
+                const occupied = [];
+                rowList.forEach(stripe => {
+                    const left = parseFloat(stripe.style.left);
+                    const width = parseFloat(stripe.style.width);
+                    const right = left + width;
+
+                    // 找到合适的垂直位置
+                    let level = 0;
+                    let found = false;
+                    while (!found) {
+                        const levelTop = 40 + row * 120 + level * 28;
+                        const conflict = occupied.some(o =>
+                            o.level === level &&
+                            !(right <= o.left || left >= o.right)
+                        );
+                        if (!conflict) {
+                            found = true;
+                            stripe.style.top = `${levelTop}px`;
+                            occupied.push({ level, left, right });
+                        } else {
+                            level++;
+                        }
+                    }
+                });
+            });
         }
 
         /**
