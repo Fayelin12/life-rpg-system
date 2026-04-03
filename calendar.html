@@ -2448,7 +2448,7 @@
                         renderScrollArchive();
                         renderChamberGrid();
                         updateStats();
-                        openEntryModal(dateStr, entry.id);
+                        // 不自动打开弹窗，用户需要编辑时可点击条带打开
                     });
                 });
             } catch (error) {
