@@ -543,8 +543,9 @@
             border: 1px solid var(--border-gold);
             border-radius: 8px;
             width: 90%;
-            max-width: 480px;
-            max-height: 90vh;
+            max-width: 900px;
+            height: 85vh;
+            max-height: 85vh;
             overflow: hidden;
             transform: scaleY(0) translateY(50px);
             transform-origin: bottom;
@@ -559,35 +560,73 @@
         }
 
         .modal-header {
-            padding: 24px 28px;
+            padding: 16px 24px;
             border-bottom: 1px solid var(--border-gold);
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: 16px;
         }
 
-        .modal-title {
+        .modal-header-left {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            min-width: 0;
+        }
+
+        .checkpoint-breadcrumb {
+            font-size: 15px;
+            color: var(--text-primary);
             font-family: var(--font-display);
-            font-size: 18px;
-            letter-spacing: 2px;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 4px;
         }
 
-        .modal-date {
-            font-size: 12px;
-            color: var(--accent-gold);
-            margin-top: 4px;
+        .breadcrumb-path {
+            color: var(--text-muted);
+            font-size: 11px;
+            font-family: var(--font-body);
+            background: rgba(139, 119, 101, 0.15);
+            padding: 2px 8px;
+            border-radius: 4px;
+            letter-spacing: 0.5px;
+        }
+
+        .breadcrumb-path::before {
+            content: '◆';
+            margin-right: 4px;
+            opacity: 0.5;
+        }
+
+        .modal-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-shrink: 0;
         }
 
         .modal-close {
-            width: 36px;
-            height: 36px;
+            width: 32px;
+            height: 32px;
             border: 1px solid var(--border-gold);
             background: transparent;
             color: var(--text-secondary);
-            font-size: 20px;
+            font-size: 18px;
             cursor: pointer;
             border-radius: 6px;
             transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            margin-left: 6px;
         }
 
         .modal-close:hover {
@@ -595,10 +634,197 @@
             color: var(--accent-ember);
         }
 
+        .duration-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 14px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-gold);
+            border-radius: 6px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .duration-date {
+            font-family: var(--font-display);
+            color: var(--text-primary);
+            font-size: 13px;
+            letter-spacing: 1px;
+        }
+
+        .duration-divider {
+            width: 1px;
+            height: 16px;
+            background: var(--border-gold);
+            margin: 0 4px;
+        }
+
+        .duration-bar strong {
+            color: var(--accent-gold);
+            font-weight: normal;
+        }
+
+        .duration-separator {
+            color: var(--border-gold);
+        }
+
+        .tag-section {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-gold);
+            border-radius: 6px;
+            min-height: 40px;
+        }
+
+        .tag-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .tag-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 10px;
+            background: rgba(201, 162, 39, 0.15);
+            border: 1px solid rgba(201, 162, 39, 0.4);
+            border-radius: 4px;
+            font-size: 11px;
+            color: var(--accent-gold);
+            transition: all 0.3s ease;
+        }
+
+        .tag-item:hover {
+            background: rgba(201, 162, 39, 0.25);
+        }
+
+        .tag-item .tag-remove {
+            cursor: pointer;
+            opacity: 0.6;
+            font-size: 12px;
+            line-height: 1;
+        }
+
+        .tag-item .tag-remove:hover {
+            opacity: 1;
+        }
+
+        .tag-input-wrapper {
+            flex-shrink: 0;
+        }
+
+        .tag-input {
+            width: 90px;
+            padding: 4px 10px;
+            background: var(--bg-deep);
+            border: 1px solid var(--border-gold);
+            border-radius: 4px;
+            color: var(--text-primary);
+            font-size: 11px;
+            font-family: var(--font-body);
+            transition: all 0.3s ease;
+        }
+
+        .tag-input:hover,
+        .tag-input:focus {
+            border-color: var(--accent-gold);
+            outline: none;
+            width: 120px;
+        }
+
+        .tag-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .tag-suggestions {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            margin-top: 4px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border-gold);
+            border-radius: 6px;
+            max-height: 150px;
+            overflow-y: auto;
+            z-index: 100;
+            display: none;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .tag-suggestions.active {
+            display: block;
+        }
+
+        .tag-suggestion-item {
+            padding: 8px 12px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-bottom: 1px solid rgba(139, 119, 101, 0.1);
+        }
+
+        .tag-suggestion-item:last-child {
+            border-bottom: none;
+        }
+
+        .tag-suggestion-item:hover,
+        .tag-suggestion-item.active {
+            background: rgba(201, 162, 39, 0.1);
+            color: var(--accent-gold);
+        }
+
+        .tag-input-wrapper {
+            flex-shrink: 0;
+            position: relative;
+        }
+
         .modal-body {
-            padding: 24px 28px;
+            padding: 20px 24px 24px;
             flex: 1;
             overflow-y: auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        .modal-edit-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .modal-timeline-panel {
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-elevated);
+            border-radius: 8px;
+            padding: 16px;
+        }
+
+        .timeline-panel-title {
+            font-family: var(--font-display);
+            font-size: 12px;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(139, 119, 101, 0.3);
+        }
+
+        .timeline-panel-empty {
+            font-size: 13px;
+            color: var(--text-muted);
+            font-style: italic;
+            text-align: center;
+            padding: 40px 20px;
         }
 
         .form-chamber {
@@ -638,89 +864,81 @@
         }
 
         .form-chamber textarea {
-            resize: vertical;
-            min-height: 100px;
-        }
-
-        .checkpoint-display {
-            background: var(--bg-elevated);
-            border: 1px solid var(--border-gold);
-            border-radius: 6px;
-            padding: 14px;
-            font-size: 14px;
-            color: var(--text-primary);
-            border-left: 3px solid var(--accent-gold);
-        }
-
-        .checkpoint-path {
-            font-size: 11px;
-            color: var(--text-secondary);
-            margin-top: 4px;
-        }
-
-        .duration-display {
-            background: var(--bg-elevated);
-            border: 1px solid var(--border-gold);
-            border-radius: 6px;
-            padding: 12px 14px;
-            font-size: 14px;
-            color: var(--accent-gold);
-            font-family: var(--font-display);
+            resize: none;
+            min-height: 140px;
         }
 
         .history-timeline {
-            max-height: 150px;
+            flex: 1;
             overflow-y: auto;
-            padding-left: 20px;
-            border-left: 2px solid var(--border-gold);
+            max-height: none;
         }
 
         .timeline-item {
-            position: relative;
-            padding: 12px 16px;
-            margin-bottom: 12px;
-            background: var(--bg-elevated);
-            border-radius: 6px;
-            border: 1px solid var(--border-gold);
+            display: grid;
+            grid-template-columns: 80px 1fr;
+            gap: 8px;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(139, 119, 101, 0.15);
+            align-items: start;
         }
 
-        .timeline-item::before {
-            content: '';
-            position: absolute;
-            left: -26px;
-            top: 16px;
-            width: 10px;
-            height: 10px;
-            background: var(--accent-gold);
-            border-radius: 50%;
-            box-shadow: 0 0 10px rgba(201, 162, 39, 0.5);
+        .timeline-item:last-child {
+            border-bottom: none;
         }
 
-        .timeline-item.archived::before {
-            background: var(--accent-mist);
-            box-shadow: 0 0 10px rgba(74, 155, 139, 0.5);
+        .timeline-item.archived {
+            opacity: 0.6;
         }
 
         .timeline-item.current {
-            border-color: var(--accent-gold);
-            background: rgba(201, 162, 39, 0.1);
+            background: rgba(201, 162, 39, 0.08);
+            margin: 0 -6px;
+            padding: 8px 6px;
+            border-radius: 6px;
+            border-left: 2px solid var(--accent-gold);
         }
 
         .timeline-date {
-            font-family: var(--font-display);
-            font-size: 12px;
+            font-size: 10px;
+            color: var(--text-muted);
+            background: rgba(139, 119, 101, 0.12);
+            padding: 2px 6px;
+            border-radius: 4px;
+            line-height: 1.4;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            white-space: nowrap;
+            width: fit-content;
+        }
+
+        .timeline-item.current .timeline-date {
+            background: rgba(201, 162, 39, 0.2);
             color: var(--accent-gold);
-            margin-bottom: 4px;
         }
 
         .timeline-item.archived .timeline-date {
-            color: var(--accent-mist);
+            color: var(--text-muted);
+            background: rgba(74, 155, 139, 0.15);
         }
 
         .timeline-desc {
-            font-size: 13px;
+            font-size: 12px;
             color: var(--text-primary);
             line-height: 1.5;
+        }
+
+        .timeline-tag {
+            display: inline-block;
+            padding: 1px 6px;
+            background: rgba(201, 162, 39, 0.15);
+            border: 1px solid rgba(201, 162, 39, 0.3);
+            border-radius: 3px;
+            font-size: 10px;
+            color: var(--accent-gold);
+            margin-right: 6px;
+            margin-bottom: 4px;
         }
 
         .timeline-empty {
@@ -729,23 +947,16 @@
             font-style: italic;
         }
 
-        .modal-footer {
-            padding: 20px 28px;
-            border-top: 1px solid var(--border-gold);
-            display: flex;
-            justify-content: flex-end;
-            gap: 12px;
-        }
-
         .rune-btn {
-            padding: 12px 24px;
+            padding: 8px 16px;
             border-radius: 6px;
             font-family: var(--font-display);
-            font-size: 12px;
-            letter-spacing: 2px;
+            font-size: 11px;
+            letter-spacing: 1px;
             cursor: pointer;
             transition: all 0.3s ease;
             border: none;
+            white-space: nowrap;
         }
 
         .rune-btn-primary {
@@ -808,6 +1019,85 @@
             box-shadow: 0 5px 20px rgba(0, 0, 0, 0.5);
         }
 
+        /* 自定义确认弹窗 */
+        .confirm-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .confirm-modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .confirm-modal {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-gold);
+            border-radius: 8px;
+            padding: 32px 40px;
+            max-width: 360px;
+            width: 90%;
+            text-align: center;
+            transform: scale(0.9) translateY(20px);
+            transition: transform 0.3s ease;
+        }
+
+        .confirm-modal-overlay.active .confirm-modal {
+            transform: scale(1) translateY(0);
+        }
+
+        .confirm-modal-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .confirm-modal-title {
+            font-family: var(--font-display);
+            font-size: 18px;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+            letter-spacing: 1px;
+        }
+
+        .confirm-modal-message {
+            font-size: 14px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+
+        .confirm-modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        .confirm-modal-actions .rune-btn {
+            min-width: 80px;
+        }
+
+        .confirm-modal-actions .rune-btn-danger {
+            background: transparent;
+            border: 1px solid var(--accent-ember);
+            color: var(--accent-ember);
+        }
+
+        .confirm-modal-actions .rune-btn-danger:hover {
+            background: var(--accent-ember);
+            color: var(--bg-deep);
+        }
+
         @media (max-width: 1024px) {
             .sanctum-layout {
                 grid-template-columns: 1fr;
@@ -815,6 +1105,26 @@
 
             .scroll-archive {
                 display: none;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .scroll-modal {
+                max-width: 95%;
+                width: 95%;
+            }
+
+            .modal-body {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+
+            .modal-timeline-panel {
+                margin-top: 8px;
+            }
+
+            .history-timeline {
+                max-height: 200px;
             }
         }
     </style>
@@ -891,48 +1201,48 @@
     <div class="scroll-modal-overlay" id="scrollModal">
         <div class="scroll-modal">
             <div class="modal-header">
-                <div>
-                    <div class="modal-title">📜 卷轴记录</div>
-                    <div class="modal-date" id="modalDate">2025年1月15日</div>
+                <div class="modal-header-left">
+                    <div class="checkpoint-breadcrumb" id="modalCheckpoint">检查点1<span class="breadcrumb-path">史东薇尔城 › 探索外围 › 关卡名</span></div>
                 </div>
-                <button class="modal-close" onclick="closeModal()">×</button>
+                <div class="modal-actions">
+                    <button class="rune-btn rune-btn-danger" id="deleteBtn" onclick="deleteEntry()">销毁</button>
+                    <button class="rune-btn rune-btn-archive" id="archiveBtn" onclick="archiveEntry()" title="归档后该检查项将被标记为完成，历史日期的相同检查项将显示删除线">归档</button>
+                    <button class="rune-btn rune-btn-primary" onclick="saveEntry()">铭刻</button>
+                </div>
             </div>
             <div class="modal-body">
-                <div class="form-chamber">
-                    <label>卷轴来源</label>
-                    <div class="checkpoint-display" id="modalCheckpoint">
-                        史东薇尔城 › 探索外围 › 检查点1
-                        <div class="checkpoint-path">关卡路径</div>
+                <!-- 左侧：编辑面板 -->
+                <div class="modal-edit-panel">
+                    <div class="duration-bar">
+                        <span class="duration-date" id="modalDate">2025年1月15日</span>
+                        <span class="duration-divider"></span>
+                        <span class="duration-item">总历时: <strong id="totalDurationDisplay">1 天</strong></span>
+                        <span class="duration-separator">|</span>
+                        <span class="duration-item">实际: <strong id="actualDurationDisplay">1 天</strong></span>
                     </div>
+
+                    <div class="tag-section">
+                        <div class="tag-list" id="tagList"></div>
+                        <div class="tag-input-wrapper">
+                            <input type="text" id="tagInput" class="tag-input" placeholder="+ 标签" autocomplete="off">
+                            <div class="tag-suggestions" id="tagSuggestions"></div>
+                        </div>
+                    </div>
+
+                    <div class="form-chamber" style="margin-bottom: 0; flex: 1; display: flex; flex-direction: column;">
+                        <textarea id="entryDescription" placeholder="记录今日进展、感悟与反思..." style="flex: 1; min-height: 140px;"></textarea>
+                    </div>
+
+                    <button class="rune-btn rune-btn-secondary" id="copyNextBtn" onclick="copyToNextDay()" style="width: 100%;">复制到下一天</button>
                 </div>
 
-                <div class="form-chamber">
-                    <label>完成记录</label>
-                    <textarea id="entryDescription" placeholder="记录今日进展、感悟与反思..."></textarea>
-                </div>
-
-                <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                    <div class="form-chamber">
-                        <label>总历时</label>
-                        <div class="duration-display" id="totalDurationDisplay">1 天</div>
-                    </div>
-                    <div class="form-chamber">
-                        <label>实际历时</label>
-                        <div class="duration-display" id="actualDurationDisplay">1 天</div>
-                    </div>
-                </div>
-
-                <div class="form-chamber" id="historyTimelineContainer" style="display: none;">
-                    <label>历史记录</label>
+                <!-- 右侧：历史记录面板 -->
+                <div class="modal-timeline-panel" id="timelinePanel">
                     <div class="history-timeline" id="historyTimeline">
                         <!-- 动态生成 -->
                     </div>
+                    <div class="timeline-panel-empty" id="timelineEmpty" style="display: none;">暂无历史记录</div>
                 </div>
-            </div>
-            <div class="modal-footer">
-                <button class="rune-btn rune-btn-danger" id="deleteBtn" onclick="deleteEntry()">销毁</button>
-                <button class="rune-btn rune-btn-archive" id="archiveBtn" onclick="archiveEntry()" title="归档后该检查项将被标记为完成，历史日期的相同检查项将显示删除线">归档</button>
-                <button class="rune-btn rune-btn-primary" onclick="saveEntry()">铭刻</button>
             </div>
         </div>
     </div>
@@ -1382,14 +1692,16 @@
 
                 document.getElementById('modalCheckpoint').innerHTML = `
                     ${LifeRPG.security.escapeHtml(entry.checkpointName)}
-                    <div class="checkpoint-path">${LifeRPG.security.escapeHtml(entry.landmarkName)} › ${LifeRPG.security.escapeHtml(entry.questName)} › ${LifeRPG.security.escapeHtml(entry.levelName)}</div>
+                    <span class="breadcrumb-path">${LifeRPG.security.escapeHtml(entry.landmarkName)} › ${LifeRPG.security.escapeHtml(entry.questName)} › ${LifeRPG.security.escapeHtml(entry.levelName)}</span>
                 `;
 
                 document.getElementById('entryDescription').value = entry.description || '';
 
                 const history = getCheckpointHistory(entry.checkpointId);
-                const firstDate = history.length > 0 ? history[0].date : selectedDate;
-                const totalDuration = calculateDuration(firstDate, selectedDate);
+                const sortedHistory = [...history].sort((a, b) => new Date(a.date) - new Date(b.date));
+                const firstDate = sortedHistory.length > 0 ? sortedHistory[0].date : selectedDate;
+                const lastDate = sortedHistory.length > 0 ? sortedHistory[sortedHistory.length - 1].date : selectedDate;
+                const totalDuration = calculateDuration(firstDate, lastDate);
                 document.getElementById('totalDurationDisplay').textContent = totalDuration + ' 天';
 
                 const actualDuration = history.length;
@@ -1418,6 +1730,17 @@
                 }
 
                 document.getElementById('deleteBtn').style.display = 'block';
+
+                // 加载标签
+                loadCheckpointTags(entry.checkpointId, entry.tags || entry.tag);
+
+                // 更新复制按钮文字（周五显示"复制到下周一"）
+                const copyBtn = document.getElementById('copyNextBtn');
+                const currentDay = date.getDay();
+                copyBtn.textContent = currentDay === 5 ? '复制到下周一' : '复制到下一天';
+
+                // 禁止背景滚动
+                document.body.style.overflow = 'hidden';
                 document.getElementById('scrollModal').classList.add('active');
             } catch (error) {
                 console.error('打开编辑弹窗失败:', error);
@@ -1441,17 +1764,18 @@
         function renderHistoryTimeline(checkpointId, currentDateStr) {
             try {
                 const history = getCheckpointHistory(checkpointId);
-                const container = document.getElementById('historyTimelineContainer');
                 const timeline = document.getElementById('historyTimeline');
+                const emptyState = document.getElementById('timelineEmpty');
 
-                if (!container || !timeline) return;
+                if (!timeline) return;
 
                 if (history.length === 0) {
-                    container.style.display = 'none';
+                    timeline.innerHTML = '';
+                    if (emptyState) emptyState.style.display = 'block';
                     return;
                 }
 
-                container.style.display = 'block';
+                if (emptyState) emptyState.style.display = 'none';
 
                 const sortedHistory = [...history].sort((a, b) =>
                     new Date(a.date) - new Date(b.date)
@@ -1462,13 +1786,27 @@
                     const entry = findEntryById(h.date, h.entryId);
                     if (!entry) return;
 
-                    const isCurrentDay = h.date === currentDateStr;
                     const isArchived = h.archived;
+                    const dateLabel = isArchived ? ' ✓' : '';
+
+                    // 获取标签数组（兼容新旧数据）
+                    let tags = [];
+                    if (entry.tags && Array.isArray(entry.tags)) {
+                        tags = entry.tags;
+                    } else if (entry.tag) {
+                        tags = [entry.tag];
+                    }
+                    const tagsHtml = tags.map(tag =>
+                        `<span class="timeline-tag">${LifeRPG.security.escapeHtml(tag)}</span>`
+                    ).join('');
 
                     html += `
-                        <div class="timeline-item ${isArchived ? 'archived' : ''} ${isCurrentDay ? 'current' : ''}">
-                            <div class="timeline-date">${h.date} ${isArchived ? '✓ 归档' : ''} ${isCurrentDay ? '(当前)' : ''}</div>
-                            <div class="timeline-desc">${entry.description ? LifeRPG.security.escapeHtml(entry.description) : '<span class="timeline-empty">暂无记录</span>'}</div>
+                        <div class="timeline-item ${isArchived ? 'archived' : ''}">
+                            <div class="timeline-date">${h.date}${dateLabel}</div>
+                            <div class="timeline-desc">
+                                ${tagsHtml}
+                                ${entry.description ? LifeRPG.security.escapeHtml(entry.description) : '<span class="timeline-empty">暂无记录</span>'}
+                            </div>
                         </div>
                     `;
                 });
@@ -1488,11 +1826,277 @@
         }
 
         /**
+         * 复制到下一天（周五则复制到下周一）
+         */
+        // 复制功能的临时数据存储
+        let copyTempData = null;
+
+        function copyToNextDay() {
+            try {
+                if (!selectedDate || !editingEntryId) return;
+
+                const entry = adminData.calendarEntries[selectedDate].find(e => e.id === editingEntryId);
+                if (!entry) return;
+
+                // 计算下一天日期
+                const currentDate = new Date(selectedDate);
+                let nextDate = new Date(currentDate);
+                nextDate.setDate(currentDate.getDate() + 1);
+
+                // 如果是周五(5)，则跳到下周一(增加3天)
+                if (currentDate.getDay() === 5) {
+                    nextDate.setDate(currentDate.getDate() + 3);
+                }
+
+                const nextDateStr = nextDate.toISOString().split('T')[0];
+
+                // 检查下一天是否已有相同检查点的记录
+                const nextDayEntries = adminData.calendarEntries[nextDateStr] || [];
+                const existingEntry = nextDayEntries.find(e => e.checkpointId === entry.checkpointId);
+
+                if (existingEntry) {
+                    // 存储临时数据
+                    copyTempData = { entry, nextDateStr, existingEntry, isNew: false };
+                    showConfirmModal({
+                        title: '覆盖确认',
+                        message: `${nextDateStr} 已有该检查点的记录，是否覆盖？`,
+                        icon: '⚠️',
+                        confirmText: '覆盖',
+                        confirmClass: 'rune-btn-danger',
+                        onConfirm: executeCopy
+                    });
+                } else {
+                    // 存储临时数据
+                    copyTempData = { entry, nextDateStr, existingEntry: null, isNew: true };
+                    executeCopy();
+                }
+
+            } catch (error) {
+                console.error('复制到下一天失败:', error);
+                showConfirmModal({
+                    title: '复制失败',
+                    message: '复制失败: ' + error.message,
+                    icon: '❌',
+                    confirmText: '确定',
+                    onConfirm: () => {}
+                });
+            }
+        }
+
+        /**
+         * 执行复制操作
+         */
+        function executeCopy() {
+            if (!copyTempData) return;
+
+            const { entry, nextDateStr, existingEntry, isNew } = copyTempData;
+
+            if (existingEntry) {
+                // 覆盖现有记录（不复制描述，只复制标签）
+                existingEntry.tags = entry.tags || (entry.tag ? [entry.tag] : []);
+            } else {
+                // 创建新记录（不复制描述，只复制标签）
+                const newEntry = {
+                    id: 'entry_' + Date.now(),
+                    checkpointId: entry.checkpointId,
+                    checkpointName: entry.checkpointName,
+                    landmarkId: entry.landmarkId,
+                    landmarkName: entry.landmarkName,
+                    questId: entry.questId,
+                    questName: entry.questName,
+                    levelId: entry.levelId,
+                    levelName: entry.levelName,
+                    description: '',
+                    tags: entry.tags || (entry.tag ? [entry.tag] : []),
+                    completed: false,
+                    createdAt: new Date().toISOString()
+                };
+
+                if (!adminData.calendarEntries[nextDateStr]) {
+                    adminData.calendarEntries[nextDateStr] = [];
+                }
+                adminData.calendarEntries[nextDateStr].push(newEntry);
+            }
+
+            LifeRPG.storage.save(adminData);
+
+            // 刷新日历视图
+            renderChamberGrid();
+
+            // 显示成功提示
+            const btn = document.getElementById('copyNextBtn');
+            const originalText = btn.textContent;
+            btn.textContent = '✓ 已复制';
+            setTimeout(() => {
+                btn.textContent = originalText;
+            }, 1500);
+
+            // 关闭弹窗
+            closeModal();
+
+            copyTempData = null;
+        }
+
+        /**
+         * 获取检查项的所有标签（从历史记录中收集）
+         */
+        function getCheckpointTags(checkpointId) {
+            const tags = new Set();
+            const history = getCheckpointHistory(checkpointId);
+
+            history.forEach(h => {
+                const entry = findEntryById(h.date, h.entryId);
+                if (entry && entry.tags && Array.isArray(entry.tags)) {
+                    entry.tags.forEach(tag => tags.add(tag));
+                } else if (entry && entry.tag) {
+                    // 兼容旧数据（单标签）
+                    tags.add(entry.tag);
+                }
+            });
+
+            return Array.from(tags).sort();
+        }
+
+        // 当前编辑的标签数组
+        let currentTags = [];
+
+        /**
+         * 渲染标签列表
+         */
+        function renderTagList() {
+            const tagList = document.getElementById('tagList');
+            tagList.innerHTML = currentTags.map((tag, index) => `
+                <span class="tag-item">
+                    ${LifeRPG.security.escapeHtml(tag)}
+                    <span class="tag-remove" onclick="removeTag(${index})" title="移除">×</span>
+                </span>
+            `).join('');
+        }
+
+        /**
+         * 添加标签
+         */
+        function addTag(tagName) {
+            tagName = tagName.trim();
+            if (!tagName) return;
+            if (currentTags.includes(tagName)) return;
+
+            currentTags.push(tagName);
+            renderTagList();
+        }
+
+        /**
+         * 移除标签
+         */
+        function removeTag(index) {
+            currentTags.splice(index, 1);
+            renderTagList();
+        }
+
+        // 当前检查点的可用标签
+        let availableTags = [];
+
+        /**
+         * 加载检查项标签
+         */
+        function loadCheckpointTags(checkpointId, entryTags) {
+            const tagInput = document.getElementById('tagInput');
+            const tagSuggestions = document.getElementById('tagSuggestions');
+
+            // 初始化当前标签数组
+            if (entryTags && Array.isArray(entryTags)) {
+                currentTags = [...entryTags];
+            } else if (entryTags) {
+                // 兼容旧数据（单标签字符串）
+                currentTags = [entryTags];
+            } else {
+                currentTags = [];
+            }
+            renderTagList();
+
+            // 清空输入框
+            tagInput.value = '';
+
+            // 加载已有标签选项
+            availableTags = getCheckpointTags(checkpointId);
+
+            // 绑定输入事件（显示建议）
+            tagInput.oninput = function() {
+                const value = this.value.trim().toLowerCase();
+                if (!value) {
+                    tagSuggestions.classList.remove('active');
+                    return;
+                }
+
+                // 过滤匹配的标签（排除已添加的）
+                const matches = availableTags.filter(tag =>
+                    tag.toLowerCase().includes(value) && !currentTags.includes(tag)
+                );
+
+                if (matches.length > 0) {
+                    tagSuggestions.innerHTML = matches.map(tag =>
+                        `<div class="tag-suggestion-item" data-tag="${LifeRPG.security.escapeHtml(tag)}">${LifeRPG.security.escapeHtml(tag)}</div>`
+                    ).join('');
+                    tagSuggestions.classList.add('active');
+
+                    // 绑定点击事件
+                    tagSuggestions.querySelectorAll('.tag-suggestion-item').forEach(item => {
+                        item.onclick = function() {
+                            addTag(this.dataset.tag);
+                            tagInput.value = '';
+                            tagSuggestions.classList.remove('active');
+                        };
+                    });
+                } else {
+                    tagSuggestions.classList.remove('active');
+                }
+            };
+
+            // 绑定回车事件
+            tagInput.onkeydown = function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const activeItem = tagSuggestions.querySelector('.tag-suggestion-item.active');
+                    if (activeItem) {
+                        addTag(activeItem.dataset.tag);
+                    } else if (this.value.trim()) {
+                        addTag(this.value);
+                    }
+                    this.value = '';
+                    tagSuggestions.classList.remove('active');
+                } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    const items = tagSuggestions.querySelectorAll('.tag-suggestion-item');
+                    if (items.length === 0) return;
+
+                    let activeIndex = Array.from(items).findIndex(item => item.classList.contains('active'));
+                    if (e.key === 'ArrowDown') {
+                        activeIndex = activeIndex < items.length - 1 ? activeIndex + 1 : 0;
+                    } else {
+                        activeIndex = activeIndex > 0 ? activeIndex - 1 : items.length - 1;
+                    }
+
+                    items.forEach(item => item.classList.remove('active'));
+                    items[activeIndex].classList.add('active');
+                }
+            };
+
+            // 点击外部关闭建议
+            document.onclick = function(e) {
+                if (!e.target.closest('.tag-input-wrapper')) {
+                    tagSuggestions.classList.remove('active');
+                }
+            };
+        }
+
+        /**
          * 关闭弹窗
          */
         function closeModal() {
             try {
                 document.getElementById('scrollModal').classList.remove('active');
+                // 恢复背景滚动
+                document.body.style.overflow = '';
                 selectedDate = null;
                 editingEntryId = null;
             } catch (error) {
@@ -1511,6 +2115,7 @@
                 if (!entry) return;
 
                 entry.description = document.getElementById('entryDescription').value;
+                entry.tags = currentTags;
                 entry.completed = true;
 
                 if (!adminData.checkpointCompletions[entry.checkpointId]) {
@@ -1544,6 +2149,24 @@
             try {
                 if (!selectedDate || !editingEntryId) return;
 
+                showConfirmModal({
+                    title: '归档卷轴',
+                    message: '归档后该检查项将被标记为完成，历史日期的相同检查项将显示删除线。确定要归档吗？',
+                    icon: '📦',
+                    confirmText: '归档',
+                    confirmClass: 'rune-btn-archive',
+                    onConfirm: executeArchive
+                });
+            } catch (error) {
+                console.error('归档条目失败:', error);
+            }
+        }
+
+        /**
+         * 执行归档操作
+         */
+        function executeArchive() {
+            try {
                 const entry = adminData.calendarEntries[selectedDate].find(e => e.id === editingEntryId);
                 if (!entry) return;
 
@@ -1577,7 +2200,7 @@
                 updateStats();
                 closeModal();
             } catch (error) {
-                console.error('归档条目失败:', error);
+                console.error('执行归档失败:', error);
             }
         }
 
@@ -1587,8 +2210,25 @@
         function deleteEntry() {
             try {
                 if (!selectedDate || !editingEntryId) return;
-                if (!confirm('确定销毁此卷轴记录吗？')) return;
 
+                showConfirmModal({
+                    title: '销毁卷轴',
+                    message: '确定要销毁此卷轴记录吗？此操作不可恢复。',
+                    icon: '🔥',
+                    confirmText: '销毁',
+                    confirmClass: 'rune-btn-danger',
+                    onConfirm: executeDelete
+                });
+            } catch (error) {
+                console.error('删除条目失败:', error);
+            }
+        }
+
+        /**
+         * 执行删除操作
+         */
+        function executeDelete() {
+            try {
                 const entry = adminData.calendarEntries[selectedDate].find(e => e.id === editingEntryId);
 
                 adminData.calendarEntries[selectedDate] = adminData.calendarEntries[selectedDate]
@@ -1696,8 +2336,92 @@
             return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
         }
 
+        // 确认弹窗回调函数
+        let confirmCallback = null;
+
+        /**
+         * 显示确认弹窗
+         * @param {Object} options - 配置选项
+         * @param {string} options.title - 标题
+         * @param {string} options.message - 消息内容
+         * @param {string} options.icon - 图标（emoji）
+         * @param {string} options.confirmText - 确认按钮文字
+         * @param {string} options.confirmClass - 确认按钮样式类
+         * @param {Function} options.onConfirm - 确认回调
+         * @param {Function} options.onCancel - 取消回调
+         */
+        function showConfirmModal(options) {
+            const modal = document.getElementById('confirmModal');
+            const icon = document.getElementById('confirmIcon');
+            const title = document.getElementById('confirmTitle');
+            const message = document.getElementById('confirmMessage');
+            const okBtn = document.getElementById('confirmOk');
+
+            icon.textContent = options.icon || '⚠️';
+            title.textContent = options.title || '确认操作';
+            message.textContent = options.message || '确定要执行此操作吗？';
+            okBtn.textContent = options.confirmText || '确认';
+
+            // 设置确认按钮样式
+            okBtn.className = 'rune-btn ' + (options.confirmClass || 'rune-btn-primary');
+
+            confirmCallback = options.onConfirm || null;
+
+            modal.classList.add('active');
+
+            // 绑定取消回调
+            if (options.onCancel) {
+                document.getElementById('confirmCancel').onclick = function() {
+                    closeConfirmModal();
+                    options.onCancel();
+                };
+            } else {
+                document.getElementById('confirmCancel').onclick = closeConfirmModal;
+            }
+        }
+
+        /**
+         * 关闭确认弹窗
+         */
+        function closeConfirmModal() {
+            document.getElementById('confirmModal').classList.remove('active');
+            confirmCallback = null;
+        }
+
+        /**
+         * 执行确认回调
+         */
+        function executeConfirmCallback() {
+            if (confirmCallback) {
+                confirmCallback();
+            }
+            closeConfirmModal();
+        }
+
         // 初始化
-        document.addEventListener('DOMContentLoaded', init);
+        document.addEventListener('DOMContentLoaded', function() {
+            init();
+
+            // 点击遮罩关闭确认弹窗
+            document.getElementById('confirmModal').addEventListener('click', function(e) {
+                if (e.target === this) {
+                    closeConfirmModal();
+                }
+            });
+        });
     </script>
+
+    <!-- 自定义确认弹窗 -->
+    <div class="confirm-modal-overlay" id="confirmModal">
+        <div class="confirm-modal">
+            <div class="confirm-modal-icon" id="confirmIcon">⚠️</div>
+            <div class="confirm-modal-title" id="confirmTitle">确认操作</div>
+            <div class="confirm-modal-message" id="confirmMessage">确定要执行此操作吗？</div>
+            <div class="confirm-modal-actions">
+                <button class="rune-btn rune-btn-secondary" id="confirmCancel" onclick="closeConfirmModal()">取消</button>
+                <button class="rune-btn" id="confirmOk" onclick="executeConfirmCallback()">确认</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
