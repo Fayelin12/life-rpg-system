@@ -3285,8 +3285,15 @@
             // 收集新的顺序映射 {checkpointId: newOrder}
             const newOrderMap = {};
             allStripes.forEach((stripe, index) => {
-                newOrderMap[stripe.dataset.checkpointId] = index;
+                const cpId = stripe.dataset.checkpointId;
+                // 检查是否有重复的 checkpointId
+                if (newOrderMap.hasOwnProperty(cpId)) {
+                    console.warn('发现重复的 checkpointId:', cpId, '当前索引:', index, '已有索引:', newOrderMap[cpId]);
+                }
+                newOrderMap[cpId] = index;
             });
+
+            console.log('newOrderMap:', newOrderMap);
 
             // 更新所有条带所有日期的 entry order
             allStripes.forEach(stripe => {
