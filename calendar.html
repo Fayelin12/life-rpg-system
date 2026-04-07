@@ -2571,14 +2571,19 @@
                     stripe.onclick = function(e) {
                         e.stopPropagation();
                         
+                        // 获取条带的 grid 列范围
+                        const stripeStartCol = parseInt(this.style.getPropertyValue('--start')) - 1; // 转为 0-based
+                        const stripeEndCol = parseInt(this.style.getPropertyValue('--end')) - 2;   // end 是 exclusive
+                        const stripeColCount = stripeEndCol - stripeStartCol + 1;
+                        
                         // 计算点击的列（相对于条带）
                         const rect = this.getBoundingClientRect();
                         const clickX = e.clientX - rect.left;
-                        const colWidth = rect.width / (endCol - startCol + 1);
+                        const colWidth = rect.width / stripeColCount;
                         const clickedColOffset = Math.floor(clickX / colWidth);
                         
-                        // 计算点击的日期
-                        const clickedCol = startCol + clickedColOffset;
+                        // 计算点击的日期（使用 stripeStartCol 而不是 startCol，因为 CSS grid 列可能不同）
+                        const clickedCol = stripeStartCol + clickedColOffset;
                         const dayOffset = clickedCol - firstDayWeekday;
                         const clickedDate = new Date(year, month, dayOffset + 1);
                         const clickedDateStr = formatDate(clickedDate);
