@@ -1584,6 +1584,193 @@
             z-index: 1000;
         }
 
+        /* ==================== 周视图样式 ==================== */
+
+        /* 周视图网格 */
+        .week-view-grid {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-panel);
+            border: 1px solid var(--border-gold);
+            border-radius: 8px;
+            overflow: hidden;
+            margin: 0 20px 20px;
+        }
+
+        /* 周视图头部 */
+        .week-view-header {
+            display: grid;
+            grid-template-columns: 60px repeat(7, 1fr);
+            border-bottom: 1px solid var(--border-gold);
+            background: var(--bg-elevated);
+        }
+
+        /* 周视图周末折叠 */
+        .week-view-grid.weekend-collapsed .week-view-header {
+            grid-template-columns: 60px repeat(5, 1fr) 0 0;
+        }
+
+        .week-view-grid.weekend-collapsed .week-day-column:nth-child(7),
+        .week-view-grid.weekend-collapsed .week-day-column:nth-child(8) {
+            display: none;
+        }
+
+        /* 时间轴标签列 */
+        .time-axis-label {
+            border-right: 1px solid var(--border-gold);
+            background: var(--bg-deep);
+        }
+
+        /* 周视图每一天的列 */
+        .week-day-column {
+            border-right: 1px solid var(--border-gold);
+            min-width: 0;
+        }
+
+        .week-day-column:last-child {
+            border-right: none;
+        }
+
+        .week-day-header {
+            padding: 12px 8px;
+            text-align: center;
+            border-bottom: 1px solid var(--border-gold);
+        }
+
+        .week-day-name {
+            font-family: var(--font-display);
+            font-size: 12px;
+            color: var(--accent-gold);
+            letter-spacing: 1px;
+        }
+
+        .week-day-date {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .week-day-column.today .week-day-header {
+            background: rgba(123, 104, 238, 0.15);
+        }
+
+        .week-day-column.today .week-day-name {
+            color: var(--accent-magic);
+        }
+
+        /* 周视图内容区域 */
+        .week-view-body {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 60px repeat(7, 1fr);
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .week-view-grid.weekend-collapsed .week-view-body {
+            grid-template-columns: 60px repeat(5, 1fr) 0 0;
+        }
+
+        /* 时间轴 */
+        .time-axis {
+            border-right: 1px solid var(--border-gold);
+            background: var(--bg-deep);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* 时间刻度 */
+        .time-slot {
+            height: 40px;
+            border-bottom: 1px solid rgba(139, 119, 101, 0.1);
+            display: flex;
+            align-items: flex-start;
+            justify-content: flex-end;
+            padding-right: 8px;
+            font-size: 10px;
+            color: var(--text-muted);
+            position: relative;
+        }
+
+        .time-slot::before {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: 0;
+            width: 6px;
+            height: 1px;
+            background: rgba(139, 119, 101, 0.3);
+        }
+
+        /* 休息时间标记 (12:00-13:00) */
+        .time-slot.lunch-break {
+            background: rgba(139, 119, 101, 0.05);
+        }
+
+        .time-slot.lunch-break::after {
+            content: '休息';
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 9px;
+            color: var(--text-muted);
+            opacity: 0.6;
+        }
+
+        /* 周视图每一天的内容区 */
+        .week-day-content {
+            border-right: 1px solid rgba(139, 119, 101, 0.1);
+            position: relative;
+            min-height: 400px;
+        }
+
+        .week-day-column:last-child .week-day-content {
+            border-right: none;
+        }
+
+        /* 周视图条带 */
+        .week-view-stripe {
+            position: absolute;
+            left: 4px;
+            right: 4px;
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 11px;
+            cursor: pointer;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            transition: all 0.2s ease;
+            z-index: 10;
+        }
+
+        .week-view-stripe:hover {
+            filter: brightness(1.1);
+            z-index: 20;
+        }
+
+        /* 网格线 */
+        .week-grid-lines {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+        }
+
+        .week-grid-line {
+            height: 40px;
+            border-bottom: 1px solid rgba(139, 119, 101, 0.05);
+        }
+
+        .week-grid-line.lunch-break {
+            background: rgba(139, 119, 101, 0.03);
+        }
+
         /* 周总结弹窗 */
         .weekly-summary-overlay {
             position: fixed;
@@ -2756,19 +2943,37 @@
         }
 
         /**
-         * 渲染时间密室网格（分层 Grid 布局）
+         * 渲染时间密室网格（根据当前视图类型）
          */
         function renderChamberGrid() {
             try {
                 const grid = document.getElementById('chamberGrid');
                 if (!grid) return;
 
-                const year = currentDate.getFullYear();
-                const month = currentDate.getMonth();
+                // 根据视图类型渲染不同的内容
+                if (currentView === 'week') {
+                    renderWeekView(grid);
+                } else {
+                    renderMonthView(grid);
+                }
 
-                // 更新标题
-                const monthNames = LifeRPG.constants.MONTH_NAMES;
-                document.getElementById('chronicleTitle').textContent = `${year}年 ${monthNames[month]}`;
+                // 应用周末折叠状态
+                applyWeekendToggle();
+            } catch (error) {
+                console.error('渲染时间密室网格失败:', error);
+            }
+        }
+
+        /**
+         * 渲染月视图
+         */
+        function renderMonthView(grid) {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+
+            // 更新标题
+            const monthNames = LifeRPG.constants.MONTH_NAMES;
+            document.getElementById('chronicleTitle').textContent = `${year}年 ${monthNames[month]}`;
 
                 // 星期标题
                 const weekdays = LifeRPG.constants.WEEKDAYS;
@@ -2850,14 +3055,146 @@
 
                 grid.setAttribute('data-rows', rowsNeeded.toString());
                 grid.innerHTML = html;
+                grid.className = 'chamber-grid';
 
                 // 渲染检查点条带
                 renderCheckpointStripes(grid, year, month, firstDayWeekday, daysInMonth);
 
                 bindChamberDragEvents();
             } catch (error) {
-                console.error('渲染时间密室网格失败:', error);
+                console.error('渲染月视图失败:', error);
             }
+        }
+
+        /**
+         * 渲染周视图
+         */
+        function renderWeekView(grid) {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            const today = new Date();
+
+            // 计算本周周一的日期
+            const dayOfWeek = currentDate.getDay(); // 0=周日, 1=周一, ..., 6=周六
+            const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+            const monday = new Date(currentDate);
+            monday.setDate(currentDate.getDate() + diff);
+
+            // 更新标题
+            const weekEnd = new Date(monday);
+            weekEnd.setDate(monday.getDate() + 6);
+            document.getElementById('chronicleTitle').textContent =
+                `${monday.getMonth() + 1}月${monday.getDate()}日 - ${weekEnd.getMonth() + 1}月${weekEnd.getDate()}日`;
+
+            // 生成本周日期数组
+            const weekDays = [];
+            for (let i = 0; i < 7; i++) {
+                const date = new Date(monday);
+                date.setDate(monday.getDate() + i);
+                weekDays.push({
+                    date: formatDate(date),
+                    dayName: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'][i],
+                    isToday: formatDate(date) === formatDate(today)
+                });
+            }
+
+            // 时间轴刻度（9:00 - 18:00，每小时一个刻度）
+            const timeSlots = [];
+            for (let hour = 9; hour <= 18; hour++) {
+                timeSlots.push({
+                    time: `${hour}:00`,
+                    hour: hour,
+                    isLunchBreak: hour === 12
+                });
+            }
+
+            // 构建周视图HTML
+            let html = '<div class="week-view-header">';
+            html += '<div class="time-axis-label"></div>'; // 左上角空白
+            weekDays.forEach(day => {
+                const todayClass = day.isToday ? 'today' : '';
+                html += `
+                    <div class="week-day-column ${todayClass}" data-date="${day.date}">
+                        <div class="week-day-header">
+                            <div class="week-day-name">${day.dayName}</div>
+                            <div class="week-day-date">${day.date.slice(5)}</div>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+
+            // 周视图内容区域
+            html += '<div class="week-view-body">';
+
+            // 时间轴
+            html += '<div class="time-axis">';
+            timeSlots.forEach(slot => {
+                const lunchClass = slot.isLunchBreak ? 'lunch-break' : '';
+                html += `<div class="time-slot ${lunchClass}">${slot.time}</div>`;
+            });
+            html += '</div>';
+
+            // 每一天的内容区
+            weekDays.forEach(day => {
+                const todayClass = day.isToday ? 'today' : '';
+                html += `<div class="week-day-column ${todayClass}" data-date="${day.date}">`;
+                html += `<div class="week-day-content" data-date="${day.date}">`;
+
+                // 网格线背景
+                html += '<div class="week-grid-lines">';
+                timeSlots.forEach(slot => {
+                    const lunchClass = slot.isLunchBreak ? 'lunch-break' : '';
+                    html += `<div class="week-grid-line ${lunchClass}"></div>`;
+                });
+                html += '</div>';
+
+                // 渲染该日期的条带
+                const dayStripes = renderWeekViewStripes(day.date);
+                html += dayStripes;
+
+                html += '</div></div>';
+            });
+
+            html += '</div>'; // 结束 week-view-body
+
+            grid.innerHTML = html;
+            grid.className = 'week-view-grid';
+        }
+
+        /**
+         * 渲染周视图某一天的时间轴条带
+         */
+        function renderWeekViewStripes(dateStr) {
+            const entries = adminData.calendarEntries[dateStr] || [];
+            if (entries.length === 0) return '';
+
+            let html = '';
+
+            // 按 order 排序
+            const sortedEntries = [...entries].sort((a, b) => (a.order || 0) - (b.order || 0));
+
+            sortedEntries.forEach((entry, index) => {
+                // 计算条带位置和高度
+                // 默认从 9:00 开始，每个条带占 1 小时高度（40px）
+                const startHour = 9 + index; // 简单排列，每个条带错开1小时
+                const top = index * 40; // 每个条带40px高度
+
+                // 获取条带颜色
+                const stripeClass = getStripeColorByDuration(1); // 单日条带用浅色
+
+                html += `
+                    <div class="week-view-stripe ${stripeClass}"
+                         style="top: ${top}px; height: 36px;"
+                         data-checkpoint-id="${entry.checkpointId}"
+                         data-entry-id="${entry.id}"
+                         onclick="openEntryModal('${dateStr}', '${entry.id}')">
+                        ${LifeRPG.security.escapeHtml(entry.checkpointName)}
+                    </div>
+                `;
+            });
+
+            return html;
         }
 
         /**
@@ -4810,6 +5147,9 @@
                 currentView = view;
                 document.querySelectorAll('.glyph-btn').forEach(b => b.classList.remove('active'));
                 event.target.classList.add('active');
+
+                // 重新渲染日历
+                renderChamberGrid();
             } catch (error) {
                 console.error('切换视图失败:', error);
             }
