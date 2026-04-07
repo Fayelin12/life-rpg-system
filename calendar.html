@@ -2200,7 +2200,10 @@
                         <input type="hidden" id="todoData" value="">
                     </div>
 
-                    <button class="rune-btn rune-btn-secondary" id="copyNextBtn" onclick="copyToNextDay()" style="width: 100%;">复制到下一天</button>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="rune-btn rune-btn-secondary" id="moveNextBtn" onclick="moveToNextDay()" style="flex: 1;">📅 改到下一天</button>
+                        <button class="rune-btn rune-btn-secondary" id="copyNextBtn" onclick="copyToNextDay()" style="flex: 1;">📋 复制到下一天</button>
+                    </div>
 
                     <button class="rune-btn" onclick="showWeeklySummary()" style="width: 100%; margin-top: 8px; background: rgba(100, 149, 237, 0.15); border-color: rgba(100, 149, 237, 0.4); color: #a0c4ff;">📊 本周总结</button>
                 </div>
@@ -3307,10 +3310,12 @@
                 // 加载标签
                 loadCheckpointTags(entry.checkpointId, entry.tags || entry.tag);
 
-                // 更新复制按钮文字（周五显示"复制到下周一"）
+                // 更新复制和改期按钮文字（周五显示"到下周一"）
                 const copyBtn = document.getElementById('copyNextBtn');
+                const moveBtn = document.getElementById('moveNextBtn');
                 const currentDay = date.getDay();
-                copyBtn.textContent = currentDay === 5 ? '复制到下周一' : '复制到下一天';
+                copyBtn.textContent = currentDay === 5 ? '📋 复制到下周一' : '📋 复制到下一天';
+                moveBtn.textContent = currentDay === 5 ? '📅 改到下周一' : '📅 改到下一天';
 
                 // 禁止背景滚动
                 document.body.style.overflow = 'hidden';
@@ -3562,6 +3567,158 @@
             closeModal();
 
             copyTempData = null;
+        }
+
+        // 改期功能的临时数据存储
+        let moveTempData = null;
+
+        /**
+         * 改期到下一天（周五则改到下周一）
+         */
+        function moveToNextDay() {
+            try {
+                if (!selectedDate || !editingEntryId) return;
+
+                // 先获取当前条目和日期（在保存之前）
+                const entry = adminData.calendarEntries[selectedDate]?.find(e => e.id === editingEntryId);
+                if (!entry) return;
+                const currentDateStr = selectedDate;
+
+                // 计算下一天日期（使用本地时间避免时区问题）
+                const currentDate = parseLocalDate(currentDateStr);
+                let nextDate = new Date(currentDate);
+                nextDate.setDate(currentDate.getDate() + 1);
+
+                // 如果是周五(5)，则跳到下周一(增加3天)
+                if (currentDate.getDay() === 5) {
+                    nextDate.setDate(currentDate.getDate() + 3);
+                }
+
+                const nextDateStr = formatDate(nextDate);
+
+                // 检查下一天是否已有相同检查点的记录
+                const nextDayEntries = adminData.calendarEntries[nextDateStr] || [];
+                const existingEntry = nextDayEntries.find(e => e.checkpointId === entry.checkpointId);
+
+                if (existingEntry) {
+                    // 存储临时数据
+                    moveTempData = { entry, currentDateStr, nextDateStr, existingEntry, isNew: false };
+                    showConfirmModal({
+                        title: '覆盖确认',
+                        message: `${nextDateStr} 已有该检查点的记录，是否覆盖并删除原日期的记录？`,
+                        icon: '⚠️',
+                        confirmText: '覆盖并移动',
+                        confirmClass: 'rune-btn-danger',
+                        onConfirm: executeMove
+                    });
+                } else {
+                    // 存储临时数据
+                    moveTempData = { entry, currentDateStr, nextDateStr, existingEntry: null, isNew: true };
+                    executeMove();
+                }
+
+            } catch (error) {
+                console.error('改期失败:', error);
+                showConfirmModal({
+                    title: '改期失败',
+                    message: '改期失败: ' + error.message,
+                    icon: '❌',
+                    confirmText: '确定',
+                    onConfirm: () => {}
+                });
+            }
+        }
+
+        /**
+         * 执行改期操作
+         */
+        function executeMove() {
+            if (!moveTempData) return;
+
+            const { entry, currentDateStr, nextDateStr, existingEntry, isNew } = moveTempData;
+
+            // 1. 从原日期删除记录
+            if (adminData.calendarEntries[currentDateStr]) {
+                adminData.calendarEntries[currentDateStr] = adminData.calendarEntries[currentDateStr]
+                    .filter(e => e.id !== entry.id);
+                if (adminData.calendarEntries[currentDateStr].length === 0) {
+                    delete adminData.calendarEntries[currentDateStr];
+                }
+            }
+
+            // 2. 从 checkpointCompletions 中删除原日期的记录
+            if (adminData.checkpointCompletions[entry.checkpointId]) {
+                adminData.checkpointCompletions[entry.checkpointId] =
+                    adminData.checkpointCompletions[entry.checkpointId].filter(h =>
+                        !(h.date === currentDateStr && h.entryId === entry.id)
+                    );
+            }
+
+            if (existingEntry) {
+                // 覆盖现有记录（保留目标日期的描述，只覆盖标签）
+                existingEntry.tags = entry.tags || (entry.tag ? [entry.tag] : []);
+
+                // 确保 checkpointCompletions 中有对应的记录
+                if (!adminData.checkpointCompletions[entry.checkpointId]) {
+                    adminData.checkpointCompletions[entry.checkpointId] = [];
+                }
+                const historyRecord = adminData.checkpointCompletions[entry.checkpointId]
+                    .find(h => h.date === nextDateStr && h.entryId === existingEntry.id);
+                if (!historyRecord) {
+                    adminData.checkpointCompletions[entry.checkpointId].push({
+                        date: nextDateStr,
+                        entryId: existingEntry.id,
+                        completed: existingEntry.completed || false
+                    });
+                }
+            } else {
+                // 创建新记录（移动原记录的所有数据）
+                const movedEntry = {
+                    ...entry,
+                    date: nextDateStr
+                };
+
+                if (!adminData.calendarEntries[nextDateStr]) {
+                    adminData.calendarEntries[nextDateStr] = [];
+                }
+                adminData.calendarEntries[nextDateStr].push(movedEntry);
+
+                // 同步更新 checkpointCompletions
+                if (!adminData.checkpointCompletions[entry.checkpointId]) {
+                    adminData.checkpointCompletions[entry.checkpointId] = [];
+                }
+                // 先删除可能存在的旧记录（同一日期）
+                adminData.checkpointCompletions[entry.checkpointId] =
+                    adminData.checkpointCompletions[entry.checkpointId].filter(h =>
+                        !(h.date === nextDateStr && h.entryId === entry.id)
+                    );
+                // 添加新记录
+                adminData.checkpointCompletions[entry.checkpointId].push({
+                    date: nextDateStr,
+                    entryId: entry.id,
+                    completed: entry.completed || false
+                });
+            }
+
+            saveData();
+
+            // 刷新日历视图
+            renderChamberGrid();
+            renderScrollArchive();
+            updateStats();
+
+            // 显示成功提示
+            const btn = document.getElementById('moveNextBtn');
+            const originalText = btn.textContent;
+            btn.textContent = '✓ 已改期';
+            setTimeout(() => {
+                btn.textContent = originalText;
+            }, 1500);
+
+            // 关闭弹窗
+            closeModal();
+
+            moveTempData = null;
         }
 
         /**
