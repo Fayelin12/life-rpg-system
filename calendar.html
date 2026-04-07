@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>时间圣殿 | 人生开放系统</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📅</text></svg>">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Noto+Serif+SC:wght@400;600;900&display=block" rel="stylesheet">
@@ -62,7 +63,10 @@
         .scroll-collection {
             flex: 1;
             overflow-y: auto;
+            overflow-x: hidden;
             padding: 16px;
+            min-height: 0;
+            max-height: calc(100vh - 80px - 200px);
         }
 
         .landmark-tome {
@@ -111,13 +115,14 @@
         }
 
         .tome-content {
-            max-height: 1000px;
-            overflow: hidden;
+            max-height: none;
+            overflow: visible;
             transition: max-height 0.3s ease;
         }
 
         .landmark-tome.collapsed .tome-content {
             max-height: 0;
+            overflow: hidden;
         }
 
         .quest-scroll {
@@ -211,6 +216,7 @@
             padding: 20px;
             border-top: 1px solid var(--border-gold);
             background: linear-gradient(180deg, transparent 0%, rgba(201, 162, 39, 0.03) 100%);
+            flex-shrink: 0;
         }
 
         .stats-title {
@@ -579,35 +585,47 @@
             border-radius: 4px;
         }
 
-        /* 条带颜色主题 */
+        /* 条带颜色主题 - 按当月历时天数，颜色更丰富 */
+        /* 1天：清新薄荷绿 */
+        .checkpoint-stripe.theme-gold-light {
+            background: rgba(74, 155, 139, 0.25);
+            border: 1px solid rgba(74, 155, 139, 0.5);
+            color: #7dd3c0;
+        }
+
+        /* 2-6天：明亮天蓝色 */
         .checkpoint-stripe.theme-gold {
-            background: rgba(201, 162, 39, 0.35);
-            border: 1px solid rgba(201, 162, 39, 0.6);
-            color: var(--accent-gold);
+            background: rgba(100, 149, 237, 0.3);
+            border: 1px solid rgba(100, 149, 237, 0.55);
+            color: #a0c4ff;
         }
 
+        /* 7-12天：温暖金色 */
+        .checkpoint-stripe.theme-gold-deep {
+            background: rgba(201, 162, 39, 0.4);
+            border: 1px solid rgba(201, 162, 39, 0.65);
+            color: #f0d78c;
+        }
+
+        /* 13-18天：活力橙色 */
         .checkpoint-stripe.theme-ember {
-            background: rgba(183, 94, 65, 0.35);
-            border: 1px solid rgba(183, 94, 65, 0.6);
-            color: var(--accent-ember);
+            background: rgba(230, 126, 34, 0.4);
+            border: 1px solid rgba(230, 126, 34, 0.65);
+            color: #f5b041;
         }
 
-        .checkpoint-stripe.theme-mist {
-            background: rgba(74, 155, 139, 0.35);
-            border: 1px solid rgba(74, 155, 139, 0.6);
-            color: var(--accent-mist);
+        /* 19-24天：深红褐色 */
+        .checkpoint-stripe.theme-ember-deep {
+            background: rgba(183, 94, 65, 0.5);
+            border: 1px solid rgba(183, 94, 65, 0.75);
+            color: #e8a88c;
         }
 
-        .checkpoint-stripe.theme-magic {
-            background: rgba(123, 104, 238, 0.35);
-            border: 1px solid rgba(123, 104, 238, 0.6);
-            color: var(--accent-magic);
-        }
-
+        /* 25-31天：神秘紫罗兰 */
         .checkpoint-stripe.theme-slate {
-            background: rgba(139, 119, 101, 0.35);
-            border: 1px solid rgba(139, 119, 101, 0.6);
-            color: var(--text-secondary);
+            background: rgba(123, 104, 238, 0.4);
+            border: 1px solid rgba(123, 104, 238, 0.65);
+            color: #b8a8ff;
         }
 
         /* 归档状态 */
@@ -1848,7 +1866,7 @@
                     </div>
                 </div>
                 <!-- 清空数据按钮（调试用，需要时启用）
-                <button onclick="clearAllCalendarData()" style="margin-top: 16px; width: 100%; padding: 8px; background: rgba(220, 38, 38, 0.2); border: 1px solid rgba(220, 38, 38, 0.5); color: #fca5a5; border-radius: 4px; cursor: pointer; font-size: 12px;">🗑️ 清空所有数据</button>
+                <button onclick="clearAllCalendarData()" style="margin-top: 8px; width: 100%; padding: 8px; background: rgba(220, 38, 38, 0.2); border: 1px solid rgba(220, 38, 38, 0.5); color: #fca5a5; border-radius: 4px; cursor: pointer; font-size: 12px;">🗑️ 清空所有数据</button>
                 -->
             </div>
         </aside>
@@ -2593,12 +2611,23 @@
         }
 
         /**
+         * 根据历时天数获取条带颜色类
+         * 天数越长颜色越深（使用当月历时天数，最大31天均匀分布）
+         */
+        function getStripeColorByDuration(totalDuration) {
+            if (totalDuration <= 1) return 'theme-gold-light';      // 1天
+            if (totalDuration <= 6) return 'theme-gold';            // 2-6天
+            if (totalDuration <= 12) return 'theme-gold-deep';      // 7-12天
+            if (totalDuration <= 18) return 'theme-ember';          // 13-18天
+            if (totalDuration <= 24) return 'theme-ember-deep';     // 19-24天
+            return 'theme-slate';                                    // 25-31天
+        }
+
+        /**
          * 渲染检查点条带（分层 Grid 布局）
          */
         function renderCheckpointStripes(grid, year, month, firstDayWeekday, daysInMonth) {
-            const themeColors = ['theme-gold', 'theme-ember', 'theme-mist', 'theme-magic', 'theme-slate'];
             const checkpointThemes = {};
-            let themeIndex = 0;
 
             // 构建日期索引映射 - 只包含当月日期
             const dateIndexMap = {};
@@ -2628,9 +2657,7 @@
                             questName: entry.questName,
                             levelName: entry.levelName
                         };
-                        // 分配主题色
-                        checkpointThemes[entry.checkpointId] = themeColors[themeIndex % themeColors.length];
-                        themeIndex++;
+                        // 主题色将在后面根据总历时天数分配
                     }
                     checkpointData[entry.checkpointId].entries.push({
                         ...entry,
@@ -2678,7 +2705,7 @@
                     const archiveDate = getCheckpointArchiveDate(checkpointId);
                     const isArchived = !!archiveDate;
 
-                    // 计算总历时
+                    // 计算总历时（用于显示）
                     const history = getCheckpointHistory(checkpointId);
                     const sortedHistory = [...history].sort((a, b) => new Date(a.date) - new Date(b.date));
                     const firstDate = sortedHistory.length > 0 ? sortedHistory[0].date : range.startDate;
@@ -2688,8 +2715,8 @@
                     // 判断是否连续条带（跨越多天）
                     const isContinuous = range.startDate !== range.endDate;
 
-                    // 确定条带样式类
-                    let stripeClass = checkpointThemes[checkpointId];
+                    // 确定条带样式类（根据当月历时天数设置颜色）
+                    let stripeClass = getStripeColorByDuration(duration);
                     if (isContinuous) {
                         stripeClass += ' continuous';
                     }
