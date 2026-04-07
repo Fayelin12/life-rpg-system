@@ -3208,8 +3208,8 @@
             const gap = 2;
             const totalRowHeight = rowHeight + gap;
 
-            // 最大层级 = 总条带数（可以拖到最后一行之后）
-            const maxLevel = totalStripes;
+            // 最大层级 = 总条带数 + 1（可以拖到最后一行之后）
+            const maxLevel = totalStripes + 1;
 
             // 计算目标层级（1-based）
             let targetLevel = Math.floor(relativeY / totalRowHeight) + 1;
