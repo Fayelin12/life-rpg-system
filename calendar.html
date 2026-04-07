@@ -2567,10 +2567,32 @@
                     stripe.dataset.cpName = LifeRPG.security.escapeHtml(cpData.name);
                     stripe.dataset.sourceDate = range.startDate;
 
-                    // 点击打开弹窗
+                    // 点击打开弹窗 - 根据点击位置计算对应日期
                     stripe.onclick = function(e) {
                         e.stopPropagation();
-                        openEntryModal(range.startDate, firstEntry.id);
+                        
+                        // 计算点击的列（相对于条带）
+                        const rect = this.getBoundingClientRect();
+                        const clickX = e.clientX - rect.left;
+                        const colWidth = rect.width / (endCol - startCol + 1);
+                        const clickedColOffset = Math.floor(clickX / colWidth);
+                        
+                        // 计算点击的日期
+                        const clickedCol = startCol + clickedColOffset;
+                        const dayOffset = clickedCol - firstDayWeekday;
+                        const clickedDate = new Date(year, month, dayOffset + 1);
+                        const clickedDateStr = formatDate(clickedDate);
+                        
+                        // 查找该日期的条目
+                        const entries = adminData.calendarEntries[clickedDateStr] || [];
+                        const entry = entries.find(e => e.checkpointId === checkpointId);
+                        
+                        if (entry) {
+                            openEntryModal(clickedDateStr, entry.id);
+                        } else {
+                            // 如果该日期没有条目（理论上不应该发生），打开开始日期的弹窗
+                            openEntryModal(range.startDate, firstEntry.id);
+                        }
                     };
 
                     // 拖拽事件
