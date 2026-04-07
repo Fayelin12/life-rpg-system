@@ -1053,6 +1053,118 @@
             min-height: 40px;
         }
 
+        /* 待办列表区域 */
+        .todo-section {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-gold);
+            border-radius: 6px;
+            padding: 10px 14px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .todo-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .todo-title {
+            font-family: var(--font-display);
+            font-size: 11px;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+        }
+
+        .todo-add-btn {
+            padding: 2px 8px;
+            background: transparent;
+            border: 1px solid var(--border-gold);
+            border-radius: 4px;
+            color: var(--accent-gold);
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .todo-add-btn:hover {
+            background: rgba(201, 162, 39, 0.1);
+        }
+
+        .todo-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .todo-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 8px;
+            background: var(--bg-deep);
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+
+        .todo-item:hover {
+            background: rgba(201, 162, 39, 0.05);
+        }
+
+        .todo-checkbox {
+            width: 14px;
+            height: 14px;
+            border: 1px solid var(--border-gold);
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            flex-shrink: 0;
+            font-size: 10px;
+            color: var(--accent-gold);
+        }
+
+        .todo-checkbox.checked {
+            background: var(--accent-gold);
+            border-color: var(--accent-gold);
+            color: var(--bg-deep);
+        }
+
+        .todo-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--text-primary);
+            font-size: 12px;
+            padding: 2px 0;
+            outline: none;
+        }
+
+        .todo-input.completed {
+            text-decoration: line-through;
+            color: var(--text-muted);
+        }
+
+        .todo-delete {
+            width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--text-muted);
+            font-size: 14px;
+            opacity: 0.6;
+            transition: all 0.2s ease;
+        }
+
+        .todo-delete:hover {
+            opacity: 1;
+            color: var(--accent-ember);
+        }
+
         .tag-list {
             display: flex;
             flex-wrap: wrap;
@@ -1666,8 +1778,18 @@
                         </div>
                     </div>
 
+                    <!-- 待办列表区域 -->
+                    <div class="todo-section">
+                        <div class="todo-header">
+                            <span class="todo-title">📋 进展记录</span>
+                            <button class="todo-add-btn" onclick="addTodoItem()">+ 添加</button>
+                        </div>
+                        <div class="todo-list" id="todoList"></div>
+                        <input type="hidden" id="todoData" value="">
+                    </div>
+
                     <div class="form-chamber" style="margin-bottom: 0; flex: 1; display: flex; flex-direction: column;">
-                        <textarea id="entryDescription" placeholder="记录今日进展、感悟与反思..." style="flex: 1; min-height: 140px;"></textarea>
+                        <textarea id="entryDescription" placeholder="记录今日进展、感悟与反思..." style="flex: 1; min-height: 100px;"></textarea>
                     </div>
 
                     <button class="rune-btn rune-btn-secondary" id="copyNextBtn" onclick="copyToNextDay()" style="width: 100%;">复制到下一天</button>
@@ -2615,6 +2737,9 @@
                 // 加载标签
                 loadCheckpointTags(entry.checkpointId, entry.tags || entry.tag);
 
+                // 加载待办列表
+                loadTodos(entry.todos || '');
+
                 // 更新复制按钮文字（周五显示"复制到下周一"）
                 const copyBtn = document.getElementById('copyNextBtn');
                 const currentDay = date.getDay();
@@ -2901,18 +3026,21 @@
             // 加载已有标签选项
             availableTags = getCheckpointTags(checkpointId);
 
-            // 绑定输入事件（显示建议）
-            tagInput.oninput = function() {
-                const value = this.value.trim().toLowerCase();
-                if (!value) {
-                    tagSuggestions.classList.remove('active');
-                    return;
-                }
-
-                // 过滤匹配的标签（排除已添加的）
-                const matches = availableTags.filter(tag =>
-                    tag.toLowerCase().includes(value) && !currentTags.includes(tag)
+            // 显示标签建议列表的函数
+            function showTagSuggestions(filterValue = '') {
+                const value = filterValue.trim().toLowerCase();
+                
+                // 过滤标签（排除已添加的）
+                let matches = availableTags.filter(tag =>
+                    !currentTags.includes(tag)
                 );
+                
+                // 如果有输入值，则进一步过滤
+                if (value) {
+                    matches = matches.filter(tag =>
+                        tag.toLowerCase().includes(value)
+                    );
+                }
 
                 if (matches.length > 0) {
                     tagSuggestions.innerHTML = matches.map(tag =>
@@ -2931,6 +3059,16 @@
                 } else {
                     tagSuggestions.classList.remove('active');
                 }
+            }
+
+            // 绑定输入事件（显示建议）
+            tagInput.oninput = function() {
+                showTagSuggestions(this.value);
+            };
+
+            // 绑定聚焦事件（点击输入框时显示所有可用标签）
+            tagInput.onfocus = function() {
+                showTagSuggestions(this.value);
             };
 
             // 绑定回车事件
@@ -2970,6 +3108,173 @@
             };
         }
 
+        // ==================== 待办列表功能 ====================
+
+        // 当前待办列表
+        let currentTodos = [];
+
+        /**
+         * 将待办列表转换为 Markdown 格式
+         * @param {Array} todos - [{text: string, completed: boolean}]
+         * @returns {string} - Markdown 格式字符串
+         */
+        function todosToMarkdown(todos) {
+            if (!todos || todos.length === 0) return '';
+            return todos.map(todo => {
+                const checkbox = todo.completed ? '[x]' : '[ ]';
+                return `${checkbox} ${todo.text}`;
+            }).join('\n');
+        }
+
+        /**
+         * 从 Markdown 解析待办列表
+         * @param {string} markdown - Markdown 格式字符串
+         * @returns {Array} - [{text: string, completed: boolean}]
+         */
+        function markdownToTodos(markdown) {
+            if (!markdown || !markdown.trim()) return [];
+            const lines = markdown.trim().split('\n');
+            return lines.map(line => {
+                const completed = line.trim().startsWith('[x]') || line.trim().startsWith('[X]');
+                const text = line.replace(/^\[[ xX]\]\s*/, '').trim();
+                return { text, completed };
+            }).filter(todo => todo.text);
+        }
+
+        /**
+         * 渲染待办列表
+         */
+        function renderTodoList() {
+            const todoList = document.getElementById('todoList');
+            if (!todoList) return;
+
+            todoList.innerHTML = currentTodos.map((todo, index) => `
+                <div class="todo-item" data-index="${index}">
+                    <div class="todo-checkbox ${todo.completed ? 'checked' : ''}" onclick="toggleTodoItem(${index})">
+                        ${todo.completed ? '✓' : ''}
+                    </div>
+                    <input type="text" class="todo-input ${todo.completed ? 'completed' : ''}" 
+                        value="${LifeRPG.security.escapeHtml(todo.text)}" 
+                        onchange="updateTodoText(${index}, this.value)"
+                        placeholder="输入进展内容...">
+                    <div class="todo-delete" onclick="deleteTodoItem(${index})">×</div>
+                </div>
+            `).join('');
+
+            // 更新隐藏字段的 Markdown 数据
+            document.getElementById('todoData').value = todosToMarkdown(currentTodos);
+        }
+
+        /**
+         * 添加待办项
+         */
+        function addTodoItem() {
+            currentTodos.push({ text: '', completed: false });
+            renderTodoList();
+            // 聚焦到新添加的输入框
+            setTimeout(() => {
+                const inputs = document.querySelectorAll('.todo-input');
+                if (inputs.length > 0) {
+                    inputs[inputs.length - 1].focus();
+                }
+            }, 0);
+        }
+
+        /**
+         * 切换待办项完成状态
+         */
+        function toggleTodoItem(index) {
+            if (currentTodos[index]) {
+                currentTodos[index].completed = !currentTodos[index].completed;
+                renderTodoList();
+            }
+        }
+
+        /**
+         * 更新待办项文本
+         */
+        function updateTodoText(index, text) {
+            if (currentTodos[index]) {
+                currentTodos[index].text = text.trim();
+                document.getElementById('todoData').value = todosToMarkdown(currentTodos);
+            }
+        }
+
+        /**
+         * 删除待办项
+         */
+        function deleteTodoItem(index) {
+            currentTodos.splice(index, 1);
+            renderTodoList();
+        }
+
+        /**
+         * 加载待办列表
+         */
+        function loadTodos(markdown) {
+            currentTodos = markdownToTodos(markdown);
+            renderTodoList();
+        }
+
+        // ==================== Excel 导出/导入功能 ====================
+
+        /**
+         * 导出待办列表到 Excel
+         */
+        function exportTodosToExcel() {
+            const markdown = todosToMarkdown(currentTodos);
+            if (!markdown) {
+                showToast('没有待办事项可导出', 'warning');
+                return;
+            }
+
+            // 创建 CSV 内容（Excel 可以直接打开）
+            const csvContent = '待办列表\n' + markdown.split('\n').map(line => {
+                const completed = line.startsWith('[x]') || line.startsWith('[X]');
+                const text = line.replace(/^\[[ xX]\]\s*/, '');
+                return `${completed ? '已完成' : '未完成'},"${text.replace(/"/g, '""')}"`;
+            }).join('\n');
+
+            // 下载文件
+            const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `待办列表_${formatDate(new Date())}.csv`;
+            link.click();
+
+            showToast('已导出到 Excel', 'success');
+        }
+
+        /**
+         * 从 Excel 导入待办列表
+         */
+        function importTodosFromExcel(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const content = e.target.result;
+                    const lines = content.split('\n').slice(1); // 跳过标题行
+                    
+                    currentTodos = lines.map(line => {
+                        const parts = line.split(',');
+                        if (parts.length >= 2) {
+                            const completed = parts[0].trim() === '已完成';
+                            const text = parts.slice(1).join(',').replace(/^"|"$/g, '').replace(/""/g, '"');
+                            return { text, completed };
+                        }
+                        return null;
+                    }).filter(todo => todo && todo.text);
+
+                    renderTodoList();
+                    showToast('导入成功', 'success');
+                } catch (error) {
+                    console.error('导入失败:', error);
+                    showToast('导入失败，请检查文件格式', 'warning');
+                }
+            };
+            reader.readAsText(file);
+        }
+
         /**
          * 关闭弹窗
          */
@@ -2997,6 +3302,7 @@
 
                 entry.description = document.getElementById('entryDescription').value;
                 entry.tags = currentTags;
+                entry.todos = todosToMarkdown(currentTodos); // 保存待办列表为 Markdown
                 entry.completed = true;
 
                 if (!adminData.checkpointCompletions[entry.checkpointId]) {
