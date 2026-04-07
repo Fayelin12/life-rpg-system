@@ -3428,11 +3428,12 @@
             try {
                 if (!selectedDate || !editingEntryId) return;
 
-                // 先保存当前条目
-                saveEntry();
-
-                const entry = adminData.calendarEntries[selectedDate].find(e => e.id === editingEntryId);
+                // 先获取当前条目（在保存之前）
+                const entry = adminData.calendarEntries[selectedDate]?.find(e => e.id === editingEntryId);
                 if (!entry) return;
+
+                // 保存当前条目
+                saveEntry();
 
                 // 计算下一天日期（使用本地时间避免时区问题）
                 const currentDate = parseLocalDate(selectedDate);
