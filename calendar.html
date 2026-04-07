@@ -3192,7 +3192,7 @@
         function onStripeDragMove(e) {
             if (!stripeDragState.isDragging) return;
 
-            const { draggedStripe, rowStripesContainer, dropIndicator, startLevel } = stripeDragState;
+            const { draggedStripe, rowStripesContainer, dropIndicator } = stripeDragState;
 
             // 获取容器内所有条带（排除正在拖拽的）
             const allStripes = [...rowStripesContainer.querySelectorAll('.checkpoint-stripe:not(.dragging)')];
@@ -3208,13 +3208,15 @@
             const totalRowHeight = rowHeight + gap;
 
             // 计算目标层级（1-based）
-            let targetLevel = Math.round(relativeY / totalRowHeight) + 1;
+            // 使用向下取整，让指示器跟随鼠标位置
+            let targetLevel = Math.floor(relativeY / totalRowHeight) + 1;
             targetLevel = Math.max(1, Math.min(allStripes.length + 1, targetLevel));
 
             stripeDragState.targetLevel = targetLevel;
 
             // 显示放置指示器（放在条带之间的间隙位置）
-            const indicatorTop = (targetLevel - 1) * totalRowHeight - gap / 2;
+            // 第 N 行的指示器位置 = (N-1) * 行高
+            const indicatorTop = (targetLevel - 1) * totalRowHeight;
             dropIndicator.style.display = 'block';
             dropIndicator.style.top = Math.max(0, Math.min(containerRect.height - 3, indicatorTop)) + 'px';
         }
