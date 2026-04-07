@@ -586,6 +586,7 @@
             pointer-events: none;
             z-index: 999;
             box-shadow: 0 0 8px var(--accent-gold);
+            margin-top: -1px;
         }
 
         /* 跨天条带 */
@@ -3199,14 +3200,23 @@
             // 计算目标位置
             const containerRect = rowStripesContainer.getBoundingClientRect();
             const relativeY = e.clientY - containerRect.top;
-            const stripeHeight = 20; // 条带高度 + gap
-            const targetLevel = Math.max(1, Math.min(allStripes.length + 1, Math.round(relativeY / stripeHeight)));
+
+            // 计算实际条带高度（包含 gap）
+            // grid-auto-rows: 20px, gap: 2px 0
+            const rowHeight = 20;
+            const gap = 2;
+            const totalRowHeight = rowHeight + gap;
+
+            // 计算目标层级（1-based）
+            let targetLevel = Math.round(relativeY / totalRowHeight) + 1;
+            targetLevel = Math.max(1, Math.min(allStripes.length + 1, targetLevel));
 
             stripeDragState.targetLevel = targetLevel;
 
-            // 显示放置指示器
+            // 显示放置指示器（放在条带之间的间隙位置）
+            const indicatorTop = (targetLevel - 1) * totalRowHeight - gap / 2;
             dropIndicator.style.display = 'block';
-            dropIndicator.style.top = ((targetLevel - 1) * stripeHeight) + 'px';
+            dropIndicator.style.top = Math.max(0, Math.min(containerRect.height - 3, indicatorTop)) + 'px';
         }
 
         /**
