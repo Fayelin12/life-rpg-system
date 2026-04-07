@@ -2114,16 +2114,16 @@
                 <div class="stats-title">📊 本月洞察</div>
                 <div class="stats-grid">
                     <div class="stat-relic">
-                        <div class="stat-number" id="statCompleted">0</div>
-                        <div class="stat-label">已完成</div>
-                    </div>
-                    <div class="stat-relic">
                         <div class="stat-number" id="statActive">0</div>
                         <div class="stat-label">活跃日</div>
                     </div>
                     <div class="stat-relic">
-                        <div class="stat-number" id="statStreak">0</div>
-                        <div class="stat-label">连续</div>
+                        <div class="stat-number" id="statCompleted">0</div>
+                        <div class="stat-label">已完成</div>
+                    </div>
+                    <div class="stat-relic">
+                        <div class="stat-number" id="statPending">0</div>
+                        <div class="stat-label">未完成</div>
                     </div>
                 </div>
                 <!-- 清空数据按钮（调试用，需要时启用）
@@ -4445,7 +4445,7 @@
         }
 
         /**
-         * 更新统计
+         * 更新统计（活跃日、已完成、未完成）
          */
         function updateStats() {
             try {
@@ -4453,8 +4453,8 @@
                 const month = currentDate.getMonth();
 
                 let completed = 0;
+                let pending = 0;
                 let activeDays = 0;
-                let currentStreak = 0;
 
                 const daysInMonth = new Date(year, month + 1, 0).getDate();
                 for (let day = 1; day <= daysInMonth; day++) {
@@ -4463,27 +4463,25 @@
 
                     if (entries.length > 0) {
                         activeDays++;
-                        completed += entries.filter(e => e.completed).length;
+                        // 统计该日期所有条目的待办完成情况
+                        entries.forEach(entry => {
+                            if (entry.description) {
+                                const todos = markdownToTodos(entry.description);
+                                todos.forEach(todo => {
+                                    if (todo.completed) {
+                                        completed++;
+                                    } else {
+                                        pending++;
+                                    }
+                                });
+                            }
+                        });
                     }
                 }
 
-                const today = new Date();
-                for (let i = 0; i < 365; i++) {
-                    const d = new Date(today);
-                    d.setDate(d.getDate() - i);
-                    const dateStr = formatDate(d);
-                    const entries = adminData.calendarEntries[dateStr] || [];
-
-                    if (entries.some(e => e.completed)) {
-                        if (i === 0 || currentStreak > 0) currentStreak++;
-                    } else {
-                        if (i > 0) break;
-                    }
-                }
-
-                document.getElementById('statCompleted').textContent = completed;
                 document.getElementById('statActive').textContent = activeDays;
-                document.getElementById('statStreak').textContent = currentStreak;
+                document.getElementById('statCompleted').textContent = completed;
+                document.getElementById('statPending').textContent = pending;
             } catch (error) {
                 console.error('更新统计失败:', error);
             }
