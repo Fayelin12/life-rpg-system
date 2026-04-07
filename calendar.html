@@ -1431,6 +1431,24 @@
             font-style: italic;
         }
 
+        .timeline-todos {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-top: 4px;
+        }
+
+        .timeline-todo {
+            font-size: 12px;
+            color: var(--text-primary);
+            line-height: 1.4;
+        }
+
+        .timeline-todo.completed {
+            color: var(--text-muted);
+            text-decoration: line-through;
+        }
+
         .rune-btn {
             padding: 8px 16px;
             border-radius: 6px;
@@ -1778,18 +1796,14 @@
                         </div>
                     </div>
 
-                    <!-- 待办列表区域 -->
-                    <div class="todo-section">
+                    <!-- 进展记录（待办列表） -->
+                    <div class="todo-section" style="flex: 1; display: flex; flex-direction: column;">
                         <div class="todo-header">
                             <span class="todo-title">📋 进展记录</span>
                             <button class="todo-add-btn" onclick="addTodoItem()">+ 添加</button>
                         </div>
-                        <div class="todo-list" id="todoList"></div>
+                        <div class="todo-list" id="todoList" style="flex: 1; overflow-y: auto;"></div>
                         <input type="hidden" id="todoData" value="">
-                    </div>
-
-                    <div class="form-chamber" style="margin-bottom: 0; flex: 1; display: flex; flex-direction: column;">
-                        <textarea id="entryDescription" placeholder="记录今日进展、感悟与反思..." style="flex: 1; min-height: 100px;"></textarea>
                     </div>
 
                     <button class="rune-btn rune-btn-secondary" id="copyNextBtn" onclick="copyToNextDay()" style="width: 100%;">复制到下一天</button>
@@ -2698,7 +2712,8 @@
                     <span class="breadcrumb-path">${LifeRPG.security.escapeHtml(entry.landmarkName)} › ${LifeRPG.security.escapeHtml(entry.questName)} › ${LifeRPG.security.escapeHtml(entry.levelName)}</span>
                 `;
 
-                document.getElementById('entryDescription').value = entry.description || '';
+                // 加载待办列表（进展记录）
+                loadTodos(entry.description || '');
 
                 const history = getCheckpointHistory(entry.checkpointId);
                 const sortedHistory = [...history].sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -2806,12 +2821,31 @@
                         `<span class="timeline-tag">${LifeRPG.security.escapeHtml(tag)}</span>`
                     ).join('');
 
+                    // 解析待办列表并格式化显示
+                    let todosHtml = '';
+                    if (entry.description) {
+                        const todos = markdownToTodos(entry.description);
+                        if (todos.length > 0) {
+                            todosHtml = '<div class="timeline-todos">' + 
+                                todos.map(todo => `
+                                    <div class="timeline-todo ${todo.completed ? 'completed' : ''}">
+                                        ${todo.completed ? '☑' : '☐'} ${LifeRPG.security.escapeHtml(todo.text)}
+                                    </div>
+                                `).join('') + 
+                                '</div>';
+                        } else {
+                            todosHtml = `<span class="timeline-empty">${LifeRPG.security.escapeHtml(entry.description)}</span>`;
+                        }
+                    } else {
+                        todosHtml = '<span class="timeline-empty">暂无记录</span>';
+                    }
+
                     html += `
                         <div class="timeline-item ${isArchived ? 'archived' : ''}">
                             <div class="timeline-date">${h.date}${dateLabel}</div>
                             <div class="timeline-desc">
                                 ${tagsHtml}
-                                ${entry.description ? LifeRPG.security.escapeHtml(entry.description) : '<span class="timeline-empty">暂无记录</span>'}
+                                ${todosHtml}
                             </div>
                         </div>
                     `;
@@ -3300,9 +3334,8 @@
                 const entry = adminData.calendarEntries[selectedDate].find(e => e.id === editingEntryId);
                 if (!entry) return;
 
-                entry.description = document.getElementById('entryDescription').value;
+                entry.description = todosToMarkdown(currentTodos); // 进展记录保存为 Markdown
                 entry.tags = currentTags;
-                entry.todos = todosToMarkdown(currentTodos); // 保存待办列表为 Markdown
                 entry.completed = true;
 
                 if (!adminData.checkpointCompletions[entry.checkpointId]) {
@@ -3357,7 +3390,7 @@
                 const entry = adminData.calendarEntries[selectedDate].find(e => e.id === editingEntryId);
                 if (!entry) return;
 
-                entry.description = document.getElementById('entryDescription').value;
+                entry.description = todosToMarkdown(currentTodos); // 进展记录保存为 Markdown
                 entry.completed = true;
                 entry.archived = true;
 
