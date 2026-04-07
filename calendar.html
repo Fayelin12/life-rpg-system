@@ -3251,15 +3251,6 @@
             const startDate = draggedStripe.dataset.startDate;
             const endDate = draggedStripe.dataset.endDate;
 
-            // 获取该条带涉及的所有日期
-            const affectedDates = [];
-            let current = parseLocalDate(startDate);
-            const end = parseLocalDate(endDate);
-            while (current <= end) {
-                affectedDates.push(formatDate(new Date(current)));
-                current.setDate(current.getDate() + 1);
-            }
-
             // 获取当前所有条带（按当前DOM顺序）
             const allStripes = [...rowContainer.querySelectorAll('.checkpoint-stripe')];
             const draggedIndex = allStripes.indexOf(draggedStripe);
@@ -3268,13 +3259,19 @@
             allStripes.splice(draggedIndex, 1);
             allStripes.splice(targetLevel - 1, 0, draggedStripe);
 
-            // 更新每个条带的 order 值
+            // 收集新的顺序映射 {checkpointId: newOrder}
+            const newOrderMap = {};
             allStripes.forEach((stripe, index) => {
+                newOrderMap[stripe.dataset.checkpointId] = index;
+            });
+
+            // 更新所有条带所有日期的 entry order
+            allStripes.forEach(stripe => {
                 const cpId = stripe.dataset.checkpointId;
                 const sDate = stripe.dataset.startDate;
                 const eDate = stripe.dataset.endDate;
+                const newOrder = newOrderMap[cpId];
 
-                // 更新该条带所有日期的 entry order
                 let curr = parseLocalDate(sDate);
                 const end = parseLocalDate(eDate);
                 while (curr <= end) {
@@ -3283,18 +3280,18 @@
                     if (entries) {
                         const entry = entries.find(e => e.checkpointId === cpId);
                         if (entry) {
-                            entry.order = index;
+                            entry.order = newOrder;
                         }
                     }
                     curr.setDate(curr.getDate() + 1);
                 }
-
-                // 更新视觉层级
-                stripe.style.setProperty('--level', index + 1);
             });
 
             // 保存数据
             saveData();
+
+            // 重新渲染整个日历（确保跨天条带的所有部分都更新）
+            renderChamberGrid();
 
             // 显示提示
             showToast('条带顺序已更新', 'success');
