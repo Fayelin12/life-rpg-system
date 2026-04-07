@@ -1757,11 +1757,6 @@
             margin-bottom: 4px;
         }
 
-        .checkpoint-weekly-path {
-            font-size: 11px;
-            color: var(--text-muted);
-        }
-
         .checkpoint-weekly-rate {
             text-align: right;
             margin-left: 12px;
@@ -1860,27 +1855,7 @@
             padding: 8px 0 8px 12px;
         }
 
-        /* 检查项统计行 */
-        .checkpoint-weekly-stats {
-            display: flex;
-            gap: 16px;
-            margin-top: 12px;
-            padding-top: 12px;
-            border-top: 1px dashed rgba(139, 119, 101, 0.2);
-            font-size: 11px;
-            color: var(--text-muted);
-        }
 
-        .checkpoint-weekly-stats span {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .checkpoint-weekly-stats .stat-highlight {
-            color: var(--accent-gold);
-            font-weight: 600;
-        }
 
         /* 自定义确认弹窗 */
         .confirm-modal-overlay {
@@ -4341,7 +4316,6 @@
             checkpointMap.forEach(cp => {
                 let cpTotal = 0;
                 let cpCompleted = 0;
-                let cpDaysWithTodos = 0;
 
                 // 计算统计数据
                 summary.forEach(day => {
@@ -4349,7 +4323,6 @@
                     if (dayData && dayData.total > 0) {
                         cpTotal += dayData.total;
                         cpCompleted += dayData.completed;
-                        cpDaysWithTodos++;
                     }
                 });
 
@@ -4391,7 +4364,6 @@
                         <div class="checkpoint-weekly-header">
                             <div class="checkpoint-weekly-info">
                                 <div class="checkpoint-weekly-name">${LifeRPG.security.escapeHtml(cp.name)}</div>
-                                <div class="checkpoint-weekly-path">${LifeRPG.security.escapeHtml(cp.landmarkName)} › ${LifeRPG.security.escapeHtml(cp.questName)} › ${LifeRPG.security.escapeHtml(cp.levelName)}</div>
                             </div>
                             <div class="checkpoint-weekly-rate">
                                 <span class="rate-value">${cpRate}%</span>
@@ -4400,11 +4372,6 @@
                         </div>
                         <div class="checkpoint-weekly-details">
                             ${dayDetailsHtml}
-                        </div>
-                        <div class="checkpoint-weekly-stats">
-                            <span>📅 活跃 <span class="stat-highlight">${cpDaysWithTodos}</span> 天</span>
-                            <span>✅ 完成 <span class="stat-highlight">${cpCompleted}</span> 项</span>
-                            <span>📋 总计 <span class="stat-highlight">${cpTotal}</span> 项</span>
                         </div>
                     </div>
                 `;
@@ -4483,7 +4450,6 @@
                 let cpCompleted = 0;
 
                 mdContent += `## ${projectIndex}. ${cp.name}\n\n`;
-                mdContent += `**路径**: ${cp.landmarkName} › ${cp.questName} › ${cp.levelName}\n\n`;
 
                 // 遍历每天显示待办
                 weekDays.forEach(day => {
