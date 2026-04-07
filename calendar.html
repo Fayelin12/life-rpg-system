@@ -484,6 +484,15 @@
             color: var(--accent-gold);
         }
 
+        /* 待办统计 */
+        .chamber-stats {
+            font-size: 9px;
+            color: var(--text-muted);
+            font-weight: 400;
+            margin-left: auto;
+            padding-left: 4px;
+        }
+
         .time-chamber.other-month {
             opacity: 0.4;
         }
@@ -1365,14 +1374,25 @@
             padding: 8px 0;
             border-bottom: 1px solid rgba(139, 119, 101, 0.15);
             align-items: start;
+            border-left: 3px solid transparent;
+            margin-left: -6px;
+            padding-left: 6px;
         }
 
         .timeline-item:last-child {
             border-bottom: none;
         }
 
-        .timeline-item.archived {
-            opacity: 0.6;
+        /* 已完成：金色左侧边框 */
+        .timeline-item.completed {
+            border-left-color: var(--accent-gold);
+            text-decoration: none;
+        }
+
+        /* 未完成：灰色左侧边框 */
+        .timeline-item.pending {
+            border-left-color: rgba(139, 119, 101, 0.3);
+            text-decoration: none;
         }
 
         .timeline-item.current {
@@ -1380,7 +1400,7 @@
             margin: 0 -6px;
             padding: 8px 6px;
             border-radius: 6px;
-            border-left: 2px solid var(--accent-gold);
+            border-left: 3px solid var(--accent-gold);
         }
 
         .timeline-date {
@@ -1402,9 +1422,12 @@
             color: var(--accent-gold);
         }
 
-        .timeline-item.archived .timeline-date {
+        /* 日期标签：统一默认样式 */
+        .timeline-item.completed .timeline-date,
+        .timeline-item.pending .timeline-date {
+            background: rgba(139, 119, 101, 0.12);
             color: var(--text-muted);
-            background: rgba(74, 155, 139, 0.15);
+            color: var(--text-muted);
         }
 
         .timeline-desc {
@@ -1446,7 +1469,6 @@
 
         .timeline-todo.completed {
             color: var(--text-muted);
-            text-decoration: line-through;
         }
 
         .rune-btn {
@@ -1735,6 +1757,7 @@
                         <div class="stat-label">连续</div>
                     </div>
                 </div>
+                <button onclick="clearAllCalendarData()" style="margin-top: 16px; width: 100%; padding: 8px; background: rgba(220, 38, 38, 0.2); border: 1px solid rgba(220, 38, 38, 0.5); color: #fca5a5; border-radius: 4px; cursor: pointer; font-size: 12px;">🗑️ 清空所有数据</button>
             </div>
         </aside>
 
@@ -1920,6 +1943,24 @@
         }
 
         /**
+         * 清空所有日历数据（调试用）
+         */
+        function clearAllCalendarData() {
+            try {
+                adminData.calendarEntries = {};
+                adminData.checkpointCompletions = {};
+                saveData();
+                renderChamberGrid();
+                renderScrollArchive();
+                updateStats();
+                console.log('✓ 所有日历数据已清空');
+                alert('所有数据已清空，请刷新页面');
+            } catch (error) {
+                console.error('清空数据失败:', error);
+            }
+        }
+
+        /**
          * 保存数据
          */
         function saveData() {
@@ -1956,8 +1997,8 @@
             };
 
             for (let i = 1; i < dates.length; i++) {
-                const prevDate = new Date(dates[i - 1]);
-                const currDate = new Date(dates[i]);
+                const prevDate = parseLocalDate(dates[i - 1]);
+                const currDate = parseLocalDate(dates[i]);
 
                 // 计算日期差（天数）
                 const diffTime = currDate - prevDate;
@@ -1996,8 +2037,8 @@
             for (const range of ranges) {
                 if (dateStr >= range.startDate && dateStr <= range.endDate) {
                     const dates = [];
-                    let current = new Date(range.startDate);
-                    const end = new Date(range.endDate);
+                    let current = parseLocalDate(range.startDate);
+                    const end = parseLocalDate(range.endDate);
 
                     while (current <= end) {
                         dates.push(formatDate(new Date(current)));
@@ -2044,8 +2085,8 @@
             }
 
             if (archivedRecord) {
-                const entryTime = new Date(dateStr).getTime();
-                const archiveTime = new Date(archivedRecord.date).getTime();
+                const entryTime = parseLocalDate(dateStr).getTime();
+                const archiveTime = parseLocalDate(archivedRecord.date).getTime();
 
                 if (entryTime < archiveTime) return 'before-archive';
                 if (entryTime === archiveTime) return 'archive-day';
@@ -2284,6 +2325,29 @@
         }
 
         /**
+         * 获取日期待办统计
+         * @param {string} dateStr - 日期字符串
+         * @returns {Object} - { completed: number, total: number }
+         */
+        function getDateTodoStats(dateStr) {
+            const entries = adminData.calendarEntries[dateStr] || [];
+            let completed = 0;
+            let total = 0;
+
+            entries.forEach(entry => {
+                if (entry.description) {
+                    const todos = markdownToTodos(entry.description);
+                    todos.forEach(todo => {
+                        total++;
+                        if (todo.completed) completed++;
+                    });
+                }
+            });
+
+            return { completed, total };
+        }
+
+        /**
          * 渲染时间密室网格（分层 Grid 布局）
          */
         function renderChamberGrid() {
@@ -2351,11 +2415,18 @@
                         const isToday = date.toDateString() === today.toDateString();
                         const dateStr = formatDate(date);
 
+                        // 计算当日待办统计
+                        const todoStats = getDateTodoStats(dateStr);
+                        const statsHtml = todoStats.total > 0
+                            ? `<span class="chamber-stats" title="已完成/总待办">${todoStats.completed === todoStats.total ? '🎉 ' : ''}${todoStats.completed}/${todoStats.total}</span>`
+                            : '';
+
                         html += `
                             <div class="time-chamber ${isToday ? 'today' : ''}"
                                 data-date="${dateStr}" data-index="${cellIndex}" data-col="${col}">
                                 <div class="chamber-date">
                                     <span>${date.getDate()}</span>
+                                    ${statsHtml}
                                 </div>
                             </div>
                         `;
@@ -2399,8 +2470,8 @@
             };
 
             for (let i = 1; i < dates.length; i++) {
-                const prevDate = new Date(dates[i - 1]);
-                const currDate = new Date(dates[i]);
+                const prevDate = parseLocalDate(dates[i - 1]);
+                const currDate = parseLocalDate(dates[i]);
                 const diffDays = Math.round((currDate - prevDate) / (1000 * 60 * 60 * 24));
 
                 if (diffDays === 1) {
@@ -2486,8 +2557,8 @@
 
                 ranges.forEach(range => {
                     // 检查该范围是否与当前月份有交集
-                    const rangeStart = new Date(range.startDate);
-                    const rangeEnd = new Date(range.endDate);
+                    const rangeStart = parseLocalDate(range.startDate);
+                    const rangeEnd = parseLocalDate(range.endDate);
                     const monthStart = new Date(year, month, 1);
                     const monthEnd = new Date(year, month + 1, 0);
                     
@@ -2587,8 +2658,8 @@
                         // 获取条带的日期范围
                         const startDateStr = this.dataset.startDate;
                         const endDateStr = this.dataset.endDate;
-                        const startDate = new Date(startDateStr);
-                        const endDate = new Date(endDateStr);
+                        const startDate = parseLocalDate(startDateStr);
+                        const endDate = parseLocalDate(endDateStr);
                         
                         // 计算条带跨越的天数
                         const dayCount = Math.round((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
@@ -2600,7 +2671,7 @@
                         const clickedDayOffset = Math.floor(clickX / colWidth);
                         
                         // 计算点击的日期
-                        const clickedDate = new Date(startDate);
+                        const clickedDate = new Date(startDate.getTime());
                         clickedDate.setDate(startDate.getDate() + clickedDayOffset);
                         const clickedDateStr = formatDate(clickedDate);
                         
@@ -2755,8 +2826,8 @@
                     <span class="breadcrumb-path">${LifeRPG.security.escapeHtml(entry.landmarkName)} › ${LifeRPG.security.escapeHtml(entry.questName)} › ${LifeRPG.security.escapeHtml(entry.levelName)}</span>
                 `;
 
-                // 加载待办列表（进展记录）
-                loadTodos(entry.description || '');
+                // 加载待办列表（优先使用 entry.todos，兼容旧数据 entry.description）
+                loadTodos(entry.todos || entry.description || '');
 
                 const history = getCheckpointHistory(entry.checkpointId);
                 const sortedHistory = [...history].sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -2795,9 +2866,6 @@
                 // 加载标签
                 loadCheckpointTags(entry.checkpointId, entry.tags || entry.tag);
 
-                // 加载待办列表
-                loadTodos(entry.todos || '');
-
                 // 更新复制按钮文字（周五显示"复制到下周一"）
                 const copyBtn = document.getElementById('copyNextBtn');
                 const currentDay = date.getDay();
@@ -2815,8 +2883,8 @@
          * 计算两个日期之间的天数
          */
         function calculateDuration(startDateStr, endDateStr) {
-            const start = new Date(startDateStr);
-            const end = new Date(endDateStr);
+            const start = parseLocalDate(startDateStr);
+            const end = parseLocalDate(endDateStr);
             const diffTime = Math.abs(end - start);
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
             return diffDays;
@@ -2850,8 +2918,9 @@
                     const entry = findEntryById(h.date, h.entryId);
                     if (!entry) return;
 
-                    const isArchived = h.archived;
-                    const dateLabel = isArchived ? ' ✓' : '';
+                    const isCompleted = entry.completed || h.completed;
+                    console.log('时间轴渲染:', h.date, 'entry.completed:', entry.completed, 'h.completed:', h.completed, 'isCompleted:', isCompleted);
+                    const dateLabel = '';
 
                     // 获取标签数组（兼容新旧数据）
                     let tags = [];
@@ -2884,7 +2953,7 @@
                     }
 
                     html += `
-                        <div class="timeline-item ${isArchived ? 'archived' : ''}">
+                        <div class="timeline-item ${isCompleted ? 'completed' : 'pending'}">
                             <div class="timeline-date">${h.date}${dateLabel}</div>
                             <div class="timeline-desc">
                                 ${tagsHtml}
@@ -2921,8 +2990,8 @@
                 const entry = adminData.calendarEntries[selectedDate].find(e => e.id === editingEntryId);
                 if (!entry) return;
 
-                // 计算下一天日期
-                const currentDate = new Date(selectedDate);
+                // 计算下一天日期（使用本地时间避免时区问题）
+                const currentDate = parseLocalDate(selectedDate);
                 let nextDate = new Date(currentDate);
                 nextDate.setDate(currentDate.getDate() + 1);
 
@@ -2931,11 +3000,19 @@
                     nextDate.setDate(currentDate.getDate() + 3);
                 }
 
-                const nextDateStr = nextDate.toISOString().split('T')[0];
+                const nextDateStr = formatDate(nextDate);
 
                 // 检查下一天是否已有相同检查点的记录
                 const nextDayEntries = adminData.calendarEntries[nextDateStr] || [];
                 const existingEntry = nextDayEntries.find(e => e.checkpointId === entry.checkpointId);
+
+                // 调试日志：帮助排查数据问题
+                console.log('复制检查:', {
+                    nextDateStr,
+                    nextDayEntries,
+                    checkpointId: entry.checkpointId,
+                    existingEntry
+                });
 
                 if (existingEntry) {
                     // 存储临时数据
@@ -2977,6 +3054,20 @@
             if (existingEntry) {
                 // 覆盖现有记录（不复制描述，只复制标签）
                 existingEntry.tags = entry.tags || (entry.tag ? [entry.tag] : []);
+
+                // 确保 checkpointCompletions 中也有对应的记录（处理旧数据不一致的情况）
+                if (!adminData.checkpointCompletions[entry.checkpointId]) {
+                    adminData.checkpointCompletions[entry.checkpointId] = [];
+                }
+                const historyRecord = adminData.checkpointCompletions[entry.checkpointId]
+                    .find(h => h.date === nextDateStr && h.entryId === existingEntry.id);
+                if (!historyRecord) {
+                    adminData.checkpointCompletions[entry.checkpointId].push({
+                        date: nextDateStr,
+                        entryId: existingEntry.id,
+                        completed: existingEntry.completed || false
+                    });
+                }
             } else {
                 // 创建新记录（不复制描述，只复制标签）
                 const newEntry = {
@@ -2999,9 +3090,19 @@
                     adminData.calendarEntries[nextDateStr] = [];
                 }
                 adminData.calendarEntries[nextDateStr].push(newEntry);
+
+                // 同步创建 checkpointCompletions 记录，使条带能正确渲染
+                if (!adminData.checkpointCompletions[entry.checkpointId]) {
+                    adminData.checkpointCompletions[entry.checkpointId] = [];
+                }
+                adminData.checkpointCompletions[entry.checkpointId].push({
+                    date: nextDateStr,
+                    entryId: newEntry.id,
+                    completed: false
+                });
             }
 
-            LifeRPG.storage.save(adminData);
+            saveData();
 
             // 刷新日历视图
             renderChamberGrid();
@@ -3178,11 +3279,15 @@
             };
 
             // 点击外部关闭建议
-            document.onclick = function(e) {
+            const clickOutsideHandler = function(e) {
                 if (!e.target.closest('.tag-input-wrapper')) {
                     tagSuggestions.classList.remove('active');
                 }
             };
+            document.addEventListener('click', clickOutsideHandler);
+
+            // 存储处理器引用以便后续清理
+            window._tagClickHandler = clickOutsideHandler;
         }
 
         // ==================== 待办列表功能 ====================
@@ -3370,6 +3475,14 @@
                 document.body.style.overflow = '';
                 selectedDate = null;
                 editingEntryId = null;
+                // 清理状态，防止数据泄露到下一次弹窗
+                currentTodos = [];
+                currentTags = [];
+                // 清理标签点击外部处理器
+                if (window._tagClickHandler) {
+                    document.removeEventListener('click', window._tagClickHandler);
+                    window._tagClickHandler = null;
+                }
             } catch (error) {
                 console.error('关闭弹窗失败:', error);
             }
@@ -3598,6 +3711,16 @@
             } catch (error) {
                 console.error('更新统计失败:', error);
             }
+        }
+
+        /**
+         * 将日期字符串解析为本地日期（避免时区问题）
+         * @param {string} dateStr - 格式: "YYYY-MM-DD"
+         * @returns {Date} - 本地日期对象
+         */
+        function parseLocalDate(dateStr) {
+            const [year, month, day] = dateStr.split('-').map(Number);
+            return new Date(year, month - 1, day); // month 是 0-based
         }
 
         /**
