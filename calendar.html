@@ -1623,6 +1623,48 @@
             color: var(--bg-deep);
         }
 
+        /* 自定义 Tooltip */
+        .stripe-tooltip {
+            position: fixed;
+            background: var(--bg-panel);
+            border: 1px solid var(--border-gold);
+            border-radius: 8px;
+            padding: 10px 14px;
+            max-width: 280px;
+            max-height: 300px;
+            overflow-y: auto;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+            z-index: 9998;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.15s ease, visibility 0.15s ease;
+            pointer-events: none;
+        }
+
+        .stripe-tooltip.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .stripe-tooltip .tooltip-todo {
+            font-size: 12px;
+            color: var(--text-primary);
+            line-height: 1.6;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 2px 0;
+        }
+
+        .stripe-tooltip .tooltip-todo.completed {
+            color: var(--text-muted);
+        }
+
+        .stripe-tooltip .tooltip-todo .todo-icon {
+            font-size: 10px;
+            flex-shrink: 0;
+        }
+
         /* Toast 提示 */
         .toast-container {
             position: fixed;
@@ -1757,7 +1799,9 @@
                         <div class="stat-label">连续</div>
                     </div>
                 </div>
+                <!-- 清空数据按钮（调试用，需要时启用）
                 <button onclick="clearAllCalendarData()" style="margin-top: 16px; width: 100%; padding: 8px; background: rgba(220, 38, 38, 0.2); border: 1px solid rgba(220, 38, 38, 0.5); color: #fca5a5; border-radius: 4px; cursor: pointer; font-size: 12px;">🗑️ 清空所有数据</button>
+                -->
             </div>
         </aside>
 
@@ -2651,6 +2695,10 @@
                     stripe.dataset.cpName = LifeRPG.security.escapeHtml(cpData.name);
                     stripe.dataset.sourceDate = range.startDate;
 
+                    // 悬停显示自定义 tooltip
+                    stripe.addEventListener('mousemove', showStripeTooltip);
+                    stripe.addEventListener('mouseleave', hideStripeTooltip);
+
                     // 点击打开弹窗 - 根据点击位置计算对应日期
                     stripe.onclick = function(e) {
                         e.stopPropagation();
@@ -3466,6 +3514,80 @@
         }
 
         /**
+         * 显示条带悬停提示（显示鼠标所在当天的待办）
+         */
+        function showStripeTooltip(e) {
+            const tooltip = document.getElementById('stripeTooltip');
+            const stripe = this;
+
+            // 计算鼠标所在的日期
+            const startDateStr = stripe.dataset.startDate;
+            const endDateStr = stripe.dataset.endDate;
+            const startDate = parseLocalDate(startDateStr);
+            const endDate = parseLocalDate(endDateStr);
+            const dayCount = Math.round((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+
+            const rect = stripe.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const colWidth = rect.width / dayCount;
+            const dayOffset = Math.floor(clickX / colWidth);
+
+            const hoveredDate = new Date(startDate.getTime());
+            hoveredDate.setDate(startDate.getDate() + dayOffset);
+            const hoveredDateStr = formatDate(hoveredDate);
+
+            // 获取该日期的待办
+            const checkpointId = stripe.dataset.checkpointId;
+            const entries = adminData.calendarEntries[hoveredDateStr] || [];
+            const entry = entries.find(e => e.checkpointId === checkpointId);
+
+            if (!entry || !entry.description) {
+                tooltip.classList.remove('active');
+                return;
+            }
+
+            const todos = markdownToTodos(entry.description);
+            if (todos.length === 0) {
+                tooltip.classList.remove('active');
+                return;
+            }
+
+            // 生成待办列表 HTML
+            let html = '';
+            todos.forEach(todo => {
+                const icon = todo.completed ? '☑' : '☐';
+                const completedClass = todo.completed ? 'completed' : '';
+                html += `<div class="tooltip-todo ${completedClass}"><span class="todo-icon">${icon}</span>${LifeRPG.security.escapeHtml(todo.text)}</div>`;
+            });
+
+            tooltip.innerHTML = html;
+            tooltip.classList.add('active');
+
+            // 定位 tooltip
+            const tooltipRect = tooltip.getBoundingClientRect();
+            let left = e.clientX + 12;
+            let top = e.clientY + 12;
+
+            if (left + tooltipRect.width > window.innerWidth) {
+                left = e.clientX - tooltipRect.width - 12;
+            }
+            if (top + tooltipRect.height > window.innerHeight) {
+                top = e.clientY - tooltipRect.height - 12;
+            }
+
+            tooltip.style.left = left + 'px';
+            tooltip.style.top = top + 'px';
+        }
+
+        /**
+         * 隐藏条带悬停提示
+         */
+        function hideStripeTooltip() {
+            const tooltip = document.getElementById('stripeTooltip');
+            tooltip.classList.remove('active');
+        }
+
+        /**
          * 关闭弹窗
          */
         function closeModal() {
@@ -3869,5 +3991,8 @@
 
     <!-- Toast 提示 -->
     <div class="toast-container" id="toastContainer"></div>
+
+    <!-- 自定义 Tooltip -->
+    <div class="stripe-tooltip" id="stripeTooltip"></div>
 </body>
 </html>
