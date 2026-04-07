@@ -2485,8 +2485,21 @@
                 const ranges = calculateStripeRanges(checkpointId);
 
                 ranges.forEach(range => {
-                    const startInfo = dateIndexMap[range.startDate];
-                    const endInfo = dateIndexMap[range.endDate];
+                    // 检查该范围是否与当前月份有交集
+                    const rangeStart = new Date(range.startDate);
+                    const rangeEnd = new Date(range.endDate);
+                    const monthStart = new Date(year, month, 1);
+                    const monthEnd = new Date(year, month + 1, 0);
+                    
+                    // 如果范围完全在当前月份之外，跳过
+                    if (rangeEnd < monthStart || rangeStart > monthEnd) return;
+                    
+                    // 计算在当前月份内的实际开始和结束日期
+                    const actualStartDate = rangeStart < monthStart ? formatDate(monthStart) : range.startDate;
+                    const actualEndDate = rangeEnd > monthEnd ? formatDate(monthEnd) : range.endDate;
+                    
+                    const startInfo = dateIndexMap[actualStartDate];
+                    const endInfo = dateIndexMap[actualEndDate];
 
                     // 只渲染在当前视图范围内的条带
                     if (!startInfo || !endInfo) return;
