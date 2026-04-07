@@ -3209,8 +3209,15 @@
 
             // 计算目标层级（1-based）
             // 使用向下取整，让指示器跟随鼠标位置
+            // 允许拖到最后一行之后（即 allStripes.length + 1）
             let targetLevel = Math.floor(relativeY / totalRowHeight) + 1;
             targetLevel = Math.max(1, Math.min(allStripes.length + 1, targetLevel));
+
+            // 如果鼠标在容器底部区域，允许拖到最后一行之后
+            const maxLevel = allStripes.length + 1;
+            if (relativeY > allStripes.length * totalRowHeight) {
+                targetLevel = maxLevel;
+            }
 
             stripeDragState.targetLevel = targetLevel;
 
