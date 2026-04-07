@@ -3283,17 +3283,15 @@
             allStripes.splice(targetLevel - 1, 0, draggedStripe);
 
             // 收集新的顺序映射 {checkpointId: newOrder}
+            // 注意：同一个 checkpointId 在同一天内可能出现多次（跨天条带分段显示）
             const newOrderMap = {};
             allStripes.forEach((stripe, index) => {
                 const cpId = stripe.dataset.checkpointId;
-                // 检查是否有重复的 checkpointId
-                if (newOrderMap.hasOwnProperty(cpId)) {
-                    console.warn('发现重复的 checkpointId:', cpId, '当前索引:', index, '已有索引:', newOrderMap[cpId]);
+                // 使用第一次出现的索引作为 order（因为跨天条带的所有分段应该共享同一个 order）
+                if (!newOrderMap.hasOwnProperty(cpId)) {
+                    newOrderMap[cpId] = index;
                 }
-                newOrderMap[cpId] = index;
             });
-
-            console.log('newOrderMap:', newOrderMap);
 
             // 更新所有条带所有日期的 entry order
             allStripes.forEach(stripe => {
