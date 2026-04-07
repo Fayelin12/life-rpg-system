@@ -2571,21 +2571,24 @@
                     stripe.onclick = function(e) {
                         e.stopPropagation();
                         
-                        // 获取条带的 grid 列范围
-                        const stripeStartCol = parseInt(this.style.getPropertyValue('--start')) - 1; // 转为 0-based
-                        const stripeEndCol = parseInt(this.style.getPropertyValue('--end')) - 2;   // end 是 exclusive
-                        const stripeColCount = stripeEndCol - stripeStartCol + 1;
+                        // 获取条带的日期范围
+                        const startDateStr = this.dataset.startDate;
+                        const endDateStr = this.dataset.endDate;
+                        const startDate = new Date(startDateStr);
+                        const endDate = new Date(endDateStr);
+                        
+                        // 计算条带跨越的天数
+                        const dayCount = Math.round((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
                         
                         // 计算点击的列（相对于条带）
                         const rect = this.getBoundingClientRect();
                         const clickX = e.clientX - rect.left;
-                        const colWidth = rect.width / stripeColCount;
-                        const clickedColOffset = Math.floor(clickX / colWidth);
+                        const colWidth = rect.width / dayCount;
+                        const clickedDayOffset = Math.floor(clickX / colWidth);
                         
-                        // 计算点击的日期（使用 stripeStartCol 而不是 startCol，因为 CSS grid 列可能不同）
-                        const clickedCol = stripeStartCol + clickedColOffset;
-                        const dayOffset = clickedCol - firstDayWeekday;
-                        const clickedDate = new Date(year, month, dayOffset + 1);
+                        // 计算点击的日期
+                        const clickedDate = new Date(startDate);
+                        clickedDate.setDate(startDate.getDate() + clickedDayOffset);
                         const clickedDateStr = formatDate(clickedDate);
                         
                         // 查找该日期的条目
@@ -2596,7 +2599,7 @@
                             openEntryModal(clickedDateStr, entry.id);
                         } else {
                             // 如果该日期没有条目（理论上不应该发生），打开开始日期的弹窗
-                            openEntryModal(range.startDate, firstEntry.id);
+                            openEntryModal(startDateStr, firstEntry.id);
                         }
                     };
 
