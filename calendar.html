@@ -536,6 +536,7 @@
             background: var(--bg-panel);
             z-index: 1;
             border: none;
+            position: relative;
         }
 
         /* 周末折叠时调整条带网格 */
@@ -3221,7 +3222,8 @@
             // 第 N 行的指示器位置 = (N-1) * 行高
             const indicatorTop = (targetLevel - 1) * totalRowHeight;
             dropIndicator.style.display = 'block';
-            dropIndicator.style.top = Math.max(0, Math.min(containerRect.height - 3, indicatorTop)) + 'px';
+            // 允许指示器显示在容器边界外（方便拖到最后一行之后）
+            dropIndicator.style.top = Math.max(-2, indicatorTop) + 'px';
         }
 
         /**
