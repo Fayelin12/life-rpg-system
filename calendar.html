@@ -3246,7 +3246,15 @@
          * 加载待办列表
          */
         function loadTodos(markdown) {
-            currentTodos = markdownToTodos(markdown);
+            if (!markdown || !markdown.trim()) {
+                currentTodos = [];
+            } else if (markdown.includes('[ ]') || markdown.includes('[x]') || markdown.includes('[X]')) {
+                // 新格式：Markdown 待办列表
+                currentTodos = markdownToTodos(markdown);
+            } else {
+                // 旧格式：纯文本，转换为单条未完成的待办
+                currentTodos = [{ text: markdown.trim(), completed: false }];
+            }
             renderTodoList();
         }
 
