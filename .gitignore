@@ -1,0 +1,10 @@
+# Windows 系统文件
+nul
+NUL
+
+# 备份文件
+*.backup
+
+# 临时文件
+*.tmp
+*.temp
