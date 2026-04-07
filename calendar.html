@@ -568,6 +568,26 @@
             filter: brightness(1.15);
         }
 
+        .checkpoint-stripe.dragging {
+            opacity: 0.7;
+            cursor: grabbing;
+            z-index: 1000;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+        }
+
+        /* 条带拖拽排序指示器 */
+        .stripe-drop-indicator {
+            position: absolute;
+            left: 4px;
+            right: 4px;
+            height: 3px;
+            background: var(--accent-gold);
+            border-radius: 2px;
+            pointer-events: none;
+            z-index: 999;
+            box-shadow: 0 0 8px var(--accent-gold);
+        }
+
         /* 跨天条带 */
         .checkpoint-stripe.continuous {
             border-radius: 0;
@@ -2237,6 +2257,16 @@
         let selectedDate = null;
         let editingEntryId = null;
 
+        // 条带拖拽排序状态
+        let stripeDragState = {
+            isDragging: false,
+            draggedStripe: null,
+            startY: 0,
+            startLevel: 0,
+            rowStripesContainer: null,
+            dropIndicator: null
+        };
+
         /**
          * 初始化
          */
@@ -2890,11 +2920,9 @@
         }
 
         /**
-         * 渲染检查点条带（分层 Grid 布局）
+         * 渲染检查点条带（分层 Grid 布局，支持 order 排序）
          */
         function renderCheckpointStripes(grid, year, month, firstDayWeekday, daysInMonth) {
-            const checkpointThemes = {};
-
             // 构建日期索引映射 - 只包含当月日期
             const dateIndexMap = {};
             for (let day = 1; day <= daysInMonth; day++) {
@@ -2907,6 +2935,9 @@
                     col: index % 7
                 };
             }
+
+            // 按行收集所有条带数据
+            const rowStripesData = {}; // { rowIndex: [stripeData, ...] }
 
             // 收集每个检查点的所有条目
             const checkpointData = {};
@@ -2923,7 +2954,6 @@
                             questName: entry.questName,
                             levelName: entry.levelName
                         };
-                        // 主题色将在后面根据总历时天数分配
                     }
                     checkpointData[entry.checkpointId].entries.push({
                         ...entry,
@@ -2932,10 +2962,7 @@
                 });
             });
 
-            // 按行收集条带，用于计算层级
-            const rowStripes = {}; // { rowIndex: [{startCol, endCol}, ...] }
-
-            // 为每个检查点计算连续范围并渲染条带
+            // 为每个检查点计算连续范围并收集条带数据
             Object.keys(checkpointData).forEach(checkpointId => {
                 const cpData = checkpointData[checkpointId];
                 const ranges = calculateStripeRanges(checkpointId);
@@ -2946,18 +2973,15 @@
                     const rangeEnd = parseLocalDate(range.endDate);
                     const monthStart = new Date(year, month, 1);
                     const monthEnd = new Date(year, month + 1, 0);
-                    
-                    // 如果范围完全在当前月份之外，跳过
+
                     if (rangeEnd < monthStart || rangeStart > monthEnd) return;
-                    
-                    // 计算在当前月份内的实际开始和结束日期
+
                     const actualStartDate = rangeStart < monthStart ? formatDate(monthStart) : range.startDate;
                     const actualEndDate = rangeEnd > monthEnd ? formatDate(monthEnd) : range.endDate;
-                    
+
                     const startInfo = dateIndexMap[actualStartDate];
                     const endInfo = dateIndexMap[actualEndDate];
 
-                    // 只渲染在当前视图范围内的条带
                     if (!startInfo || !endInfo) return;
 
                     const startRow = startInfo.row;
@@ -2968,20 +2992,20 @@
                     const firstEntry = cpData.entries.find(e => e.date === range.startDate);
                     if (!firstEntry) return;
 
+                    // 获取 order 值（用于排序）
+                    const order = firstEntry.order || 0;
+
                     const archiveDate = getCheckpointArchiveDate(checkpointId);
                     const isArchived = !!archiveDate;
 
-                    // 计算总历时（用于显示）
                     const history = getCheckpointHistory(checkpointId);
                     const sortedHistory = [...history].sort((a, b) => new Date(a.date) - new Date(b.date));
                     const firstDate = sortedHistory.length > 0 ? sortedHistory[0].date : range.startDate;
                     const lastDate = sortedHistory.length > 0 ? sortedHistory[sortedHistory.length - 1].date : range.startDate;
                     const totalDuration = calculateDuration(firstDate, lastDate);
 
-                    // 判断是否连续条带（跨越多天）
                     const isContinuous = range.startDate !== range.endDate;
 
-                    // 确定条带样式类（根据当月历时天数设置颜色）
                     let stripeClass = getStripeColorByDuration(duration);
                     if (isContinuous) {
                         stripeClass += ' continuous';
@@ -2990,7 +3014,6 @@
                         stripeClass += ' archived';
                     }
 
-                    // 构建条带内容
                     let stripeContent;
                     if (isContinuous) {
                         stripeContent = `<span class="stripe-level">${LifeRPG.security.escapeHtml(cpData.levelName)}</span><span class="stripe-separator">›</span><span class="stripe-name">${LifeRPG.security.escapeHtml(cpData.name)}</span><span class="stripe-duration">${totalDuration}天</span>`;
@@ -2998,15 +3021,43 @@
                         stripeContent = `<span class="stripe-name">${LifeRPG.security.escapeHtml(cpData.name)}</span><span class="stripe-duration">${totalDuration}天</span>`;
                     }
 
-                    // 计算层级（避免重叠）
-                    if (!rowStripes[startRow]) rowStripes[startRow] = [];
-                    const occupied = rowStripes[startRow];
+                    // 收集条带数据
+                    if (!rowStripesData[startRow]) rowStripesData[startRow] = [];
+                    rowStripesData[startRow].push({
+                        checkpointId,
+                        startCol,
+                        endCol,
+                        order,
+                        stripeClass,
+                        stripeContent,
+                        range,
+                        cpData,
+                        firstEntry,
+                        isArchived,
+                        totalDuration
+                    });
+                });
+            });
+
+            // 按行渲染条带，根据 order 排序
+            Object.keys(rowStripesData).forEach(rowIndex => {
+                const stripes = rowStripesData[rowIndex];
+
+                // 按 order 排序，order 相同则按 startCol 排序
+                stripes.sort((a, b) => {
+                    if (a.order !== b.order) return a.order - b.order;
+                    return a.startCol - b.startCol;
+                });
+
+                // 分配 level（考虑重叠）
+                const occupied = []; // [{level, startCol, endCol}]
+                stripes.forEach(stripeData => {
                     let level = 1;
                     let found = false;
                     while (!found) {
                         const conflict = occupied.some(o =>
                             o.level === level &&
-                            !(endCol < o.startCol || startCol > o.endCol)
+                            !(stripeData.endCol < o.startCol || stripeData.startCol > o.endCol)
                         );
                         if (!conflict) {
                             found = true;
@@ -3014,101 +3065,239 @@
                             level++;
                         }
                     }
-                    occupied.push({ level, startCol, endCol });
+                    occupied.push({ level, startCol: stripeData.startCol, endCol: stripeData.endCol });
+                    stripeData.level = level;
+                });
 
-                    // 创建条带元素
-                    const stripe = document.createElement('div');
-                    stripe.className = `checkpoint-stripe ${stripeClass}`;
-                    stripe.innerHTML = stripeContent;
-                    stripe.draggable = true;
-                    stripe.style.setProperty('--start', startCol + 1); // CSS grid 是 1-based
-                    stripe.style.setProperty('--end', endCol + 2);     // end 是 exclusive
-                    stripe.style.setProperty('--level', level);
-                    stripe.dataset.checkpointId = checkpointId;
-                    stripe.dataset.startDate = range.startDate;
-                    stripe.dataset.endDate = range.endDate;
-                    stripe.dataset.entryId = firstEntry.id;
-                    stripe.dataset.levelId = cpData.levelId;
-                    stripe.dataset.questId = cpData.questId;
-                    stripe.dataset.landmark = LifeRPG.security.escapeHtml(cpData.landmarkName);
-                    stripe.dataset.quest = LifeRPG.security.escapeHtml(cpData.questName);
-                    stripe.dataset.level = LifeRPG.security.escapeHtml(cpData.levelName);
-                    stripe.dataset.cpName = LifeRPG.security.escapeHtml(cpData.name);
-                    stripe.dataset.sourceDate = range.startDate;
-
-                    // 悬停显示自定义 tooltip
-                    stripe.addEventListener('mousemove', showStripeTooltip);
-                    stripe.addEventListener('mouseleave', hideStripeTooltip);
-
-                    // 点击打开弹窗 - 根据点击位置计算对应日期
-                    stripe.onclick = function(e) {
-                        e.stopPropagation();
-                        
-                        // 获取条带的日期范围
-                        const startDateStr = this.dataset.startDate;
-                        const endDateStr = this.dataset.endDate;
-                        const startDate = parseLocalDate(startDateStr);
-                        const endDate = parseLocalDate(endDateStr);
-                        
-                        // 计算条带跨越的天数
-                        const dayCount = Math.round((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
-                        
-                        // 计算点击的列（相对于条带）
-                        const rect = this.getBoundingClientRect();
-                        const clickX = e.clientX - rect.left;
-                        const colWidth = rect.width / dayCount;
-                        const clickedDayOffset = Math.floor(clickX / colWidth);
-                        
-                        // 计算点击的日期
-                        const clickedDate = new Date(startDate.getTime());
-                        clickedDate.setDate(startDate.getDate() + clickedDayOffset);
-                        const clickedDateStr = formatDate(clickedDate);
-                        
-                        // 查找该日期的条目
-                        const entries = adminData.calendarEntries[clickedDateStr] || [];
-                        const entry = entries.find(e => e.checkpointId === checkpointId);
-                        
-                        if (entry) {
-                            openEntryModal(clickedDateStr, entry.id);
-                        } else {
-                            // 如果该日期没有条目（理论上不应该发生），打开开始日期的弹窗
-                            openEntryModal(startDateStr, firstEntry.id);
-                        }
-                    };
-
-                    // 拖拽事件
-                    stripe.ondragstart = function(e) {
-                        e.stopPropagation();
-                        draggedCheckpoint = {
-                            id: checkpointId,
-                            entryId: firstEntry.id,
-                            levelId: cpData.levelId,
-                            questId: cpData.questId,
-                            name: cpData.name,
-                            landmark: cpData.landmarkName,
-                            quest: cpData.questName,
-                            level: cpData.levelName,
-                            sourceDate: range.startDate,
-                            isMoving: true
-                        };
-                        this.classList.add('dragging');
-                        document.body.classList.add('dragging');
-                        e.dataTransfer.effectAllowed = 'move';
-                    };
-
-                    stripe.ondragend = function() {
-                        this.classList.remove('dragging');
-                        document.body.classList.remove('dragging');
-                    };
+                // 创建条带元素
+                stripes.forEach(stripeData => {
+                    const stripe = createStripeElement(stripeData, rowIndex);
 
                     // 添加到对应行的条带容器
-                    const rowStripesContainer = grid.querySelector(`.row-stripes[data-row="${startRow}"]`);
+                    const rowStripesContainer = grid.querySelector(`.row-stripes[data-row="${rowIndex}"]`);
                     if (rowStripesContainer) {
                         rowStripesContainer.appendChild(stripe);
                     }
                 });
             });
+        }
 
+        /**
+         * 创建条带元素
+         */
+        function createStripeElement(stripeData, rowIndex) {
+            const {
+                checkpointId, startCol, endCol, level, order,
+                stripeClass, stripeContent, range, cpData, firstEntry
+            } = stripeData;
+
+            const stripe = document.createElement('div');
+            stripe.className = `checkpoint-stripe ${stripeClass}`;
+            stripe.innerHTML = stripeContent;
+            stripe.style.setProperty('--start', startCol + 1);
+            stripe.style.setProperty('--end', endCol + 2);
+            stripe.style.setProperty('--level', level);
+            stripe.dataset.checkpointId = checkpointId;
+            stripe.dataset.startDate = range.startDate;
+            stripe.dataset.endDate = range.endDate;
+            stripe.dataset.entryId = firstEntry.id;
+            stripe.dataset.levelId = cpData.levelId;
+            stripe.dataset.questId = cpData.questId;
+            stripe.dataset.landmark = LifeRPG.security.escapeHtml(cpData.landmarkName);
+            stripe.dataset.quest = LifeRPG.security.escapeHtml(cpData.questName);
+            stripe.dataset.level = LifeRPG.security.escapeHtml(cpData.levelName);
+            stripe.dataset.cpName = LifeRPG.security.escapeHtml(cpData.name);
+            stripe.dataset.sourceDate = range.startDate;
+            stripe.dataset.rowIndex = rowIndex;
+            stripe.dataset.order = order;
+
+            // 悬停显示自定义 tooltip
+            stripe.addEventListener('mousemove', showStripeTooltip);
+            stripe.addEventListener('mouseleave', hideStripeTooltip);
+
+            // 点击打开弹窗
+            stripe.onclick = function(e) {
+                e.stopPropagation();
+
+                const startDateStr = this.dataset.startDate;
+                const endDateStr = this.dataset.endDate;
+                const startDate = parseLocalDate(startDateStr);
+                const endDate = parseLocalDate(endDateStr);
+                const dayCount = Math.round((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+
+                const rect = this.getBoundingClientRect();
+                const clickX = e.clientX - rect.left;
+                const colWidth = rect.width / dayCount;
+                const clickedDayOffset = Math.floor(clickX / colWidth);
+
+                const clickedDate = new Date(startDate.getTime());
+                clickedDate.setDate(startDate.getDate() + clickedDayOffset);
+                const clickedDateStr = formatDate(clickedDate);
+
+                const entries = adminData.calendarEntries[clickedDateStr] || [];
+                const entry = entries.find(e => e.checkpointId === checkpointId);
+
+                if (entry) {
+                    openEntryModal(clickedDateStr, entry.id);
+                } else {
+                    openEntryModal(startDateStr, firstEntry.id);
+                }
+            };
+
+            // 条带拖拽排序事件
+            stripe.addEventListener('mousedown', onStripeDragStart);
+
+            return stripe;
+        }
+
+        /**
+         * 条带拖拽排序 - 开始
+         */
+        function onStripeDragStart(e) {
+            // 只响应左键
+            if (e.button !== 0) return;
+
+            const stripe = e.currentTarget;
+            const rowIndex = stripe.dataset.rowIndex;
+            const rowContainer = document.querySelector(`.row-stripes[data-row="${rowIndex}"]`);
+
+            if (!rowContainer) return;
+
+            stripeDragState.isDragging = true;
+            stripeDragState.draggedStripe = stripe;
+            stripeDragState.startY = e.clientY;
+            stripeDragState.startLevel = parseInt(stripe.style.getPropertyValue('--level'));
+            stripeDragState.rowStripesContainer = rowContainer;
+
+            stripe.classList.add('dragging');
+
+            // 创建放置指示器
+            const indicator = document.createElement('div');
+            indicator.className = 'stripe-drop-indicator';
+            indicator.style.display = 'none';
+            rowContainer.appendChild(indicator);
+            stripeDragState.dropIndicator = indicator;
+
+            // 绑定全局事件
+            document.addEventListener('mousemove', onStripeDragMove);
+            document.addEventListener('mouseup', onStripeDragEnd);
+
+            e.preventDefault();
+        }
+
+        /**
+         * 条带拖拽排序 - 移动
+         */
+        function onStripeDragMove(e) {
+            if (!stripeDragState.isDragging) return;
+
+            const { draggedStripe, rowStripesContainer, dropIndicator, startLevel } = stripeDragState;
+
+            // 获取容器内所有条带（排除正在拖拽的）
+            const allStripes = [...rowStripesContainer.querySelectorAll('.checkpoint-stripe:not(.dragging)')];
+
+            // 计算目标位置
+            const containerRect = rowStripesContainer.getBoundingClientRect();
+            const relativeY = e.clientY - containerRect.top;
+            const stripeHeight = 20; // 条带高度 + gap
+            const targetLevel = Math.max(1, Math.min(allStripes.length + 1, Math.round(relativeY / stripeHeight)));
+
+            stripeDragState.targetLevel = targetLevel;
+
+            // 显示放置指示器
+            dropIndicator.style.display = 'block';
+            dropIndicator.style.top = ((targetLevel - 1) * stripeHeight) + 'px';
+        }
+
+        /**
+         * 条带拖拽排序 - 结束
+         */
+        function onStripeDragEnd(e) {
+            if (!stripeDragState.isDragging) return;
+
+            const { draggedStripe, rowStripesContainer, dropIndicator, targetLevel, startLevel } = stripeDragState;
+
+            // 清理拖拽状态
+            draggedStripe.classList.remove('dragging');
+            if (dropIndicator) {
+                dropIndicator.remove();
+            }
+
+            // 如果位置有变化，执行重排
+            if (targetLevel && targetLevel !== startLevel) {
+                reorderStripesInRow(rowStripesContainer, draggedStripe, targetLevel);
+            }
+
+            // 清理状态
+            stripeDragState = {
+                isDragging: false,
+                draggedStripe: null,
+                startY: 0,
+                startLevel: 0,
+                rowStripesContainer: null,
+                dropIndicator: null,
+                targetLevel: null
+            };
+
+            document.removeEventListener('mousemove', onStripeDragMove);
+            document.removeEventListener('mouseup', onStripeDragEnd);
+        }
+
+        /**
+         * 重排行内条带顺序
+         */
+        function reorderStripesInRow(rowContainer, draggedStripe, targetLevel) {
+            const checkpointId = draggedStripe.dataset.checkpointId;
+            const startDate = draggedStripe.dataset.startDate;
+            const endDate = draggedStripe.dataset.endDate;
+
+            // 获取该条带涉及的所有日期
+            const affectedDates = [];
+            let current = parseLocalDate(startDate);
+            const end = parseLocalDate(endDate);
+            while (current <= end) {
+                affectedDates.push(formatDate(new Date(current)));
+                current.setDate(current.getDate() + 1);
+            }
+
+            // 获取当前所有条带（按当前DOM顺序）
+            const allStripes = [...rowContainer.querySelectorAll('.checkpoint-stripe')];
+            const draggedIndex = allStripes.indexOf(draggedStripe);
+
+            // 重新排序条带数组
+            allStripes.splice(draggedIndex, 1);
+            allStripes.splice(targetLevel - 1, 0, draggedStripe);
+
+            // 更新每个条带的 order 值
+            allStripes.forEach((stripe, index) => {
+                const cpId = stripe.dataset.checkpointId;
+                const sDate = stripe.dataset.startDate;
+                const eDate = stripe.dataset.endDate;
+
+                // 更新该条带所有日期的 entry order
+                let curr = parseLocalDate(sDate);
+                const end = parseLocalDate(eDate);
+                while (curr <= end) {
+                    const dateStr = formatDate(new Date(curr));
+                    const entries = adminData.calendarEntries[dateStr];
+                    if (entries) {
+                        const entry = entries.find(e => e.checkpointId === cpId);
+                        if (entry) {
+                            entry.order = index;
+                        }
+                    }
+                    curr.setDate(curr.getDate() + 1);
+                }
+
+                // 更新视觉层级
+                stripe.style.setProperty('--level', index + 1);
+            });
+
+            // 保存数据
+            saveData();
+
+            // 显示提示
+            showToast('条带顺序已更新', 'success');
         }
 
 
