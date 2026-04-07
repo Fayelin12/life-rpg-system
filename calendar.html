@@ -3272,6 +3272,12 @@
             const allStripes = [...rowContainer.querySelectorAll('.checkpoint-stripe')];
             const draggedIndex = allStripes.indexOf(draggedStripe);
 
+            // 如果找不到拖拽的条带，退出
+            if (draggedIndex === -1) {
+                console.error('找不到拖拽的条带，可能DOM已变化');
+                return;
+            }
+
             // 重新排序条带数组
             allStripes.splice(draggedIndex, 1);
             allStripes.splice(targetLevel - 1, 0, draggedStripe);
