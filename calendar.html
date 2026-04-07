@@ -1562,6 +1562,326 @@
             z-index: 1000;
         }
 
+        /* 周总结弹窗 */
+        .weekly-summary-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .weekly-summary-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .weekly-summary-modal {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-gold);
+            border-radius: 12px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            transform: scale(0.95);
+            transition: transform 0.3s ease;
+        }
+
+        .weekly-summary-overlay.active .weekly-summary-modal {
+            transform: scale(1);
+        }
+
+        .weekly-summary-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border-gold);
+        }
+
+        .weekly-summary-header h3 {
+            font-family: var(--font-display);
+            font-size: 18px;
+            color: var(--text-primary);
+            margin: 0;
+        }
+
+        .weekly-summary-header .close-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .weekly-summary-header .close-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+        }
+
+        .weekly-summary-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+        }
+
+        .weekly-summary-day {
+            margin-bottom: 20px;
+            padding: 16px;
+            background: var(--bg-deep);
+            border-radius: 8px;
+            border-left: 3px solid var(--accent-gold);
+        }
+
+        .weekly-summary-day.today {
+            border-left-color: var(--accent-magic);
+            background: rgba(123, 104, 238, 0.1);
+        }
+
+        .weekly-summary-day-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .weekly-summary-day-title {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .weekly-summary-day-stats {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .weekly-summary-todo {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 0;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .weekly-summary-todo.completed {
+            color: var(--text-muted);
+            text-decoration: line-through;
+        }
+
+        .weekly-summary-todo .todo-icon {
+            font-size: 11px;
+        }
+
+        .weekly-summary-empty {
+            text-align: center;
+            color: var(--text-muted);
+            padding: 40px;
+        }
+
+        .weekly-summary-total {
+            margin-top: 20px;
+            padding: 20px;
+            background: rgba(201, 162, 39, 0.1);
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .weekly-summary-total-rate {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--accent-gold);
+        }
+
+        .weekly-summary-total-text {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-top: 8px;
+        }
+
+        .weekly-summary-actions {
+            display: flex;
+            gap: 12px;
+            padding: 20px 24px;
+            border-top: 1px solid var(--border-gold);
+        }
+
+        .weekly-summary-actions .rune-btn {
+            flex: 1;
+        }
+
+        /* 检查项周总结卡片 - 详细版 */
+        .checkpoint-weekly-card {
+            background: var(--bg-deep);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+            border: 1px solid var(--border-gold);
+        }
+
+        .checkpoint-weekly-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid rgba(139, 119, 101, 0.2);
+        }
+
+        .checkpoint-weekly-info {
+            flex: 1;
+        }
+
+        .checkpoint-weekly-name {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .checkpoint-weekly-path {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .checkpoint-weekly-rate {
+            text-align: right;
+            margin-left: 12px;
+        }
+
+        .checkpoint-weekly-rate .rate-value {
+            display: block;
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--accent-gold);
+        }
+
+        .checkpoint-weekly-rate .rate-detail {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        /* 周汇总详细内容 */
+        .weekly-detail-section {
+            margin-bottom: 16px;
+        }
+
+        .weekly-detail-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .weekly-detail-day-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            padding: 6px 10px;
+            background: rgba(201, 162, 39, 0.08);
+            border-radius: 6px;
+            border-left: 3px solid var(--accent-gold);
+        }
+
+        .weekly-detail-day-header.today {
+            background: rgba(123, 104, 238, 0.12);
+            border-left-color: var(--accent-magic);
+        }
+
+        .weekly-detail-day-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .weekly-detail-day-date {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .weekly-detail-day-stats {
+            margin-left: auto;
+            font-size: 11px;
+            color: var(--accent-gold);
+            background: rgba(201, 162, 39, 0.15);
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
+        .weekly-detail-todos {
+            padding-left: 12px;
+        }
+
+        .weekly-detail-todo {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            padding: 6px 0;
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .weekly-detail-todo.completed {
+            color: var(--text-muted);
+            text-decoration: line-through;
+        }
+
+        .weekly-detail-todo .todo-icon {
+            font-size: 12px;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .weekly-detail-todo .todo-text {
+            flex: 1;
+        }
+
+        .weekly-detail-empty {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-style: italic;
+            padding: 8px 0 8px 12px;
+        }
+
+        /* 检查项统计行 */
+        .checkpoint-weekly-stats {
+            display: flex;
+            gap: 16px;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px dashed rgba(139, 119, 101, 0.2);
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .checkpoint-weekly-stats span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .checkpoint-weekly-stats .stat-highlight {
+            color: var(--accent-gold);
+            font-weight: 600;
+        }
+
         /* 自定义确认弹窗 */
         .confirm-modal-overlay {
             position: fixed;
@@ -1940,6 +2260,8 @@
                     </div>
 
                     <button class="rune-btn rune-btn-secondary" id="copyNextBtn" onclick="copyToNextDay()" style="width: 100%;">复制到下一天</button>
+
+                    <button class="rune-btn" onclick="showWeeklySummary()" style="width: 100%; margin-top: 8px; background: rgba(100, 149, 237, 0.15); border-color: rgba(100, 149, 237, 0.4); color: #a0c4ff;">📊 本周总结</button>
                 </div>
 
                 <!-- 右侧：历史记录面板 -->
@@ -3897,6 +4219,338 @@
             }
         }
 
+        // ==================== 周总结功能 ====================
+
+        let weeklySummaryData = null;
+
+        /**
+         * 获取本周周一到周五的日期
+         */
+        function getWeekDays() {
+            const today = new Date();
+            const dayOfWeek = today.getDay(); // 0=周日, 1=周一, ..., 6=周六
+            const days = [];
+
+            // 计算本周周一的日期
+            const monday = new Date(today);
+            const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+            monday.setDate(today.getDate() + diff);
+
+            // 生成周一到周五的日期
+            for (let i = 0; i < 5; i++) {
+                const date = new Date(monday);
+                date.setDate(monday.getDate() + i);
+                days.push({
+                    date: formatDate(date),
+                    dayName: ['周一', '周二', '周三', '周四', '周五'][i],
+                    isToday: formatDate(date) === formatDate(today)
+                });
+            }
+
+            return days;
+        }
+
+        /**
+         * 显示周总结弹窗
+         */
+        function showWeeklySummary() {
+            const weekDays = getWeekDays();
+            const summary = weekDays.map(day => {
+                const entries = adminData.calendarEntries[day.date] || [];
+                let totalTodos = 0;
+                let completedTodos = 0;
+                let todos = [];
+
+                entries.forEach(entry => {
+                    if (entry.description) {
+                        const entryTodos = markdownToTodos(entry.description);
+                        entryTodos.forEach(todo => {
+                            totalTodos++;
+                            if (todo.completed) completedTodos++;
+                            todos.push({
+                                text: todo.text,
+                                completed: todo.completed,
+                                checkpointName: entry.checkpointName
+                            });
+                        });
+                    }
+                });
+
+                return {
+                    ...day,
+                    entries,
+                    totalTodos,
+                    completedTodos,
+                    todos,
+                    completionRate: totalTodos > 0 ? Math.round((completedTodos / totalTodos) * 100) : 0
+                };
+            });
+
+            weeklySummaryData = summary;
+            renderWeeklySummary(summary);
+            document.getElementById('weeklySummaryModal').classList.add('active');
+        }
+
+        /**
+         * 渲染周总结内容（按检查项分组，显示详细待办）
+         */
+        function renderWeeklySummary(summary) {
+            const container = document.getElementById('weeklySummaryContent');
+
+            // 按检查项重新组织数据
+            const checkpointMap = new Map();
+
+            summary.forEach(day => {
+                day.entries.forEach(entry => {
+                    if (!checkpointMap.has(entry.checkpointId)) {
+                        checkpointMap.set(entry.checkpointId, {
+                            id: entry.checkpointId,
+                            name: entry.checkpointName,
+                            landmarkName: entry.landmarkName,
+                            questName: entry.questName,
+                            levelName: entry.levelName,
+                            days: {}
+                        });
+                    }
+
+                    const cp = checkpointMap.get(entry.checkpointId);
+                    const todos = entry.description ? markdownToTodos(entry.description) : [];
+                    cp.days[day.date] = {
+                        dayName: day.dayName,
+                        isToday: day.isToday,
+                        date: day.date,
+                        todos: todos,
+                        completed: todos.filter(t => t.completed).length,
+                        total: todos.length
+                    };
+                });
+            });
+
+            // 计算总体统计
+            let totalAll = 0;
+            let completedAll = 0;
+            checkpointMap.forEach(cp => {
+                Object.values(cp.days).forEach(day => {
+                    totalAll += day.total;
+                    completedAll += day.completed;
+                });
+            });
+
+            // 渲染每个检查项（详细版）
+            let html = '';
+            checkpointMap.forEach(cp => {
+                let cpTotal = 0;
+                let cpCompleted = 0;
+                let cpDaysWithTodos = 0;
+
+                // 计算统计数据
+                summary.forEach(day => {
+                    const dayData = cp.days[day.date];
+                    if (dayData && dayData.total > 0) {
+                        cpTotal += dayData.total;
+                        cpCompleted += dayData.completed;
+                        cpDaysWithTodos++;
+                    }
+                });
+
+                // 生成每天的详细待办列表
+                let dayDetailsHtml = '';
+                summary.forEach(day => {
+                    const dayData = cp.days[day.date];
+                    if (dayData && dayData.total > 0) {
+                        const todosHtml = dayData.todos.map(todo => `
+                            <div class="weekly-detail-todo ${todo.completed ? 'completed' : ''}">
+                                <span class="todo-icon">${todo.completed ? '☑' : '☐'}</span>
+                                <span class="todo-text">${LifeRPG.security.escapeHtml(todo.text)}</span>
+                            </div>
+                        `).join('');
+
+                        dayDetailsHtml += `
+                            <div class="weekly-detail-section">
+                                <div class="weekly-detail-day-header ${day.isToday ? 'today' : ''}">
+                                    <span class="weekly-detail-day-name">${day.dayName}</span>
+                                    <span class="weekly-detail-day-date">${day.date.slice(5)}</span>
+                                    <span class="weekly-detail-day-stats">${dayData.completed}/${dayData.total}</span>
+                                </div>
+                                <div class="weekly-detail-todos">
+                                    ${todosHtml}
+                                </div>
+                            </div>
+                        `;
+                    }
+                });
+
+                if (!dayDetailsHtml) {
+                    dayDetailsHtml = '<div class="weekly-detail-empty">本周暂无待办记录</div>';
+                }
+
+                const cpRate = cpTotal > 0 ? Math.round((cpCompleted / cpTotal) * 100) : 0;
+
+                html += `
+                    <div class="checkpoint-weekly-card">
+                        <div class="checkpoint-weekly-header">
+                            <div class="checkpoint-weekly-info">
+                                <div class="checkpoint-weekly-name">${LifeRPG.security.escapeHtml(cp.name)}</div>
+                                <div class="checkpoint-weekly-path">${LifeRPG.security.escapeHtml(cp.landmarkName)} › ${LifeRPG.security.escapeHtml(cp.questName)} › ${LifeRPG.security.escapeHtml(cp.levelName)}</div>
+                            </div>
+                            <div class="checkpoint-weekly-rate">
+                                <span class="rate-value">${cpRate}%</span>
+                                <span class="rate-detail">${cpCompleted}/${cpTotal}</span>
+                            </div>
+                        </div>
+                        <div class="checkpoint-weekly-details">
+                            ${dayDetailsHtml}
+                        </div>
+                        <div class="checkpoint-weekly-stats">
+                            <span>📅 活跃 <span class="stat-highlight">${cpDaysWithTodos}</span> 天</span>
+                            <span>✅ 完成 <span class="stat-highlight">${cpCompleted}</span> 项</span>
+                            <span>📋 总计 <span class="stat-highlight">${cpTotal}</span> 项</span>
+                        </div>
+                    </div>
+                `;
+            });
+
+            if (checkpointMap.size === 0) {
+                html = '<div class="weekly-summary-empty">本周暂无检查项</div>';
+            }
+
+            // 添加总体统计
+            const totalRate = totalAll > 0 ? Math.round((completedAll / totalAll) * 100) : 0;
+            const emoji = totalRate === 100 ? '🎉' : totalRate >= 80 ? '👍' : totalRate >= 50 ? '💪' : '⚡';
+
+            html += `
+                <div class="weekly-summary-total">
+                    <div class="weekly-summary-total-rate">${emoji} ${totalRate}%</div>
+                    <div class="weekly-summary-total-text">本周总体完成率: ${completedAll}/${totalAll}</div>
+                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">共 ${checkpointMap.size} 个项目</div>
+                </div>
+            `;
+
+            container.innerHTML = html;
+        }
+
+        /**
+         * 关闭周总结弹窗
+         */
+        function closeWeeklySummary(event) {
+            if (!event || event.target.id === 'weeklySummaryModal' || event.target.classList.contains('close-btn')) {
+                document.getElementById('weeklySummaryModal').classList.remove('active');
+            }
+        }
+
+        /**
+         * 导出周总结为 Markdown（按检查项分组，包含详细待办）
+         */
+        function exportWeeklySummary() {
+            if (!weeklySummaryData) return;
+
+            const weekDays = getWeekDays();
+            const weekRange = `${weekDays[0].date} ~ ${weekDays[4].date}`;
+
+            // 按检查项重新组织数据
+            const checkpointMap = new Map();
+            weeklySummaryData.forEach(day => {
+                day.entries.forEach(entry => {
+                    if (!checkpointMap.has(entry.checkpointId)) {
+                        checkpointMap.set(entry.checkpointId, {
+                            name: entry.checkpointName,
+                            landmarkName: entry.landmarkName,
+                            questName: entry.questName,
+                            levelName: entry.levelName,
+                            days: {}
+                        });
+                    }
+                    const cp = checkpointMap.get(entry.checkpointId);
+                    const todos = entry.description ? markdownToTodos(entry.description) : [];
+                    cp.days[day.date] = {
+                        dayName: day.dayName,
+                        todos: todos,
+                        completed: todos.filter(t => t.completed).length,
+                        total: todos.length
+                    };
+                });
+            });
+
+            let totalAll = 0;
+            let completedAll = 0;
+
+            let mdContent = `# 📊 本周项目总结 (${weekRange})\n\n`;
+
+            // 每个项目的详细总结
+            let projectIndex = 1;
+            checkpointMap.forEach(cp => {
+                let cpTotal = 0;
+                let cpCompleted = 0;
+
+                mdContent += `## ${projectIndex}. ${cp.name}\n\n`;
+                mdContent += `**路径**: ${cp.landmarkName} › ${cp.questName} › ${cp.levelName}\n\n`;
+
+                // 遍历每天显示待办
+                weekDays.forEach(day => {
+                    const dayData = cp.days[day.date];
+                    if (dayData && dayData.total > 0) {
+                        cpTotal += dayData.total;
+                        cpCompleted += dayData.completed;
+
+                        mdContent += `### ${day.dayName} (${day.date})\n\n`;
+                        dayData.todos.forEach(todo => {
+                            const checkbox = todo.completed ? '[x]' : '[ ]';
+                            mdContent += `- ${checkbox} ${todo.text}\n`;
+                        });
+                        mdContent += `\n`;
+                    }
+                });
+
+                const cpRate = cpTotal > 0 ? Math.round((cpCompleted / cpTotal) * 100) : 0;
+                mdContent += `**本周完成**: ${cpCompleted}/${cpTotal} (${cpRate}%)\n\n`;
+                mdContent += `---\n\n`;
+
+                totalAll += cpTotal;
+                completedAll += cpCompleted;
+                projectIndex++;
+            });
+
+            // 总体统计
+            const totalRate = totalAll > 0 ? Math.round((completedAll / totalAll) * 100) : 0;
+            const emoji = totalRate === 100 ? '🎉' : totalRate >= 80 ? '👍' : totalRate >= 50 ? '💪' : '⚡';
+
+            mdContent += `## 📈 本周总体统计\n\n`;
+            mdContent += `- **完成率**: ${totalRate}% ${emoji}\n`;
+            mdContent += `- **已完成**: ${completedAll}/${totalAll}\n`;
+            mdContent += `- **项目数**: ${checkpointMap.size} 个\n\n`;
+
+            // 按天统计
+            mdContent += `### 每日概览\n\n`;
+            mdContent += `| 日期 | 周一 | 周二 | 周三 | 周四 | 周五 |\n`;
+            mdContent += `|:---:|:---:|:---:|:---:|:---:|:---:|\n`;
+            mdContent += `| 完成率 |`;
+            weekDays.forEach(day => {
+                const dayData = weeklySummaryData.find(d => d.date === day.date);
+                const rate = dayData && dayData.totalTodos > 0
+                    ? Math.round((dayData.completedTodos / dayData.totalTodos) * 100)
+                    : 0;
+                mdContent += ` ${rate}% |`;
+            });
+            mdContent += `\n\n`;
+
+            mdContent += `*生成时间: ${new Date().toLocaleString()}*\n`;
+
+            // 下载文件
+            const blob = new Blob([mdContent], { type: 'text/markdown;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `本周项目总结_${weekDays[0].date}_${weekDays[4].date}.md`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            showToast('周总结已导出', 'success');
+        }
+
+        // ==================== 周总结功能结束 ====================
+
         /**
          * 切换月份
          */
@@ -4148,6 +4802,23 @@
             <div class="confirm-modal-actions">
                 <button class="rune-btn rune-btn-secondary" id="confirmCancel" onclick="closeConfirmModal()">取消</button>
                 <button class="rune-btn" id="confirmOk" onclick="executeConfirmCallback()">确认</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 周总结弹窗 -->
+    <div class="weekly-summary-overlay" id="weeklySummaryModal" onclick="closeWeeklySummary(event)">
+        <div class="weekly-summary-modal" onclick="event.stopPropagation()">
+            <div class="weekly-summary-header">
+                <h3>📊 本周总结</h3>
+                <button class="close-btn" onclick="closeWeeklySummary()">×</button>
+            </div>
+            <div class="weekly-summary-content" id="weeklySummaryContent">
+                <!-- 动态生成 -->
+            </div>
+            <div class="weekly-summary-actions">
+                <button class="rune-btn rune-btn-secondary" onclick="closeWeeklySummary()">关闭</button>
+                <button class="rune-btn" onclick="exportWeeklySummary()">📥 导出 Markdown</button>
             </div>
         </div>
     </div>
