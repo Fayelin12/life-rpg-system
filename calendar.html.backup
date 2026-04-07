@@ -1,0 +1,3538 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>时间圣殿 | 人生开放系统</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Noto+Serif+SC:wght@400;600;900&display=block" rel="stylesheet">
+    <link rel="stylesheet" href="common.css">
+    <script src="common.js"></script>
+    <style>
+        /* 页面特有样式 - 时间圣殿主题 */
+        .sanctum-layout {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            height: calc(100vh - 80px);
+            margin-top: 80px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* 左侧卷轴库 */
+        .scroll-archive {
+            background: var(--bg-panel);
+            border-right: 1px solid var(--border-gold);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            height: calc(100vh - 80px);
+            position: sticky;
+            top: 80px;
+        }
+
+        .archive-header {
+            padding: 24px 20px 16px;
+            border-bottom: 1px solid var(--border-gold);
+        }
+
+        .archive-title {
+            font-family: var(--font-display);
+            font-size: 14px;
+            letter-spacing: 3px;
+            color: var(--accent-gold);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .archive-title::before {
+            content: '📜';
+            font-size: 16px;
+        }
+
+        .archive-subtitle {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 4px;
+            padding-left: 26px;
+        }
+
+        .scroll-collection {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+
+        .landmark-tome {
+            margin-bottom: 16px;
+            border: 1px solid var(--border-gold);
+            border-radius: 8px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .landmark-tome:hover {
+            border-color: rgba(201, 162, 39, 0.3);
+        }
+
+        .tome-header {
+            padding: 12px 14px;
+            background: rgba(201, 162, 39, 0.05);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.2s ease;
+        }
+
+        .tome-header:hover {
+            background: rgba(201, 162, 39, 0.1);
+        }
+
+        .tome-title {
+            font-family: var(--font-display);
+            font-size: 13px;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tome-toggle {
+            color: var(--text-secondary);
+            font-size: 12px;
+            transition: transform 0.3s ease;
+        }
+
+        .landmark-tome.collapsed .tome-toggle {
+            transform: rotate(-90deg);
+        }
+
+        .tome-content {
+            max-height: 1000px;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .landmark-tome.collapsed .tome-content {
+            max-height: 0;
+        }
+
+        .quest-scroll {
+            padding: 12px 14px;
+            border-bottom: 1px solid var(--border-gold);
+        }
+
+        .quest-scroll:last-child {
+            border-bottom: none;
+        }
+
+        .quest-name {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+            padding-left: 8px;
+            border-left: 2px solid var(--accent-gold-dim);
+        }
+
+        .checkpoint-parchment {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-gold);
+            border-radius: 6px;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            cursor: grab;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .checkpoint-parchment::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: var(--accent-gold-dim);
+            border-radius: 6px 0 0 6px;
+            opacity: 0.5;
+        }
+
+        .checkpoint-parchment:hover {
+            background: var(--bg-panel);
+            border-color: var(--accent-gold);
+            transform: translateX(4px);
+            box-shadow: -4px 0 20px rgba(201, 162, 39, 0.2);
+        }
+
+        .checkpoint-parchment.dragging {
+            opacity: 0.6;
+            cursor: grabbing;
+            transform: rotate(2deg) scale(1.02);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .checkpoint-parchment.completed {
+            opacity: 0.5;
+        }
+
+        .checkpoint-parchment.completed::before {
+            background: var(--accent-mist);
+        }
+
+        .parchment-text {
+            flex: 1;
+            font-size: 13px;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .checkpoint-parchment.completed .parchment-text {
+            text-decoration: line-through;
+            color: var(--text-secondary);
+        }
+
+        .parchment-days {
+            font-size: 11px;
+            color: var(--text-muted);
+            background: rgba(201, 162, 39, 0.1);
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
+        .sanctum-stats {
+            padding: 20px;
+            border-top: 1px solid var(--border-gold);
+            background: linear-gradient(180deg, transparent 0%, rgba(201, 162, 39, 0.03) 100%);
+        }
+
+        .stats-title {
+            font-family: var(--font-display);
+            font-size: 12px;
+            letter-spacing: 2px;
+            color: var(--accent-gold);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+
+        .stat-relic {
+            text-align: center;
+            padding: 14px 8px;
+            background: var(--bg-deep);
+            border: 1px solid var(--border-gold);
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .stat-relic::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 40%;
+            height: 2px;
+            background: var(--gradient-gold);
+            opacity: 0.5;
+        }
+
+        .stat-number {
+            font-family: var(--font-display);
+            font-size: 26px;
+            font-weight: 600;
+            color: var(--accent-gold);
+            line-height: 1;
+            margin-bottom: 6px;
+        }
+
+        .stat-label {
+            font-size: 10px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* 右侧时间圣殿 */
+        .time-sanctum {
+            display: flex;
+            flex-direction: column;
+            overflow: auto;
+            height: calc(100vh - 80px);
+        }
+
+        .sanctum-nav {
+            padding: 12px 30px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border-gold);
+        }
+
+        .chronicle-controls {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .chronicle-arrow {
+            width: 32px;
+            height: 32px;
+            border: 1px solid var(--border-gold);
+            background: transparent;
+            color: var(--text-secondary);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .chronicle-arrow:hover {
+            border-color: var(--accent-gold);
+            color: var(--accent-gold);
+            background: rgba(201, 162, 39, 0.1);
+        }
+
+        .chronicle-title {
+            font-family: var(--font-display);
+            font-size: 18px;
+            letter-spacing: 2px;
+            min-width: 140px;
+            text-align: center;
+        }
+
+        .view-glyphs {
+            display: flex;
+            gap: 2px;
+            background: var(--bg-panel);
+            padding: 3px;
+            border-radius: 6px;
+            border: 1px solid var(--border-gold);
+        }
+
+        .glyph-btn {
+            padding: 6px 16px;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-family: var(--font-display);
+            font-size: 11px;
+            letter-spacing: 1px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+
+        .glyph-btn:hover {
+            color: var(--accent-gold);
+        }
+
+        .glyph-btn.active {
+            background: var(--gradient-gold);
+            color: var(--bg-deep);
+        }
+
+        .chamber-grid {
+            flex: 1;
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            grid-template-rows: 20px repeat(6, 1fr);
+            gap: 1px;
+            background: transparent;
+            border: none;
+            margin: 0 20px 20px;
+            border-radius: 8px;
+            overflow: visible;
+            position: relative;
+            min-height: 500px;
+        }
+
+        .chamber-grid[data-rows="4"] {
+            grid-template-rows: 20px repeat(4, 1fr);
+        }
+
+        .chamber-grid[data-rows="5"] {
+            grid-template-rows: 20px repeat(5, 1fr);
+        }
+
+        .chamber-grid[data-rows="6"] {
+            grid-template-rows: 20px repeat(6, 1fr);
+        }
+
+        /* 检查项条带 - 跨天条带绝对定位 */
+        .checkpoint-stripe {
+            position: absolute;
+            height: 20px;
+            border-radius: 4px;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            padding: 0 6px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            z-index: 5;
+            box-sizing: border-box;
+            line-height: 1;
+        }
+
+        .checkpoint-stripe:hover {
+            z-index: 100;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+            filter: brightness(1.15);
+        }
+
+        /* 跨天条带 */
+        .checkpoint-stripe.continuous {
+            border-radius: 0;
+        }
+
+        .checkpoint-stripe.continuous-start {
+            border-radius: 4px 0 0 4px;
+        }
+
+        .checkpoint-stripe.continuous-end {
+            border-radius: 0 4px 4px 0;
+        }
+
+        .checkpoint-stripe.continuous-start.continuous-end {
+            border-radius: 4px;
+        }
+
+        /* 条带颜色主题 */
+        .checkpoint-stripe.theme-gold {
+            background: rgba(201, 162, 39, 0.35);
+            border: 1px solid rgba(201, 162, 39, 0.6);
+            color: var(--accent-gold);
+        }
+
+        .checkpoint-stripe.theme-ember {
+            background: rgba(183, 94, 65, 0.35);
+            border: 1px solid rgba(183, 94, 65, 0.6);
+            color: var(--accent-ember);
+        }
+
+        .checkpoint-stripe.theme-mist {
+            background: rgba(74, 155, 139, 0.35);
+            border: 1px solid rgba(74, 155, 139, 0.6);
+            color: var(--accent-mist);
+        }
+
+        .checkpoint-stripe.theme-magic {
+            background: rgba(123, 104, 238, 0.35);
+            border: 1px solid rgba(123, 104, 238, 0.6);
+            color: var(--accent-magic);
+        }
+
+        .checkpoint-stripe.theme-slate {
+            background: rgba(139, 119, 101, 0.35);
+            border: 1px solid rgba(139, 119, 101, 0.6);
+            color: var(--text-secondary);
+        }
+
+        /* 归档状态 */
+        .checkpoint-stripe.archived {
+            opacity: 0.5;
+            text-decoration: line-through;
+        }
+
+        /* 条带标签 */
+        .stripe-tag {
+            font-size: 9px;
+            margin-left: 6px;
+            padding: 1px 4px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 3px;
+            flex-shrink: 0;
+        }
+
+        /* 条带名称 */
+        .stripe-name {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* 条带历时显示 */
+        .stripe-duration {
+            font-size: 10px;
+            color: var(--accent-gold);
+            flex-shrink: 0;
+            opacity: 0.8;
+        }
+
+
+
+        /* 条带关卡名称 - 使用标签样式 */
+        .stripe-level {
+            font-size: 9px;
+            color: var(--text-secondary);
+            background: rgba(255, 255, 255, 0.1);
+            padding: 1px 6px;
+            border-radius: 3px;
+            flex-shrink: 0;
+            letter-spacing: 0.5px;
+        }
+
+        /* 条带分隔符 */
+        .stripe-separator {
+            margin: 0 4px;
+            color: var(--border-gold);
+            opacity: 0.5;
+            flex-shrink: 0;
+        }
+
+        .weekday-pillar {
+            background: var(--bg-panel);
+            padding: 2px;
+            text-align: center;
+            font-family: var(--font-display);
+            font-size: 8px;
+            letter-spacing: 1px;
+            color: var(--accent-gold);
+            border-bottom: 1px solid var(--border-gold);
+            transition: all 0.3s ease;
+            height: 20px;
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* 周末折叠状态 - 使用 grid-template-columns */
+        .chamber-grid {
+            transition: all 0.3s ease;
+        }
+
+        .chamber-grid.weekend-collapsed {
+            grid-template-columns: repeat(5, 1fr) 0 0;
+        }
+
+        .chamber-grid.weekend-collapsed .weekday-pillar:nth-child(6),
+        .chamber-grid.weekend-collapsed .weekday-pillar:nth-child(7) {
+            width: 0;
+            padding: 0;
+            min-width: 0;
+            overflow: hidden;
+            opacity: 0;
+        }
+
+        .chamber-grid.weekend-collapsed .time-chamber:nth-child(7n+6),
+        .chamber-grid.weekend-collapsed .time-chamber:nth-child(7n+7) {
+            width: 0;
+            padding: 0;
+            min-width: 0;
+            overflow: hidden;
+            opacity: 0;
+        }
+
+        /* 周末切换按钮 - 内联样式 */
+        .weekend-toggle-btn-inline {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 6px 12px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-gold);
+            border-radius: 4px;
+            color: var(--text-secondary);
+            font-size: 11px;
+            font-family: var(--font-display);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            letter-spacing: 0.5px;
+        }
+
+        .weekend-toggle-btn-inline:hover {
+            border-color: var(--accent-gold);
+            color: var(--accent-gold);
+        }
+
+        .weekend-toggle-btn-inline.active {
+            background: rgba(201, 162, 39, 0.15);
+            border-color: var(--accent-gold);
+            color: var(--accent-gold);
+        }
+
+        .weekend-toggle-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-gold);
+            border-radius: 6px;
+            color: var(--text-secondary);
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .weekend-toggle-btn:hover {
+            border-color: var(--accent-gold);
+            color: var(--accent-gold);
+        }
+
+        .weekend-toggle-btn.active {
+            background: rgba(201, 162, 39, 0.15);
+            border-color: var(--accent-gold);
+            color: var(--accent-gold);
+        }
+
+        .toggle-icon {
+            font-size: 14px;
+        }
+
+        .time-chamber {
+            background: var(--bg-deep);
+            min-height: 80px;
+            padding: 8px;
+            position: relative;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        /* 自定义滚动条 */
+        .time-chamber::-webkit-scrollbar {
+            width: 4px;
+        }
+        .time-chamber::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .time-chamber::-webkit-scrollbar-thumb {
+            background: var(--border-gold);
+            border-radius: 2px;
+        }
+
+        .time-chamber:hover {
+            background: var(--bg-panel);
+        }
+
+        .time-chamber.other-month {
+            opacity: 0.4;
+        }
+
+        .time-chamber.empty {
+            background: transparent;
+        }
+
+        .time-chamber.today::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--gradient-gold);
+        }
+
+        .time-chamber.drag-over {
+            background: rgba(201, 162, 39, 0.15);
+            box-shadow: inset 0 0 30px rgba(201, 162, 39, 0.2);
+        }
+
+        .chamber-date {
+            font-family: var(--font-display);
+            font-size: 10px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 20px;
+        }
+
+        .time-chamber.today .chamber-date {
+            color: var(--accent-gold);
+        }
+
+        .chamber-count {
+            font-size: 11px;
+            background: rgba(201, 162, 39, 0.2);
+            color: var(--accent-gold);
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
+        .chamber-scrolls {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            max-height: 80px;
+            overflow-y: auto;
+        }
+
+        /* 条带颜色编码 - 根据关卡/任务类型（用于格子内条带） */
+        .chamber-scrolls .checkpoint-stripe {
+            display: flex;
+            align-items: center;
+            padding: 6px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            min-height: 28px;
+            position: relative;
+        }
+
+        .chamber-scrolls .stripe-name {
+            flex: 1;
+            font-size: 12px;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .chamber-scrolls .stripe-tags {
+            display: flex;
+            gap: 4px;
+            margin: 0 8px;
+            flex-shrink: 0;
+        }
+
+        .chamber-scrolls .stripe-tag {
+            font-size: 9px;
+            padding: 1px 4px;
+            background: rgba(255,255,255,0.15);
+            border-radius: 2px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+
+        .chamber-scrolls .stripe-streak {
+            font-size: 10px;
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            color: var(--accent-gold);
+            flex-shrink: 0;
+        }
+
+        /* 条带颜色编码 - 根据关卡/任务类型 */
+        .chamber-scrolls .checkpoint-stripe.stripe-quest-explore {
+            background: rgba(74, 155, 139, 0.25);
+            border-left: 3px solid var(--accent-mist);
+        }
+
+        .chamber-scrolls .checkpoint-stripe.stripe-quest-battle {
+            background: rgba(201, 100, 100, 0.25);
+            border-left: 3px solid var(--accent-ember);
+        }
+
+        .chamber-scrolls .checkpoint-stripe.stripe-quest-study {
+            background: rgba(123, 104, 238, 0.25);
+            border-left: 3px solid var(--accent-magic);
+        }
+
+        .chamber-scrolls .checkpoint-stripe.stripe-quest-health {
+            background: rgba(100, 180, 100, 0.25);
+            border-left: 3px solid #64b464;
+        }
+
+        .chamber-scrolls .checkpoint-stripe.stripe-quest-creative {
+            background: rgba(201, 162, 39, 0.25);
+            border-left: 3px solid var(--accent-gold);
+        }
+
+        .chamber-scrolls .checkpoint-stripe.stripe-default {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-gold);
+        }
+
+        .chamber-scrolls .checkpoint-stripe:hover {
+            filter: brightness(1.1);
+        }
+
+        .chamber-scrolls .checkpoint-stripe.before-archive {
+            opacity: 0.5;
+        }
+
+        .chamber-scrolls .checkpoint-stripe.before-archive .stripe-name {
+            text-decoration: line-through;
+            color: var(--text-muted);
+        }
+
+        .chamber-scrolls .checkpoint-stripe.archive-day {
+            background: rgba(201, 162, 39, 0.35);
+            border-color: var(--accent-gold);
+            box-shadow: 0 0 8px rgba(201, 162, 39, 0.3);
+        }
+
+        /* 单独条带 */
+        .chamber-scrolls .checkpoint-stripe.solo {
+            border-radius: 4px;
+        }
+
+        /* 连续段开始 */
+        .chamber-scrolls .checkpoint-stripe.start {
+            border-radius: 4px 0 0 4px;
+            border-right: none;
+        }
+
+        /* 连续段中间 */
+        .chamber-scrolls .checkpoint-stripe.middle {
+            border-radius: 0;
+            border-left: 1px dashed rgba(255,255,255,0.3);
+            border-right: none;
+        }
+
+        /* 连续段结束 */
+        .chamber-scrolls .checkpoint-stripe.end {
+            border-radius: 0 4px 4px 0;
+            border-left: 1px dashed rgba(255,255,255,0.3);
+        }
+
+        /* 连续条带渐变色 */
+        .chamber-scrolls .checkpoint-stripe.continuous {
+            background: linear-gradient(90deg, var(--stripe-color) 0%, var(--stripe-color-light) 100%);
+        }
+
+        /* 连续段悬停高亮 */
+        .chamber-scrolls .checkpoint-stripe.continuous:hover,
+        .chamber-scrolls .checkpoint-stripe.continuous.highlight {
+            filter: brightness(1.2);
+            box-shadow: 0 0 10px rgba(201, 162, 39, 0.5);
+            z-index: 100;
+        }
+
+        /* 连续天数徽章 */
+        .streak-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+            font-size: 10px;
+            color: var(--accent-ember);
+            margin-left: 4px;
+            font-weight: 600;
+        }
+
+        .chamber-more {
+            text-align: center;
+            padding: 6px;
+            font-size: 11px;
+            color: var(--accent-gold);
+            background: rgba(201, 162, 39, 0.1);
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .empty-archive {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-muted);
+        }
+
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        /* 弹窗 */
+        .scroll-modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(10, 10, 12, 0.95);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .scroll-modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .scroll-modal {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-gold);
+            border-radius: 8px;
+            width: 90%;
+            max-width: 900px;
+            height: 85vh;
+            max-height: 85vh;
+            overflow: hidden;
+            transform: scaleY(0) translateY(50px);
+            transform-origin: bottom;
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .scroll-modal-overlay.active .scroll-modal {
+            transform: scaleY(1) translateY(0);
+        }
+
+        .modal-header {
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border-gold);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .modal-header-left {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            min-width: 0;
+        }
+
+        .checkpoint-breadcrumb {
+            font-size: 15px;
+            color: var(--text-primary);
+            font-family: var(--font-display);
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 4px;
+        }
+
+        .breadcrumb-path {
+            color: var(--text-muted);
+            font-size: 11px;
+            font-family: var(--font-body);
+            background: rgba(139, 119, 101, 0.15);
+            padding: 2px 8px;
+            border-radius: 4px;
+            letter-spacing: 0.5px;
+        }
+
+        .breadcrumb-path::before {
+            content: '◆';
+            margin-right: 4px;
+            opacity: 0.5;
+        }
+
+        .modal-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+
+        .modal-close {
+            width: 32px;
+            height: 32px;
+            border: 1px solid var(--border-gold);
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 18px;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            margin-left: 6px;
+        }
+
+        .modal-close:hover {
+            border-color: var(--accent-ember);
+            color: var(--accent-ember);
+        }
+
+        .duration-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 14px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-gold);
+            border-radius: 6px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .duration-date {
+            font-family: var(--font-display);
+            color: var(--text-primary);
+            font-size: 13px;
+            letter-spacing: 1px;
+        }
+
+        .duration-divider {
+            width: 1px;
+            height: 16px;
+            background: var(--border-gold);
+            margin: 0 4px;
+        }
+
+        .duration-bar strong {
+            color: var(--accent-gold);
+            font-weight: normal;
+        }
+
+        .duration-separator {
+            color: var(--border-gold);
+        }
+
+        .tag-section {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-gold);
+            border-radius: 6px;
+            min-height: 40px;
+        }
+
+        .tag-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .tag-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 10px;
+            background: rgba(201, 162, 39, 0.15);
+            border: 1px solid rgba(201, 162, 39, 0.4);
+            border-radius: 4px;
+            font-size: 11px;
+            color: var(--accent-gold);
+            transition: all 0.3s ease;
+        }
+
+        .tag-item:hover {
+            background: rgba(201, 162, 39, 0.25);
+        }
+
+        .tag-item .tag-remove {
+            cursor: pointer;
+            opacity: 0.6;
+            font-size: 12px;
+            line-height: 1;
+        }
+
+        .tag-item .tag-remove:hover {
+            opacity: 1;
+        }
+
+        .tag-input-wrapper {
+            flex-shrink: 0;
+        }
+
+        .tag-input {
+            width: 90px;
+            padding: 4px 10px;
+            background: var(--bg-deep);
+            border: 1px solid var(--border-gold);
+            border-radius: 4px;
+            color: var(--text-primary);
+            font-size: 11px;
+            font-family: var(--font-body);
+            transition: all 0.3s ease;
+        }
+
+        .tag-input:hover,
+        .tag-input:focus {
+            border-color: var(--accent-gold);
+            outline: none;
+            width: 120px;
+        }
+
+        .tag-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .tag-suggestions {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            margin-top: 4px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border-gold);
+            border-radius: 6px;
+            max-height: 150px;
+            overflow-y: auto;
+            z-index: 100;
+            display: none;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .tag-suggestions.active {
+            display: block;
+        }
+
+        .tag-suggestion-item {
+            padding: 8px 12px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-bottom: 1px solid rgba(139, 119, 101, 0.1);
+        }
+
+        .tag-suggestion-item:last-child {
+            border-bottom: none;
+        }
+
+        .tag-suggestion-item:hover,
+        .tag-suggestion-item.active {
+            background: rgba(201, 162, 39, 0.1);
+            color: var(--accent-gold);
+        }
+
+        .tag-input-wrapper {
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        .modal-body {
+            padding: 20px 24px 24px;
+            flex: 1;
+            overflow-y: auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        .modal-edit-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .modal-timeline-panel {
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-elevated);
+            border-radius: 8px;
+            padding: 16px;
+        }
+
+        .timeline-panel-title {
+            font-family: var(--font-display);
+            font-size: 12px;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(139, 119, 101, 0.3);
+        }
+
+        .timeline-panel-empty {
+            font-size: 13px;
+            color: var(--text-muted);
+            font-style: italic;
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .form-chamber {
+            margin-bottom: 20px;
+        }
+
+        .form-chamber label {
+            display: block;
+            font-family: var(--font-display);
+            font-size: 11px;
+            letter-spacing: 2px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+
+        .form-chamber input,
+        .form-chamber textarea,
+        .form-chamber select {
+            width: 100%;
+            background: var(--bg-deep);
+            border: 1px solid var(--border-gold);
+            border-radius: 6px;
+            padding: 12px 14px;
+            color: var(--text-primary);
+            font-family: var(--font-body);
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .form-chamber input:focus,
+        .form-chamber textarea:focus,
+        .form-chamber select:focus {
+            outline: none;
+            border-color: var(--accent-gold);
+            box-shadow: 0 0 15px rgba(201, 162, 39, 0.2);
+        }
+
+        .form-chamber textarea {
+            resize: none;
+            min-height: 140px;
+        }
+
+        .history-timeline {
+            flex: 1;
+            overflow-y: auto;
+            max-height: none;
+        }
+
+        .timeline-item {
+            display: grid;
+            grid-template-columns: 80px 1fr;
+            gap: 8px;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(139, 119, 101, 0.15);
+            align-items: start;
+        }
+
+        .timeline-item:last-child {
+            border-bottom: none;
+        }
+
+        .timeline-item.archived {
+            opacity: 0.6;
+        }
+
+        .timeline-item.current {
+            background: rgba(201, 162, 39, 0.08);
+            margin: 0 -6px;
+            padding: 8px 6px;
+            border-radius: 6px;
+            border-left: 2px solid var(--accent-gold);
+        }
+
+        .timeline-date {
+            font-size: 10px;
+            color: var(--text-muted);
+            background: rgba(139, 119, 101, 0.12);
+            padding: 2px 6px;
+            border-radius: 4px;
+            line-height: 1.4;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            white-space: nowrap;
+            width: fit-content;
+        }
+
+        .timeline-item.current .timeline-date {
+            background: rgba(201, 162, 39, 0.2);
+            color: var(--accent-gold);
+        }
+
+        .timeline-item.archived .timeline-date {
+            color: var(--text-muted);
+            background: rgba(74, 155, 139, 0.15);
+        }
+
+        .timeline-desc {
+            font-size: 12px;
+            color: var(--text-primary);
+            line-height: 1.5;
+        }
+
+        .timeline-tag {
+            display: inline-block;
+            padding: 1px 6px;
+            background: rgba(201, 162, 39, 0.15);
+            border: 1px solid rgba(201, 162, 39, 0.3);
+            border-radius: 3px;
+            font-size: 10px;
+            color: var(--accent-gold);
+            margin-right: 6px;
+            margin-bottom: 4px;
+        }
+
+        .timeline-empty {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        .rune-btn {
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-family: var(--font-display);
+            font-size: 11px;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: none;
+            white-space: nowrap;
+        }
+
+        .rune-btn-primary {
+            background: var(--gradient-gold);
+            color: var(--bg-deep);
+        }
+
+        .rune-btn-primary:hover {
+            box-shadow: 0 0 25px rgba(201, 162, 39, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .rune-btn-secondary {
+            background: transparent;
+            border: 1px solid var(--border-gold);
+            color: var(--text-secondary);
+        }
+
+        .rune-btn-secondary:hover {
+            border-color: var(--accent-gold);
+            color: var(--accent-gold);
+        }
+
+        .rune-btn-danger {
+            background: transparent;
+            border: 1px solid var(--accent-ember);
+            color: var(--accent-ember);
+        }
+
+        .rune-btn-danger:hover {
+            background: var(--accent-ember);
+            color: var(--bg-deep);
+        }
+
+        .rune-btn-archive {
+            background: var(--gradient-magic);
+            color: var(--text-primary);
+            border: 1px solid rgba(123, 104, 238, 0.5);
+        }
+
+        .rune-btn-archive:hover {
+            box-shadow: 0 0 25px rgba(123, 104, 238, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .rune-btn-archive.archived {
+            background: var(--accent-mist);
+            color: var(--bg-deep);
+            border-color: var(--accent-mist);
+        }
+
+        body.dragging {
+            cursor: grabbing;
+        }
+
+        .checkpoint-stripe.dragging {
+            opacity: 0.7;
+            cursor: grabbing;
+            transform: rotate(1deg) scale(1.02);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.6);
+            z-index: 1000;
+        }
+
+        /* 自定义确认弹窗 */
+        .confirm-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .confirm-modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .confirm-modal {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-gold);
+            border-radius: 8px;
+            padding: 32px 40px;
+            max-width: 360px;
+            width: 90%;
+            text-align: center;
+            transform: scale(0.9) translateY(20px);
+            transition: transform 0.3s ease;
+        }
+
+        .confirm-modal-overlay.active .confirm-modal {
+            transform: scale(1) translateY(0);
+        }
+
+        .confirm-modal-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .confirm-modal-title {
+            font-family: var(--font-display);
+            font-size: 18px;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+            letter-spacing: 1px;
+        }
+
+        .confirm-modal-message {
+            font-size: 14px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+
+        .confirm-modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        .confirm-modal-actions .rune-btn {
+            min-width: 80px;
+        }
+
+        .confirm-modal-actions .rune-btn-danger {
+            background: transparent;
+            border: 1px solid var(--accent-ember);
+            color: var(--accent-ember);
+        }
+
+        .confirm-modal-actions .rune-btn-danger:hover {
+            background: var(--accent-ember);
+            color: var(--bg-deep);
+        }
+
+        /* Toast 提示 */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: none;
+        }
+
+        .toast {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-gold);
+            border-radius: 6px;
+            padding: 12px 16px;
+            min-width: 200px;
+            max-width: 300px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            transform: translateX(120%);
+            opacity: 0;
+            transition: all 0.3s ease;
+            pointer-events: auto;
+        }
+
+        .toast.show {
+            transform: translateX(0);
+            opacity: 1;
+        }
+
+        .toast.hiding {
+            transform: translateX(120%);
+            opacity: 0;
+        }
+
+        .toast-icon {
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+
+        .toast-message {
+            font-size: 13px;
+            color: var(--text-primary);
+            line-height: 1.4;
+        }
+
+        .toast-warning {
+            border-color: var(--accent-ember);
+        }
+
+        .toast-warning .toast-icon {
+            color: var(--accent-ember);
+        }
+
+        @media (max-width: 1024px) {
+            .sanctum-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .scroll-archive {
+                display: none;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .scroll-modal {
+                max-width: 95%;
+                width: 95%;
+            }
+
+            .modal-body {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+
+            .modal-timeline-panel {
+                margin-top: 8px;
+            }
+
+            .history-timeline {
+                max-height: 200px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-texture"></div>
+
+    <header class="temple-header">
+        <div class="temple-brand">
+            <div class="temple-seal">⚔️</div>
+            <div class="temple-title">LIFE RPG</div>
+        </div>
+        <nav class="temple-nav">
+            <a href="index.html" class="nav-rune">世界地图</a>
+            <a href="admin.html" class="nav-rune">命名管理</a>
+            <a href="quest-admin.html" class="nav-rune">任务管理</a>
+            <a href="level-admin.html" class="nav-rune">关卡管理</a>
+            <a href="calendar.html" class="nav-rune active">日历视图</a>
+        </nav>
+    </header>
+
+    <main class="sanctum-layout">
+        <!-- 左侧卷轴库 -->
+        <aside class="scroll-archive">
+            <div class="archive-header">
+                <div class="archive-title">待分配卷轴</div>
+                <div class="archive-subtitle">拖拽卷轴至时间密室</div>
+            </div>
+
+            <div class="scroll-collection" id="scrollCollection">
+                <!-- 动态生成 -->
+            </div>
+
+            <div class="sanctum-stats">
+                <div class="stats-title">📊 本月洞察</div>
+                <div class="stats-grid">
+                    <div class="stat-relic">
+                        <div class="stat-number" id="statCompleted">0</div>
+                        <div class="stat-label">已完成</div>
+                    </div>
+                    <div class="stat-relic">
+                        <div class="stat-number" id="statActive">0</div>
+                        <div class="stat-label">活跃日</div>
+                    </div>
+                    <div class="stat-relic">
+                        <div class="stat-number" id="statStreak">0</div>
+                        <div class="stat-label">连续</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- 右侧时间圣殿 -->
+        <section class="time-sanctum">
+            <div class="sanctum-nav">
+                <div class="chronicle-controls">
+                    <button class="chronicle-arrow" onclick="changeMonth(-1)">◀</button>
+                    <h2 class="chronicle-title" id="chronicleTitle">2025年 一月</h2>
+                    <button class="chronicle-arrow" onclick="changeMonth(1)">▶</button>
+                </div>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <button class="weekend-toggle-btn-inline" id="weekendToggleBtn" onclick="toggleWeekend()">
+                        <span>📅</span>
+                        <span>显示周末</span>
+                    </button>
+                    <div class="view-glyphs">
+                        <button class="glyph-btn active" onclick="switchView('month')">月</button>
+                        <button class="glyph-btn" onclick="switchView('week')">周</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chamber-grid" id="chamberGrid">
+                <!-- 动态生成 -->
+            </div>
+        </section>
+    </main>
+
+    <!-- 卷轴编辑弹窗 -->
+    <div class="scroll-modal-overlay" id="scrollModal">
+        <div class="scroll-modal">
+            <div class="modal-header">
+                <div class="modal-header-left">
+                    <div class="checkpoint-breadcrumb" id="modalCheckpoint">检查点1<span class="breadcrumb-path">史东薇尔城 › 探索外围 › 关卡名</span></div>
+                </div>
+                <div class="modal-actions">
+                    <button class="rune-btn rune-btn-danger" id="deleteBtn" onclick="deleteEntry()">销毁</button>
+                    <button class="rune-btn rune-btn-archive" id="archiveBtn" onclick="archiveEntry()" title="归档后该检查项将被标记为完成，历史日期的相同检查项将显示删除线">归档</button>
+                    <button class="rune-btn rune-btn-primary" onclick="saveEntry()">铭刻</button>
+                </div>
+            </div>
+            <div class="modal-body">
+                <!-- 左侧：编辑面板 -->
+                <div class="modal-edit-panel">
+                    <div class="duration-bar">
+                        <span class="duration-date" id="modalDate">2025年1月15日</span>
+                        <span class="duration-divider"></span>
+                        <span class="duration-item">总历时: <strong id="totalDurationDisplay">1 天</strong></span>
+                        <span class="duration-separator">|</span>
+                        <span class="duration-item">实际: <strong id="actualDurationDisplay">1 天</strong></span>
+                    </div>
+
+                    <div class="tag-section">
+                        <div class="tag-list" id="tagList"></div>
+                        <div class="tag-input-wrapper">
+                            <input type="text" id="tagInput" class="tag-input" placeholder="+ 标签" autocomplete="off">
+                            <div class="tag-suggestions" id="tagSuggestions"></div>
+                        </div>
+                    </div>
+
+                    <div class="form-chamber" style="margin-bottom: 0; flex: 1; display: flex; flex-direction: column;">
+                        <textarea id="entryDescription" placeholder="记录今日进展、感悟与反思..." style="flex: 1; min-height: 140px;"></textarea>
+                    </div>
+
+                    <button class="rune-btn rune-btn-secondary" id="copyNextBtn" onclick="copyToNextDay()" style="width: 100%;">复制到下一天</button>
+                </div>
+
+                <!-- 右侧：历史记录面板 -->
+                <div class="modal-timeline-panel" id="timelinePanel">
+                    <div class="history-timeline" id="historyTimeline">
+                        <!-- 动态生成 -->
+                    </div>
+                    <div class="timeline-panel-empty" id="timelineEmpty" style="display: none;">暂无历史记录</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 数据存储
+        let adminData = {
+            tags: [],
+            landmarks: [],
+            landmarkQuests: {},
+            questLevels: {},
+            calendarEntries: {},
+            checkpointCompletions: {}
+        };
+
+        // 状态
+        let currentDate = new Date();
+        let currentView = 'month';
+        let draggedCheckpoint = null;
+        let selectedDate = null;
+        let editingEntryId = null;
+
+        /**
+         * 初始化
+         */
+        // 周末折叠状态
+        let isWeekendCollapsed = localStorage.getItem('lifeRpgWeekendCollapsed') === 'true';
+
+        /**
+         * 切换周末显示/隐藏
+         */
+        function toggleWeekend() {
+            isWeekendCollapsed = !isWeekendCollapsed;
+            localStorage.setItem('lifeRpgWeekendCollapsed', isWeekendCollapsed);
+            applyWeekendToggle();
+        }
+
+        /**
+         * 应用周末折叠状态
+         */
+        function applyWeekendToggle() {
+            const grid = document.getElementById('chamberGrid');
+            const btn = document.getElementById('weekendToggleBtn');
+
+            if (isWeekendCollapsed) {
+                grid.classList.add('weekend-collapsed');
+                btn.classList.remove('active');
+                btn.innerHTML = '<span>📅</span><span>显示周末</span>';
+            } else {
+                grid.classList.remove('weekend-collapsed');
+                btn.classList.add('active');
+                btn.innerHTML = '<span>📅</span><span>隐藏周末</span>';
+            }
+
+            // 重新计算条带位置
+            setTimeout(() => {
+                const rowStripes = {};
+                const stripes = grid.querySelectorAll('.checkpoint-stripe');
+                stripes.forEach(stripe => {
+                    const startCol = parseInt(stripe.dataset.startCol) || 0;
+                    const endCol = parseInt(stripe.dataset.endCol) || startCol;
+                    const startRow = parseInt(stripe.dataset.startRow) || 0;
+                    const duration = parseInt(stripe.dataset.duration) || 1;
+
+                    if (!rowStripes[startRow]) rowStripes[startRow] = [];
+                    rowStripes[startRow].push({
+                        stripe,
+                        startCol,
+                        endCol,
+                        duration,
+                        startRow,
+                        endRow: startRow
+                    });
+                });
+                const rowsNeeded = parseInt(grid.getAttribute('data-rows') || '5');
+                calculateStripePositions(grid, rowStripes, rowsNeeded);
+            }, 310); // 等待 CSS 过渡完成
+        }
+
+        function init() {
+            try {
+                loadData();
+                renderScrollArchive();
+                renderChamberGrid();
+                updateStats();
+                bindModalEvents();
+                applyWeekendToggle();
+
+                // 监听窗口大小变化，重新渲染日历
+                let resizeTimer;
+                window.addEventListener('resize', () => {
+                    clearTimeout(resizeTimer);
+                    resizeTimer = setTimeout(() => {
+                        renderChamberGrid();
+                    }, 200);
+                });
+            } catch (error) {
+                console.error('初始化失败:', error);
+            }
+        }
+
+        /**
+         * 重新计算条带位置（窗口大小变化时调用）
+         */
+        function recalculateStripePositions() {
+            const grid = document.getElementById('chamberGrid');
+            if (!grid) return;
+
+            const rowStripes = {};
+            const stripes = grid.querySelectorAll('.checkpoint-stripe');
+            stripes.forEach(stripe => {
+                const startCol = parseInt(stripe.dataset.startCol) || 0;
+                const endCol = parseInt(stripe.dataset.endCol) || startCol;
+                const startRow = parseInt(stripe.dataset.startRow) || 0;
+                const duration = parseInt(stripe.dataset.duration) || 1;
+
+                if (!rowStripes[startRow]) rowStripes[startRow] = [];
+                rowStripes[startRow].push({
+                    stripe,
+                    startCol,
+                    endCol,
+                    duration,
+                    startRow,
+                    endRow: startRow
+                });
+            });
+
+            const rowsNeeded = parseInt(grid.getAttribute('data-rows') || '5');
+            calculateStripePositions(grid, rowStripes, rowsNeeded);
+        }
+
+        /**
+         * 绑定弹窗事件
+         */
+        function bindModalEvents() {
+            const modal = document.getElementById('scrollModal');
+            if (modal) {
+                LifeRPG.events.add(modal, 'click', function(e) {
+                    if (e.target === this) closeModal();
+                });
+            }
+        }
+
+        /**
+         * 加载数据
+         */
+        function loadData() {
+            try {
+                const savedData = LifeRPG.data.load();
+                if (savedData) {
+                    adminData = {
+                        ...adminData,
+                        ...savedData
+                    };
+                    if (!adminData.calendarEntries) adminData.calendarEntries = {};
+                    if (!adminData.checkpointCompletions) adminData.checkpointCompletions = {};
+                }
+            } catch (error) {
+                console.error('加载数据失败:', error);
+            }
+        }
+
+        /**
+         * 保存数据
+         */
+        function saveData() {
+            try {
+                LifeRPG.data.save(adminData);
+            } catch (error) {
+                console.error('保存数据失败:', error);
+            }
+        }
+
+        /**
+         * 获取检查点的完成历史
+         */
+        function getCheckpointHistory(checkpointId) {
+            return adminData.checkpointCompletions[checkpointId] || [];
+        }
+
+        /**
+         * 计算检查项的连续日期段
+         * @param {string} checkpointId - 检查点ID
+         * @returns {Array} - 连续日期段数组 [{startDate, endDate, duration}, ...]
+         */
+        function calculateContinuousRanges(checkpointId) {
+            const history = getCheckpointHistory(checkpointId);
+            if (history.length === 0) return [];
+
+            // 提取所有日期并排序
+            const dates = history.map(h => h.date).sort();
+
+            const ranges = [];
+            let currentRange = {
+                startDate: dates[0],
+                endDate: dates[0]
+            };
+
+            for (let i = 1; i < dates.length; i++) {
+                const prevDate = new Date(dates[i - 1]);
+                const currDate = new Date(dates[i]);
+
+                // 计算日期差（天数）
+                const diffTime = currDate - prevDate;
+                const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+                if (diffDays === 1) {
+                    // 连续日期，扩展当前段
+                    currentRange.endDate = dates[i];
+                } else {
+                    // 不连续，保存当前段并开始新段
+                    currentRange.duration = calculateDuration(currentRange.startDate, currentRange.endDate);
+                    ranges.push(currentRange);
+                    currentRange = {
+                        startDate: dates[i],
+                        endDate: dates[i]
+                    };
+                }
+            }
+
+            // 保存最后一个段
+            currentRange.duration = calculateDuration(currentRange.startDate, currentRange.endDate);
+            ranges.push(currentRange);
+
+            return ranges;
+        }
+
+        /**
+         * 获取指定日期在连续段中的位置类型
+         * @param {string} checkpointId - 检查点ID
+         * @param {string} dateStr - 日期字符串
+         * @returns {Object} - { type: 'solo'|'start'|'middle'|'end'|'none', range: Object|null, streak: number }
+         */
+        function getStripePosition(checkpointId, dateStr) {
+            const ranges = calculateContinuousRanges(checkpointId);
+
+            for (const range of ranges) {
+                if (dateStr >= range.startDate && dateStr <= range.endDate) {
+                    const dates = [];
+                    let current = new Date(range.startDate);
+                    const end = new Date(range.endDate);
+
+                    while (current <= end) {
+                        dates.push(formatDate(new Date(current)));
+                        current.setDate(current.getDate() + 1);
+                    }
+
+                    const index = dates.indexOf(dateStr);
+                    const total = dates.length;
+
+                    if (total === 1) {
+                        return { type: 'solo', range, streak: 1 };
+                    } else if (index === 0) {
+                        return { type: 'start', range, streak: total };
+                    } else if (index === total - 1) {
+                        return { type: 'end', range, streak: total };
+                    } else {
+                        return { type: 'middle', range, streak: total };
+                    }
+                }
+            }
+
+            return { type: 'none', range: null, streak: 0 };
+        }
+
+        /**
+         * 获取检查点的完成日期（归档日期）
+         */
+        function getCheckpointArchiveDate(checkpointId) {
+            const history = getCheckpointHistory(checkpointId);
+            const archived = history.find(h => h.archived);
+            return archived ? archived.date : null;
+        }
+
+        /**
+         * 判断检查项在指定日期的显示状态
+         */
+        function getEntryStatusForDate(checkpointId, dateStr) {
+            const history = getCheckpointHistory(checkpointId);
+            const currentRecord = history.find(h => h.date === dateStr);
+            const archivedRecord = history.find(h => h.archived);
+
+            if (currentRecord && currentRecord.archived) {
+                return 'archive-day';
+            }
+
+            if (archivedRecord) {
+                const entryTime = new Date(dateStr).getTime();
+                const archiveTime = new Date(archivedRecord.date).getTime();
+
+                if (entryTime < archiveTime) return 'before-archive';
+                if (entryTime === archiveTime) return 'archive-day';
+                return 'no-archive';
+            }
+
+            return 'no-archive';
+        }
+
+        /**
+         * 计算检查项的连续天数（从指定日期往前连续的天数）
+         */
+        function calculateStreak(checkpointId, dateStr) {
+            const history = getCheckpointHistory(checkpointId);
+            if (history.length === 0) return 0;
+
+            // 按日期排序
+            const sortedDates = history
+                .map(h => h.date)
+                .sort((a, b) => new Date(b) - new Date(a));
+
+            const targetDate = new Date(dateStr);
+            let streak = 0;
+
+            // 检查目标日期是否有记录
+            const hasRecordOnTarget = sortedDates.includes(dateStr);
+            if (!hasRecordOnTarget) return 0;
+
+            // 从目标日期往前数连续天数
+            for (let i = 0; i < 365; i++) {
+                const checkDate = new Date(targetDate);
+                checkDate.setDate(targetDate.getDate() - i);
+                const checkDateStr = formatDate(checkDate);
+
+                if (sortedDates.includes(checkDateStr)) {
+                    streak++;
+                } else {
+                    break;
+                }
+            }
+
+            return streak;
+        }
+
+        /**
+         * 高亮显示连续段中的所有条带
+         * @param {string} checkpointId - 检查点ID
+         * @param {string} startDate - 连续段开始日期
+         * @param {string} endDate - 连续段结束日期
+         */
+        function highlightStreak(checkpointId, startDate, endDate) {
+            if (!startDate || !endDate || startDate === endDate) return;
+
+            // 找到同一检查点在同一连续段中的所有条带
+            const stripes = document.querySelectorAll(`.checkpoint-stripe[data-cp-id="${checkpointId}"]`);
+            stripes.forEach(stripe => {
+                const stripeStart = stripe.dataset.streakStart;
+                const stripeEnd = stripe.dataset.streakEnd;
+                if (stripeStart === startDate && stripeEnd === endDate) {
+                    stripe.classList.add('highlight');
+                }
+            });
+        }
+
+        /**
+         * 取消高亮所有条带
+         */
+        function unhighlightStreak() {
+            const highlighted = document.querySelectorAll('.checkpoint-stripe.highlight');
+            highlighted.forEach(stripe => {
+                stripe.classList.remove('highlight');
+            });
+        }
+
+        /**
+         * 根据任务名称获取颜色编码类名
+         */
+        function getQuestTypeClass(questName) {
+            if (!questName) return 'stripe-default';
+
+            const name = questName.toLowerCase();
+
+            // 探索类任务
+            if (name.includes('探索') || name.includes('发现') || name.includes('调研') ||
+                name.includes('考察') || name.includes('调查') || name.includes('观察')) {
+                return 'stripe-quest-explore';
+            }
+
+            // 战斗/挑战类任务
+            if (name.includes('战斗') || name.includes('挑战') || name.includes('攻克') ||
+                name.includes('突破') || name.includes('对抗') || name.includes('竞争')) {
+                return 'stripe-quest-battle';
+            }
+
+            // 学习/研究类任务
+            if (name.includes('学习') || name.includes('研究') || name.includes('阅读') ||
+                name.includes('技能') || name.includes('知识') || name.includes('课程')) {
+                return 'stripe-quest-study';
+            }
+
+            // 健康/运动类任务
+            if (name.includes('健康') || name.includes('运动') || name.includes('健身') ||
+                name.includes('锻炼') || name.includes('体能') || name.includes('养生')) {
+                return 'stripe-quest-health';
+            }
+
+            // 创造/艺术类任务
+            if (name.includes('创造') || name.includes('创作') || name.includes('艺术') ||
+                name.includes('写作') || name.includes('设计') || name.includes('制作')) {
+                return 'stripe-quest-creative';
+            }
+
+            return 'stripe-default';
+        }
+
+        /**
+         * 渲染卷轴库（左侧）
+         */
+        function renderScrollArchive() {
+            try {
+                const container = document.getElementById('scrollCollection');
+                if (!container) return;
+
+                let html = '';
+
+                (adminData.landmarks || []).forEach(landmark => {
+                    const quests = adminData.landmarkQuests[landmark.id] || [];
+                    if (quests.length === 0) return;
+
+                    html += `
+                        <div class="landmark-tome" data-landmark="${landmark.id}">
+                            <div class="tome-header" onclick="toggleTome(this)">
+                                <div class="tome-title">
+                                    ${landmark.icon} ${LifeRPG.security.escapeHtml(landmark.name)}
+                                </div>
+                                <span class="tome-toggle">▼</span>
+                            </div>
+                            <div class="tome-content">
+                    `;
+
+                    quests.forEach(quest => {
+                        const levels = adminData.questLevels[quest.id] || [];
+
+                        levels.forEach(level => {
+                            html += `
+                                <div class="quest-scroll">
+                                    <div class="quest-name">${LifeRPG.security.escapeHtml(quest.name)} › ${LifeRPG.security.escapeHtml(level.name)}</div>
+                            `;
+
+                            level.checkpoints.forEach((cp, idx) => {
+                                const archiveDate = getCheckpointArchiveDate(cp.id);
+                                const isArchived = !!archiveDate;
+                                const history = getCheckpointHistory(cp.id);
+                                const actualDays = history.length;
+                                html += `
+                                    <div class="checkpoint-parchment ${isArchived ? 'completed' : ''}"
+                                        draggable="true"
+                                        data-cp-id="${cp.id}"
+                                        data-level-id="${level.id}"
+                                        data-quest-id="${quest.id}"
+                                        data-cp-name="${LifeRPG.security.escapeHtml(cp.name || '检查点' + (idx + 1))}"
+                                        data-landmark="${LifeRPG.security.escapeHtml(landmark.name)}"
+                                        data-quest="${LifeRPG.security.escapeHtml(quest.name)}"
+                                        data-level="${LifeRPG.security.escapeHtml(level.name)}"
+                                        data-days="${actualDays}">
+                                        <div class="parchment-text">${LifeRPG.security.escapeHtml(cp.name || '检查点' + (idx + 1))}</div>
+                                        <div class="parchment-days">${isArchived ? '已归档 ' + archiveDate : (actualDays > 0 ? actualDays + '天' : '未开始')}</div>
+                                    </div>
+                                `;
+                            });
+
+                            html += '</div>';
+                        });
+                    });
+
+                    html += '</div></div>';
+                });
+
+                container.innerHTML = html || `
+                    <div class="empty-archive">
+                        <div class="empty-icon">📜</div>
+                        <div>暂无卷轴</div>
+                        <div style="font-size: 11px; margin-top: 8px;">请先创建关卡</div>
+                    </div>
+                `;
+
+                bindParchmentDragEvents();
+            } catch (error) {
+                console.error('渲染卷轴库失败:', error);
+            }
+        }
+
+        /**
+         * 折叠/展开卷轴
+         */
+        function toggleTome(header) {
+            try {
+                const tome = header.closest('.landmark-tome');
+                if (tome) tome.classList.toggle('collapsed');
+            } catch (error) {
+                console.error('切换卷轴失败:', error);
+            }
+        }
+
+        /**
+         * 绑定卷轴拖拽事件
+         */
+        function bindParchmentDragEvents() {
+            try {
+                const parchments = document.querySelectorAll('.checkpoint-parchment');
+                parchments.forEach(p => {
+                    LifeRPG.events.add(p, 'dragstart', function(e) {
+                        draggedCheckpoint = {
+                            id: this.dataset.cpId,
+                            levelId: this.dataset.levelId,
+                            questId: this.dataset.questId,
+                            name: this.dataset.cpName,
+                            landmark: this.dataset.landmark,
+                            quest: this.dataset.quest,
+                            level: this.dataset.level,
+                            days: this.dataset.days
+                        };
+                        this.classList.add('dragging');
+                        document.body.classList.add('dragging');
+                        e.dataTransfer.effectAllowed = 'copy';
+                    });
+
+                    LifeRPG.events.add(p, 'dragend', function() {
+                        this.classList.remove('dragging');
+                        document.body.classList.remove('dragging');
+                    });
+                });
+            } catch (error) {
+                console.error('绑定卷轴拖拽事件失败:', error);
+            }
+        }
+
+        /**
+         * 渲染时间密室网格（条带化布局 - 跨格子延伸）
+         */
+        function renderChamberGrid() {
+            try {
+                const grid = document.getElementById('chamberGrid');
+                if (!grid) return;
+
+                const year = currentDate.getFullYear();
+                const month = currentDate.getMonth();
+
+                // 更新标题
+                const monthNames = LifeRPG.constants.MONTH_NAMES;
+                document.getElementById('chronicleTitle').textContent = `${year}年 ${monthNames[month]}`;
+
+                // 星期标题
+                const weekdays = LifeRPG.constants.WEEKDAYS;
+                let html = weekdays.map(d => `<div class="weekday-pillar">${d}</div>`).join('');
+
+                const today = new Date();
+
+                // 获取当月第一天和最后一天
+                const firstDayOfMonth = new Date(year, month, 1);
+                const lastDayOfMonth = new Date(year, month + 1, 0);
+
+                // 计算当月第一天是周几（周一为0，周日为6）
+                const firstDayWeekday = (firstDayOfMonth.getDay() + 6) % 7;
+
+                // 计算需要的行数
+                const daysInMonth = lastDayOfMonth.getDate();
+                const totalCells = firstDayWeekday + daysInMonth;
+                const rowsNeeded = Math.ceil(totalCells / 7);
+                const totalGridCells = rowsNeeded * 7;
+
+                // 生成当月日期格子
+                for (let i = 0; i < totalGridCells; i++) {
+                    const dayOffset = i - firstDayWeekday;
+                    const date = new Date(year, month, dayOffset + 1);
+
+                    // 只显示当月日期
+                    if (date.getMonth() !== month) {
+                        // 非当月日期显示为空格子（保持grid结构）
+                        html += `<div class="time-chamber empty" data-index="${i}"></div>`;
+                        continue;
+                    }
+
+                    const isToday = date.toDateString() === today.toDateString();
+                    const dateStr = formatDate(date);
+
+                    html += `
+                        <div class="time-chamber ${isToday ? 'today' : ''}"
+                            data-date="${dateStr}" data-index="${i}">
+                            <div class="chamber-date">
+                                <span>${date.getDate()}</span>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                // 设置grid行数
+                grid.setAttribute('data-rows', rowsNeeded.toString());
+                grid.innerHTML = html;
+
+                // 渲染跨格子的检查点条带
+                renderCheckpointStripes(grid, year, month, firstDayWeekday, daysInMonth);
+
+                bindChamberDragEvents();
+            } catch (error) {
+                console.error('渲染时间密室网格失败:', error);
+            }
+        }
+
+        /**
+         * 计算检查点的连续日期范围
+         */
+        function calculateStripeRanges(checkpointId) {
+            const history = getCheckpointHistory(checkpointId);
+            if (history.length === 0) return [];
+
+            // 提取所有日期并排序
+            const dates = history.map(h => h.date).sort();
+
+            const ranges = [];
+            let currentRange = {
+                startDate: dates[0],
+                endDate: dates[0],
+                entries: [history.find(h => h.date === dates[0])]
+            };
+
+            for (let i = 1; i < dates.length; i++) {
+                const prevDate = new Date(dates[i - 1]);
+                const currDate = new Date(dates[i]);
+                const diffDays = Math.round((currDate - prevDate) / (1000 * 60 * 60 * 24));
+
+                if (diffDays === 1) {
+                    // 连续日期，扩展当前范围
+                    currentRange.endDate = dates[i];
+                    currentRange.entries.push(history.find(h => h.date === dates[i]));
+                } else {
+                    // 不连续，保存当前范围并开始新范围
+                    ranges.push({...currentRange});
+                    currentRange = {
+                        startDate: dates[i],
+                        endDate: dates[i],
+                        entries: [history.find(h => h.date === dates[i])]
+                    };
+                }
+            }
+
+            // 保存最后一个范围
+            ranges.push(currentRange);
+
+            // 计算每个范围的持续时间
+            ranges.forEach(range => {
+                range.duration = calculateDuration(range.startDate, range.endDate);
+            });
+
+            return ranges;
+        }
+
+        /**
+         * 渲染检查点条带（跨格子延伸）
+         */
+        function renderCheckpointStripes(grid, year, month, firstDayWeekday, daysInMonth) {
+            const themeColors = ['theme-gold', 'theme-ember', 'theme-mist', 'theme-magic', 'theme-slate'];
+            const checkpointThemes = {};
+            let themeIndex = 0;
+
+            // 构建日期索引映射（用于计算条带位置）- 只包含当月日期
+            const dateIndexMap = {};
+            for (let day = 1; day <= daysInMonth; day++) {
+                const date = new Date(year, month, day);
+                const dateStr = formatDate(date);
+                const index = firstDayWeekday + (day - 1);
+                dateIndexMap[dateStr] = index;
+            }
+
+            // 收集每个检查点的所有条目
+            const checkpointData = {};
+            Object.keys(adminData.calendarEntries || {}).forEach(dateStr => {
+                const entries = adminData.calendarEntries[dateStr];
+                entries.forEach(entry => {
+                    if (!checkpointData[entry.checkpointId]) {
+                        checkpointData[entry.checkpointId] = {
+                            name: entry.checkpointName,
+                            entries: [],
+                            levelId: entry.levelId,
+                            questId: entry.questId,
+                            landmarkName: entry.landmarkName,
+                            questName: entry.questName,
+                            levelName: entry.levelName
+                        };
+                        // 分配主题色
+                        checkpointThemes[entry.checkpointId] = themeColors[themeIndex % themeColors.length];
+                        themeIndex++;
+                    }
+                    checkpointData[entry.checkpointId].entries.push({
+                        ...entry,
+                        date: dateStr
+                    });
+                });
+            });
+
+            // 按行收集条带信息，用于后续位置计算
+            const rowStripes = {}; // { rowIndex: [stripeInfo, ...] }
+
+            // 为每个检查点计算连续范围并渲染条带
+            Object.keys(checkpointData).forEach(checkpointId => {
+                const cpData = checkpointData[checkpointId];
+                const ranges = calculateStripeRanges(checkpointId);
+
+                ranges.forEach(range => {
+                    const startIdx = dateIndexMap[range.startDate];
+                    const endIdx = dateIndexMap[range.endDate];
+
+                    // 只渲染在当前视图范围内的条带
+                    if (startIdx === undefined || endIdx === undefined) return;
+
+
+
+                    const duration = endIdx - startIdx + 1;
+                    const firstEntry = cpData.entries.find(e => e.date === range.startDate);
+                    if (!firstEntry) return;
+
+                    const archiveDate = getCheckpointArchiveDate(checkpointId);
+                    const isArchived = !!archiveDate;
+
+                    // 计算总历时
+                    const history = getCheckpointHistory(checkpointId);
+                    const sortedHistory = [...history].sort((a, b) => new Date(a.date) - new Date(b.date));
+                    const firstDate = sortedHistory.length > 0 ? sortedHistory[0].date : range.startDate;
+                    const lastDate = sortedHistory.length > 0 ? sortedHistory[sortedHistory.length - 1].date : range.startDate;
+                    const totalDuration = calculateDuration(firstDate, lastDate);
+
+                    // 判断是否连续条带（跨越多天）
+                    const isContinuous = range.startDate !== range.endDate;
+
+                    // 计算条带位置
+                    const startRow = Math.floor(startIdx / 7);
+                    const startCol = startIdx % 7;
+                    const endCol = endIdx % 7;
+                    const endRow = Math.floor(endIdx / 7);
+
+                    // 确定条带样式类
+                    let stripeClass = checkpointThemes[checkpointId];
+                    if (isContinuous) {
+                        stripeClass += ' stripe-continuous';
+                    }
+                    if (isArchived) {
+                        stripeClass += ' archived';
+                    }
+
+                    // 构建条带内容
+                    let stripeContent;
+                    if (isContinuous) {
+                        // 连续条带：显示关卡名 › 检查点名 + 历时
+                        stripeContent = `<span class="stripe-level">${LifeRPG.security.escapeHtml(cpData.levelName)}</span><span class="stripe-separator">›</span><span class="stripe-name">${LifeRPG.security.escapeHtml(cpData.name)}</span><span class="stripe-duration">${totalDuration}天</span>`;
+                    } else {
+                        // 单日条带：只显示检查点名 + 历时
+                        stripeContent = `<span class="stripe-name">${LifeRPG.security.escapeHtml(cpData.name)}</span><span class="stripe-duration">${totalDuration}天</span>`;
+                    }
+
+                    // 创建条带元素（一个条带横跨整个连续范围）
+                    const stripe = document.createElement('div');
+                    stripe.className = `checkpoint-stripe ${stripeClass}`;
+                    stripe.innerHTML = stripeContent;
+                    stripe.draggable = true;
+                    stripe.dataset.checkpointId = checkpointId;
+                    stripe.dataset.startDate = range.startDate;
+                    stripe.dataset.endDate = range.endDate;
+                    stripe.dataset.entryId = firstEntry.id;
+                    stripe.dataset.levelId = cpData.levelId;
+                    stripe.dataset.questId = cpData.questId;
+                    stripe.dataset.landmark = LifeRPG.security.escapeHtml(cpData.landmarkName);
+                    stripe.dataset.quest = LifeRPG.security.escapeHtml(cpData.questName);
+                    stripe.dataset.level = LifeRPG.security.escapeHtml(cpData.levelName);
+                    stripe.dataset.cpName = LifeRPG.security.escapeHtml(cpData.name);
+                    stripe.dataset.sourceDate = range.startDate;
+                    stripe.dataset.startCol = startCol;
+                    stripe.dataset.endCol = endCol;
+                    stripe.dataset.startRow = startRow;
+                    stripe.dataset.duration = duration;
+
+                    // 点击打开弹窗
+                    stripe.onclick = function(e) {
+                        e.stopPropagation();
+                        openEntryModal(range.startDate, firstEntry.id);
+                    };
+
+                    // 拖拽事件
+                    stripe.ondragstart = function(e) {
+                        e.stopPropagation();
+                        draggedCheckpoint = {
+                            id: checkpointId,
+                            entryId: firstEntry.id,
+                            levelId: cpData.levelId,
+                            questId: cpData.questId,
+                            name: cpData.name,
+                            landmark: cpData.landmarkName,
+                            quest: cpData.questName,
+                            level: cpData.levelName,
+                            sourceDate: range.startDate,
+                            isMoving: true
+                        };
+                        this.classList.add('dragging');
+                        document.body.classList.add('dragging');
+                        e.dataTransfer.effectAllowed = 'move';
+                    };
+
+                    stripe.ondragend = function() {
+                        this.classList.remove('dragging');
+                        document.body.classList.remove('dragging');
+                    };
+
+                    grid.appendChild(stripe);
+
+                    // 记录条带信息用于位置计算
+                    if (!rowStripes[startRow]) rowStripes[startRow] = [];
+                    rowStripes[startRow].push({
+                        stripe: stripe,
+                        startCol: startCol,
+                        endCol: endCol,
+                        duration: duration,
+                        startRow: startRow,
+                        endRow: endRow
+                    });
+                }); // end ranges.forEach
+            }); // end checkpointData.forEach
+
+            // 计算并设置条带位置（延迟执行确保DOM布局完成）
+            requestAnimationFrame(() => {
+                const rowsNeeded = parseInt(grid.getAttribute('data-rows') || '5');
+                calculateStripePositions(grid, rowStripes, rowsNeeded);
+            });
+        }
+
+        /**
+         * 计算条带位置（考虑跨行和重叠）
+         */
+        function calculateStripePositions(grid, rowStripes, totalRows = 5) {
+            // 获取格子尺寸
+            const gridRect = grid.getBoundingClientRect();
+            const isCollapsed = grid.classList.contains('weekend-collapsed');
+            const visibleCols = isCollapsed ? 5 : 7;
+            const cellWidth = gridRect.width / visibleCols;
+
+            // 星期标题行高度
+            const weekdayHeight = 20;
+
+            // 重置所有格子的高度，确保获取正确的初始高度
+            const allChambers = grid.querySelectorAll('.time-chamber');
+            allChambers.forEach(chamber => {
+                chamber.style.minHeight = '';
+            });
+
+            // 强制重绘以获取正确的初始高度
+            grid.offsetHeight;
+
+            // 第一步：计算每行需要的最大层级数
+            const rowMaxLevels = {};
+            Object.keys(rowStripes).forEach(rowStr => {
+                const row = parseInt(rowStr);
+                const stripes = rowStripes[row];
+                const occupied = [];
+                let maxLevel = 0;
+
+                stripes.forEach(({ startCol, endCol }) => {
+                    // 跳过周末折叠的条带
+                    if (isCollapsed && (startCol === 5 || startCol === 6)) return;
+
+                    let level = 0;
+                    let found = false;
+                    while (!found) {
+                        const conflict = occupied.some(o =>
+                            o.level === level &&
+                            !(endCol < o.startCol || startCol > o.endCol)
+                        );
+                        if (!conflict) {
+                            found = true;
+                        } else {
+                            level++;
+                        }
+                    }
+                    occupied.push({ level, startCol, endCol });
+                    maxLevel = Math.max(maxLevel, level);
+                });
+
+                rowMaxLevels[row] = maxLevel;
+            });
+
+            // 第二步：设置每行格子的高度
+            const minChamberHeight = 80;
+            const stripeHeight = 22;
+
+            for (let row = 0; row < totalRows; row++) {
+                const maxLevel = rowMaxLevels[row] || 0;
+                const rowHeight = minChamberHeight + (maxLevel + 1) * stripeHeight;
+
+                for (let col = 0; col < (isCollapsed ? 5 : 7); col++) {
+                    const chamberIndex = row * 7 + col;
+                    const chamber = grid.querySelector(`.time-chamber[data-index="${chamberIndex}"]`);
+                    if (chamber) {
+                        chamber.style.minHeight = `${rowHeight}px`;
+                    }
+                }
+            }
+
+            // 第三步：使用双重 requestAnimationFrame 确保布局完全稳定后，计算条带位置
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                const rowTops = {};
+                const gridRectAfter = grid.getBoundingClientRect();
+
+                for (let row = 0; row < totalRows; row++) {
+                    // 找到该行第一个非空格子
+                    let firstChamber = null;
+                    for (let col = 0; col < 7; col++) {
+                        const chamberIndex = row * 7 + col;
+                        const chamber = grid.querySelector(`.time-chamber[data-index="${chamberIndex}"]`);
+                        if (chamber && !chamber.classList.contains('empty')) {
+                            firstChamber = chamber;
+                            break;
+                        }
+                    }
+
+                    if (firstChamber) {
+                        const chamberRect = firstChamber.getBoundingClientRect();
+                        rowTops[row] = chamberRect.top - gridRectAfter.top;
+                    } else {
+                        // 如果该行没有非空格子，使用计算值
+                        let prevRowTop = row > 0 ? rowTops[row - 1] : weekdayHeight;
+                        let prevRowHeight = row > 0 ? (minChamberHeight + (rowMaxLevels[row - 1] || 0) * stripeHeight) : 0;
+                        rowTops[row] = prevRowTop + prevRowHeight;
+                    }
+                }
+
+                // 处理每一行的条带
+            Object.keys(rowStripes).forEach(rowStr => {
+                const row = parseInt(rowStr);
+                const stripes = rowStripes[row];
+
+                // 按开始列排序
+                stripes.sort((a, b) => a.startCol - b.startCol);
+
+                // 为每个条带找到合适的垂直层级
+                const occupied = []; // [{level, startCol, endCol}, ...]
+
+                stripes.forEach(({ stripe, startCol, endCol, duration }) => {
+                    // 如果折叠周末，且条带完全在周末（列5或6，即周六或周日），则隐藏
+                    if (isCollapsed && (startCol === 5 || startCol === 6)) {
+                        stripe.style.display = 'none';
+                        return;
+                    }
+
+                    // 检查条带起始格子是否是非当月，如果是则隐藏
+                    const chamberIndex = row * 7 + startCol;
+                    const chamber = grid.querySelector(`.time-chamber[data-index="${chamberIndex}"]`);
+                    if (chamber && chamber.classList.contains('other-month')) {
+                        stripe.style.display = 'none';
+                        return;
+                    }
+
+                    // 如果折叠周末，且条带跨越周末，需要截断
+                    let visibleStartCol = startCol;
+                    let visibleEndCol = endCol;
+                    let visibleDuration = duration;
+
+                    if (isCollapsed) {
+                        // 处理跨越周六（第5列）的情况
+                        if (startCol === 5 && endCol > 5) {
+                            visibleStartCol = 5; // 实际上会被隐藏，这里做保险处理
+                        }
+                        if (endCol >= 5) {
+                            visibleEndCol = 4; // 截断到周五
+                        }
+                        visibleDuration = visibleEndCol - visibleStartCol + 1;
+                    }
+
+                    // 找到不重叠的层级
+                    let level = 0;
+                    let found = false;
+
+                    while (!found) {
+                        const conflict = occupied.some(o =>
+                            o.level === level &&
+                            !(visibleEndCol < o.startCol || visibleStartCol > o.endCol)
+                        );
+
+                        if (!conflict) {
+                            found = true;
+                        } else {
+                            level++;
+                        }
+                    }
+
+
+
+                    // 计算位置
+                    // 使用预先计算的该行顶部位置
+                    const rowTop = rowTops[row];
+                    // 条带在日期格子内部显示
+                    // 格子有8px padding，日期数字高度约20px，条带从日期下方开始显示
+                    // 8px(padding) + 20px(日期) + 4px(间距) = 32px
+                    const stripeTop = rowTop + 32 + (level * 22); // 32px是日期高度偏移，22px是条带高度+间距
+                    // 折叠周末时，需要重新计算列位置（0-4对应周一到周五）
+                    let renderStartCol = visibleStartCol;
+                    if (isCollapsed) {
+                        // 周一到周五保持 0-4，周六日已被过滤掉
+                        renderStartCol = visibleStartCol;
+                    }
+                    const stripeLeft = renderStartCol * cellWidth + 2; // 2px边距
+                    const stripeWidth = visibleDuration * cellWidth - 4; // 4px总边距
+
+                    // 设置样式
+                    stripe.style.display = 'flex';
+                    stripe.style.top = `${stripeTop}px`;
+                    stripe.style.left = `${stripeLeft}px`;
+                    stripe.style.width = `${stripeWidth}px`;
+
+                    // 记录占用
+                    occupied.push({ level, startCol, endCol });
+                });
+            });
+        });
+    });
+}
+
+        /**
+         * 绑定密室拖拽事件
+         */
+        function bindChamberDragEvents() {
+            try {
+                const chambers = document.querySelectorAll('.time-chamber');
+                chambers.forEach(chamber => {
+                    LifeRPG.events.add(chamber, 'dragover', function(e) {
+                        e.preventDefault();
+                        this.classList.add('drag-over');
+                    });
+
+                    LifeRPG.events.add(chamber, 'dragleave', function() {
+                        this.classList.remove('drag-over');
+                    });
+
+                    LifeRPG.events.add(chamber, 'drop', function(e) {
+                        e.preventDefault();
+                        this.classList.remove('drag-over');
+
+                        if (!draggedCheckpoint) return;
+
+                        const dateStr = this.dataset.date;
+
+                        if (draggedCheckpoint.isMoving && draggedCheckpoint.sourceDate === dateStr) {
+                            draggedCheckpoint = null;
+                            return;
+                        }
+
+                        // 检查该日期是否已有相同检查项
+                        const existingEntries = adminData.calendarEntries[dateStr] || [];
+                        const hasDuplicate = existingEntries.some(entry =>
+                            entry.checkpointId === draggedCheckpoint.id
+                        );
+
+                        if (hasDuplicate) {
+                            showToast(`该日期已存在「${draggedCheckpoint.name}」检查项`, 'warning');
+                            draggedCheckpoint = null;
+                            return;
+                        }
+
+                        const entry = {
+                            id: Date.now().toString(),
+                            checkpointId: draggedCheckpoint.id,
+                            levelId: draggedCheckpoint.levelId,
+                            questId: draggedCheckpoint.questId,
+                            checkpointName: draggedCheckpoint.name,
+                            landmarkName: draggedCheckpoint.landmark,
+                            questName: draggedCheckpoint.quest,
+                            levelName: draggedCheckpoint.level,
+                            date: dateStr,
+                            description: '',
+                            completed: false
+                        };
+
+                        if (!adminData.calendarEntries[dateStr]) {
+                            adminData.calendarEntries[dateStr] = [];
+                        }
+                        adminData.calendarEntries[dateStr].push(entry);
+
+                        if (!adminData.checkpointCompletions[draggedCheckpoint.id]) {
+                            adminData.checkpointCompletions[draggedCheckpoint.id] = [];
+                        }
+                        adminData.checkpointCompletions[draggedCheckpoint.id].push({
+                            date: dateStr,
+                            entryId: entry.id,
+                            archived: false
+                        });
+
+                        saveData();
+                        renderScrollArchive();
+                        renderChamberGrid();
+                        updateStats();
+                        // 不自动打开弹窗，用户需要编辑时可点击条带打开
+                    });
+                });
+            } catch (error) {
+                console.error('绑定密室拖拽事件失败:', error);
+            }
+        }
+
+        /**
+         * 打开编辑弹窗
+         */
+        function openEntryModal(dateStr, entryId) {
+            try {
+                event.stopPropagation();
+                selectedDate = dateStr;
+                editingEntryId = entryId;
+
+                const entry = adminData.calendarEntries[dateStr].find(e => e.id === entryId);
+                if (!entry) return;
+
+                const date = new Date(dateStr);
+                document.getElementById('modalDate').textContent =
+                    `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+
+                document.getElementById('modalCheckpoint').innerHTML = `
+                    ${LifeRPG.security.escapeHtml(entry.checkpointName)}
+                    <span class="breadcrumb-path">${LifeRPG.security.escapeHtml(entry.landmarkName)} › ${LifeRPG.security.escapeHtml(entry.questName)} › ${LifeRPG.security.escapeHtml(entry.levelName)}</span>
+                `;
+
+                document.getElementById('entryDescription').value = entry.description || '';
+
+                const history = getCheckpointHistory(entry.checkpointId);
+                const sortedHistory = [...history].sort((a, b) => new Date(a.date) - new Date(b.date));
+                const firstDate = sortedHistory.length > 0 ? sortedHistory[0].date : selectedDate;
+                const lastDate = sortedHistory.length > 0 ? sortedHistory[sortedHistory.length - 1].date : selectedDate;
+                const totalDuration = calculateDuration(firstDate, lastDate);
+                document.getElementById('totalDurationDisplay').textContent = totalDuration + ' 天';
+
+                const actualDuration = history.length;
+                document.getElementById('actualDurationDisplay').textContent = actualDuration + ' 天';
+
+                renderHistoryTimeline(entry.checkpointId, selectedDate);
+
+                const archiveBtn = document.getElementById('archiveBtn');
+                const archiveDate = getCheckpointArchiveDate(entry.checkpointId);
+                const isArchivedOnThisDay = archiveDate === dateStr;
+
+                if (isArchivedOnThisDay) {
+                    archiveBtn.textContent = '✓ 已归档';
+                    archiveBtn.classList.add('archived');
+                    archiveBtn.title = '该检查项已在此日期归档';
+                } else if (archiveDate) {
+                    archiveBtn.textContent = '已归档于 ' + archiveDate;
+                    archiveBtn.classList.add('archived');
+                    archiveBtn.disabled = true;
+                    archiveBtn.title = `该检查项已于 ${archiveDate} 归档`;
+                } else {
+                    archiveBtn.textContent = '归档';
+                    archiveBtn.classList.remove('archived');
+                    archiveBtn.disabled = false;
+                    archiveBtn.title = '归档后该检查项将被标记为完成，历史日期的相同检查项将显示删除线';
+                }
+
+                document.getElementById('deleteBtn').style.display = 'block';
+
+                // 加载标签
+                loadCheckpointTags(entry.checkpointId, entry.tags || entry.tag);
+
+                // 更新复制按钮文字（周五显示"复制到下周一"）
+                const copyBtn = document.getElementById('copyNextBtn');
+                const currentDay = date.getDay();
+                copyBtn.textContent = currentDay === 5 ? '复制到下周一' : '复制到下一天';
+
+                // 禁止背景滚动
+                document.body.style.overflow = 'hidden';
+                document.getElementById('scrollModal').classList.add('active');
+            } catch (error) {
+                console.error('打开编辑弹窗失败:', error);
+            }
+        }
+
+        /**
+         * 计算两个日期之间的天数
+         */
+        function calculateDuration(startDateStr, endDateStr) {
+            const start = new Date(startDateStr);
+            const end = new Date(endDateStr);
+            const diffTime = Math.abs(end - start);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+            return diffDays;
+        }
+
+        /**
+         * 渲染历史时间轴
+         */
+        function renderHistoryTimeline(checkpointId, currentDateStr) {
+            try {
+                const history = getCheckpointHistory(checkpointId);
+                const timeline = document.getElementById('historyTimeline');
+                const emptyState = document.getElementById('timelineEmpty');
+
+                if (!timeline) return;
+
+                if (history.length === 0) {
+                    timeline.innerHTML = '';
+                    if (emptyState) emptyState.style.display = 'block';
+                    return;
+                }
+
+                if (emptyState) emptyState.style.display = 'none';
+
+                const sortedHistory = [...history].sort((a, b) =>
+                    new Date(a.date) - new Date(b.date)
+                );
+
+                let html = '';
+                sortedHistory.forEach(h => {
+                    const entry = findEntryById(h.date, h.entryId);
+                    if (!entry) return;
+
+                    const isArchived = h.archived;
+                    const dateLabel = isArchived ? ' ✓' : '';
+
+                    // 获取标签数组（兼容新旧数据）
+                    let tags = [];
+                    if (entry.tags && Array.isArray(entry.tags)) {
+                        tags = entry.tags;
+                    } else if (entry.tag) {
+                        tags = [entry.tag];
+                    }
+                    const tagsHtml = tags.map(tag =>
+                        `<span class="timeline-tag">${LifeRPG.security.escapeHtml(tag)}</span>`
+                    ).join('');
+
+                    html += `
+                        <div class="timeline-item ${isArchived ? 'archived' : ''}">
+                            <div class="timeline-date">${h.date}${dateLabel}</div>
+                            <div class="timeline-desc">
+                                ${tagsHtml}
+                                ${entry.description ? LifeRPG.security.escapeHtml(entry.description) : '<span class="timeline-empty">暂无记录</span>'}
+                            </div>
+                        </div>
+                    `;
+                });
+
+                timeline.innerHTML = html || '<div class="timeline-empty">暂无历史记录</div>';
+            } catch (error) {
+                console.error('渲染历史时间轴失败:', error);
+            }
+        }
+
+        /**
+         * 根据日期和条目ID查找条目
+         */
+        function findEntryById(dateStr, entryId) {
+            const entries = adminData.calendarEntries[dateStr] || [];
+            return entries.find(e => e.id === entryId);
+        }
+
+        /**
+         * 复制到下一天（周五则复制到下周一）
+         */
+        // 复制功能的临时数据存储
+        let copyTempData = null;
+
+        function copyToNextDay() {
+            try {
+                if (!selectedDate || !editingEntryId) return;
+
+                const entry = adminData.calendarEntries[selectedDate].find(e => e.id === editingEntryId);
+                if (!entry) return;
+
+                // 计算下一天日期
+                const currentDate = new Date(selectedDate);
+                let nextDate = new Date(currentDate);
+                nextDate.setDate(currentDate.getDate() + 1);
+
+                // 如果是周五(5)，则跳到下周一(增加3天)
+                if (currentDate.getDay() === 5) {
+                    nextDate.setDate(currentDate.getDate() + 3);
+                }
+
+                const nextDateStr = nextDate.toISOString().split('T')[0];
+
+                // 检查下一天是否已有相同检查点的记录
+                const nextDayEntries = adminData.calendarEntries[nextDateStr] || [];
+                const existingEntry = nextDayEntries.find(e => e.checkpointId === entry.checkpointId);
+
+                if (existingEntry) {
+                    // 存储临时数据
+                    copyTempData = { entry, nextDateStr, existingEntry, isNew: false };
+                    showConfirmModal({
+                        title: '覆盖确认',
+                        message: `${nextDateStr} 已有该检查点的记录，是否覆盖？`,
+                        icon: '⚠️',
+                        confirmText: '覆盖',
+                        confirmClass: 'rune-btn-danger',
+                        onConfirm: executeCopy
+                    });
+                } else {
+                    // 存储临时数据
+                    copyTempData = { entry, nextDateStr, existingEntry: null, isNew: true };
+                    executeCopy();
+                }
+
+            } catch (error) {
+                console.error('复制到下一天失败:', error);
+                showConfirmModal({
+                    title: '复制失败',
+                    message: '复制失败: ' + error.message,
+                    icon: '❌',
+                    confirmText: '确定',
+                    onConfirm: () => {}
+                });
+            }
+        }
+
+        /**
+         * 执行复制操作
+         */
+        function executeCopy() {
+            if (!copyTempData) return;
+
+            const { entry, nextDateStr, existingEntry, isNew } = copyTempData;
+
+            if (existingEntry) {
+                // 覆盖现有记录（不复制描述，只复制标签）
+                existingEntry.tags = entry.tags || (entry.tag ? [entry.tag] : []);
+            } else {
+                // 创建新记录（不复制描述，只复制标签）
+                const newEntry = {
+                    id: 'entry_' + Date.now(),
+                    checkpointId: entry.checkpointId,
+                    checkpointName: entry.checkpointName,
+                    landmarkId: entry.landmarkId,
+                    landmarkName: entry.landmarkName,
+                    questId: entry.questId,
+                    questName: entry.questName,
+                    levelId: entry.levelId,
+                    levelName: entry.levelName,
+                    description: '',
+                    tags: entry.tags || (entry.tag ? [entry.tag] : []),
+                    completed: false,
+                    createdAt: new Date().toISOString()
+                };
+
+                if (!adminData.calendarEntries[nextDateStr]) {
+                    adminData.calendarEntries[nextDateStr] = [];
+                }
+                adminData.calendarEntries[nextDateStr].push(newEntry);
+            }
+
+            LifeRPG.storage.save(adminData);
+
+            // 刷新日历视图
+            renderChamberGrid();
+
+            // 显示成功提示
+            const btn = document.getElementById('copyNextBtn');
+            const originalText = btn.textContent;
+            btn.textContent = '✓ 已复制';
+            setTimeout(() => {
+                btn.textContent = originalText;
+            }, 1500);
+
+            // 关闭弹窗
+            closeModal();
+
+            copyTempData = null;
+        }
+
+        /**
+         * 获取检查项的所有标签（从历史记录中收集）
+         */
+        function getCheckpointTags(checkpointId) {
+            const tags = new Set();
+            const history = getCheckpointHistory(checkpointId);
+
+            history.forEach(h => {
+                const entry = findEntryById(h.date, h.entryId);
+                if (entry && entry.tags && Array.isArray(entry.tags)) {
+                    entry.tags.forEach(tag => tags.add(tag));
+                } else if (entry && entry.tag) {
+                    // 兼容旧数据（单标签）
+                    tags.add(entry.tag);
+                }
+            });
+
+            return Array.from(tags).sort();
+        }
+
+        // 当前编辑的标签数组
+        let currentTags = [];
+
+        /**
+         * 渲染标签列表
+         */
+        function renderTagList() {
+            const tagList = document.getElementById('tagList');
+            tagList.innerHTML = currentTags.map((tag, index) => `
+                <span class="tag-item">
+                    ${LifeRPG.security.escapeHtml(tag)}
+                    <span class="tag-remove" onclick="removeTag(${index})" title="移除">×</span>
+                </span>
+            `).join('');
+        }
+
+        /**
+         * 添加标签
+         */
+        function addTag(tagName) {
+            tagName = tagName.trim();
+            if (!tagName) return;
+            if (currentTags.includes(tagName)) return;
+
+            currentTags.push(tagName);
+            renderTagList();
+        }
+
+        /**
+         * 移除标签
+         */
+        function removeTag(index) {
+            currentTags.splice(index, 1);
+            renderTagList();
+        }
+
+        // 当前检查点的可用标签
+        let availableTags = [];
+
+        /**
+         * 加载检查项标签
+         */
+        function loadCheckpointTags(checkpointId, entryTags) {
+            const tagInput = document.getElementById('tagInput');
+            const tagSuggestions = document.getElementById('tagSuggestions');
+
+            // 初始化当前标签数组
+            if (entryTags && Array.isArray(entryTags)) {
+                currentTags = [...entryTags];
+            } else if (entryTags) {
+                // 兼容旧数据（单标签字符串）
+                currentTags = [entryTags];
+            } else {
+                currentTags = [];
+            }
+            renderTagList();
+
+            // 清空输入框
+            tagInput.value = '';
+
+            // 加载已有标签选项
+            availableTags = getCheckpointTags(checkpointId);
+
+            // 绑定输入事件（显示建议）
+            tagInput.oninput = function() {
+                const value = this.value.trim().toLowerCase();
+                if (!value) {
+                    tagSuggestions.classList.remove('active');
+                    return;
+                }
+
+                // 过滤匹配的标签（排除已添加的）
+                const matches = availableTags.filter(tag =>
+                    tag.toLowerCase().includes(value) && !currentTags.includes(tag)
+                );
+
+                if (matches.length > 0) {
+                    tagSuggestions.innerHTML = matches.map(tag =>
+                        `<div class="tag-suggestion-item" data-tag="${LifeRPG.security.escapeHtml(tag)}">${LifeRPG.security.escapeHtml(tag)}</div>`
+                    ).join('');
+                    tagSuggestions.classList.add('active');
+
+                    // 绑定点击事件
+                    tagSuggestions.querySelectorAll('.tag-suggestion-item').forEach(item => {
+                        item.onclick = function() {
+                            addTag(this.dataset.tag);
+                            tagInput.value = '';
+                            tagSuggestions.classList.remove('active');
+                        };
+                    });
+                } else {
+                    tagSuggestions.classList.remove('active');
+                }
+            };
+
+            // 绑定回车事件
+            tagInput.onkeydown = function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const activeItem = tagSuggestions.querySelector('.tag-suggestion-item.active');
+                    if (activeItem) {
+                        addTag(activeItem.dataset.tag);
+                    } else if (this.value.trim()) {
+                        addTag(this.value);
+                    }
+                    this.value = '';
+                    tagSuggestions.classList.remove('active');
+                } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    const items = tagSuggestions.querySelectorAll('.tag-suggestion-item');
+                    if (items.length === 0) return;
+
+                    let activeIndex = Array.from(items).findIndex(item => item.classList.contains('active'));
+                    if (e.key === 'ArrowDown') {
+                        activeIndex = activeIndex < items.length - 1 ? activeIndex + 1 : 0;
+                    } else {
+                        activeIndex = activeIndex > 0 ? activeIndex - 1 : items.length - 1;
+                    }
+
+                    items.forEach(item => item.classList.remove('active'));
+                    items[activeIndex].classList.add('active');
+                }
+            };
+
+            // 点击外部关闭建议
+            document.onclick = function(e) {
+                if (!e.target.closest('.tag-input-wrapper')) {
+                    tagSuggestions.classList.remove('active');
+                }
+            };
+        }
+
+        /**
+         * 关闭弹窗
+         */
+        function closeModal() {
+            try {
+                document.getElementById('scrollModal').classList.remove('active');
+                // 恢复背景滚动
+                document.body.style.overflow = '';
+                selectedDate = null;
+                editingEntryId = null;
+            } catch (error) {
+                console.error('关闭弹窗失败:', error);
+            }
+        }
+
+        /**
+         * 保存条目（铭刻）
+         */
+        function saveEntry() {
+            try {
+                if (!selectedDate || !editingEntryId) return;
+
+                const entry = adminData.calendarEntries[selectedDate].find(e => e.id === editingEntryId);
+                if (!entry) return;
+
+                entry.description = document.getElementById('entryDescription').value;
+                entry.tags = currentTags;
+                entry.completed = true;
+
+                if (!adminData.checkpointCompletions[entry.checkpointId]) {
+                    adminData.checkpointCompletions[entry.checkpointId] = [];
+                }
+
+                const existingIndex = adminData.checkpointCompletions[entry.checkpointId]
+                    .findIndex(h => h.date === selectedDate);
+
+                if (existingIndex === -1) {
+                    adminData.checkpointCompletions[entry.checkpointId].push({
+                        date: selectedDate,
+                        entryId: entry.id,
+                        archived: false
+                    });
+                }
+
+                saveData();
+                renderChamberGrid();
+                updateStats();
+                closeModal();
+            } catch (error) {
+                console.error('保存条目失败:', error);
+            }
+        }
+
+        /**
+         * 归档条目
+         */
+        function archiveEntry() {
+            try {
+                if (!selectedDate || !editingEntryId) return;
+
+                showConfirmModal({
+                    title: '归档卷轴',
+                    message: '归档后该检查项将被标记为完成，历史日期的相同检查项将显示删除线。确定要归档吗？',
+                    icon: '📦',
+                    confirmText: '归档',
+                    confirmClass: 'rune-btn-archive',
+                    onConfirm: executeArchive
+                });
+            } catch (error) {
+                console.error('归档条目失败:', error);
+            }
+        }
+
+        /**
+         * 执行归档操作
+         */
+        function executeArchive() {
+            try {
+                const entry = adminData.calendarEntries[selectedDate].find(e => e.id === editingEntryId);
+                if (!entry) return;
+
+                entry.description = document.getElementById('entryDescription').value;
+                entry.completed = true;
+                entry.archived = true;
+
+                if (!adminData.checkpointCompletions[entry.checkpointId]) {
+                    adminData.checkpointCompletions[entry.checkpointId] = [];
+                }
+
+                adminData.checkpointCompletions[entry.checkpointId].forEach(h => {
+                    h.archived = false;
+                });
+
+                const existingIndex = adminData.checkpointCompletions[entry.checkpointId]
+                    .findIndex(h => h.date === selectedDate);
+
+                if (existingIndex !== -1) {
+                    adminData.checkpointCompletions[entry.checkpointId][existingIndex].archived = true;
+                } else {
+                    adminData.checkpointCompletions[entry.checkpointId].push({
+                        date: selectedDate,
+                        entryId: entry.id,
+                        archived: true
+                    });
+                }
+
+                saveData();
+                renderChamberGrid();
+                updateStats();
+                closeModal();
+            } catch (error) {
+                console.error('执行归档失败:', error);
+            }
+        }
+
+        /**
+         * 删除条目
+         */
+        function deleteEntry() {
+            try {
+                if (!selectedDate || !editingEntryId) return;
+
+                showConfirmModal({
+                    title: '销毁卷轴',
+                    message: '确定要销毁此卷轴记录吗？此操作不可恢复。',
+                    icon: '🔥',
+                    confirmText: '销毁',
+                    confirmClass: 'rune-btn-danger',
+                    onConfirm: executeDelete
+                });
+            } catch (error) {
+                console.error('删除条目失败:', error);
+            }
+        }
+
+        /**
+         * 执行删除操作
+         */
+        function executeDelete() {
+            try {
+                const entry = adminData.calendarEntries[selectedDate].find(e => e.id === editingEntryId);
+
+                adminData.calendarEntries[selectedDate] = adminData.calendarEntries[selectedDate]
+                    .filter(e => e.id !== editingEntryId);
+
+                if (adminData.calendarEntries[selectedDate].length === 0) {
+                    delete adminData.calendarEntries[selectedDate];
+                }
+
+                if (entry && adminData.checkpointCompletions[entry.checkpointId]) {
+                    adminData.checkpointCompletions[entry.checkpointId] =
+                        adminData.checkpointCompletions[entry.checkpointId].filter(h =>
+                            !(h.date === selectedDate && h.entryId === editingEntryId)
+                        );
+                    if (adminData.checkpointCompletions[entry.checkpointId].length === 0) {
+                        delete adminData.checkpointCompletions[entry.checkpointId];
+                    }
+                }
+
+                saveData();
+                renderScrollArchive();
+                renderChamberGrid();
+                updateStats();
+                closeModal();
+            } catch (error) {
+                console.error('删除条目失败:', error);
+            }
+        }
+
+        /**
+         * 切换月份
+         */
+        function changeMonth(delta) {
+            try {
+                currentDate.setMonth(currentDate.getMonth() + delta);
+                renderChamberGrid();
+                updateStats();
+            } catch (error) {
+                console.error('切换月份失败:', error);
+            }
+        }
+
+        /**
+         * 切换视图
+         */
+        function switchView(view) {
+            try {
+                currentView = view;
+                document.querySelectorAll('.glyph-btn').forEach(b => b.classList.remove('active'));
+                event.target.classList.add('active');
+            } catch (error) {
+                console.error('切换视图失败:', error);
+            }
+        }
+
+        /**
+         * 更新统计
+         */
+        function updateStats() {
+            try {
+                const year = currentDate.getFullYear();
+                const month = currentDate.getMonth();
+
+                let completed = 0;
+                let activeDays = 0;
+                let currentStreak = 0;
+
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const dateStr = formatDate(new Date(year, month, day));
+                    const entries = adminData.calendarEntries[dateStr] || [];
+
+                    if (entries.length > 0) {
+                        activeDays++;
+                        completed += entries.filter(e => e.completed).length;
+                    }
+                }
+
+                const today = new Date();
+                for (let i = 0; i < 365; i++) {
+                    const d = new Date(today);
+                    d.setDate(d.getDate() - i);
+                    const dateStr = formatDate(d);
+                    const entries = adminData.calendarEntries[dateStr] || [];
+
+                    if (entries.some(e => e.completed)) {
+                        if (i === 0 || currentStreak > 0) currentStreak++;
+                    } else {
+                        if (i > 0) break;
+                    }
+                }
+
+                document.getElementById('statCompleted').textContent = completed;
+                document.getElementById('statActive').textContent = activeDays;
+                document.getElementById('statStreak').textContent = currentStreak;
+            } catch (error) {
+                console.error('更新统计失败:', error);
+            }
+        }
+
+        /**
+         * 格式化日期
+         */
+        function formatDate(date) {
+            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+        }
+
+        // 确认弹窗回调函数
+        let confirmCallback = null;
+
+        /**
+         * 显示确认弹窗
+         * @param {Object} options - 配置选项
+         * @param {string} options.title - 标题
+         * @param {string} options.message - 消息内容
+         * @param {string} options.icon - 图标（emoji）
+         * @param {string} options.confirmText - 确认按钮文字
+         * @param {string} options.confirmClass - 确认按钮样式类
+         * @param {Function} options.onConfirm - 确认回调
+         * @param {Function} options.onCancel - 取消回调
+         */
+
+        /**
+         * 显示 Toast 提示
+         * @param {string} message - 提示消息
+         * @param {string} type - 类型：'info' | 'warning' | 'success'
+         * @param {number} duration - 显示时长（毫秒）
+         */
+        function showToast(message, type = 'info', duration = 3000) {
+            const container = document.getElementById('toastContainer');
+            if (!container) {
+                console.error('Toast container not found');
+                return;
+            }
+
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+
+            const iconMap = {
+                info: 'ℹ️',
+                warning: '⚠️',
+                success: '✅'
+            };
+
+            toast.innerHTML = `
+                <span class="toast-icon">${iconMap[type] || 'ℹ️'}</span>
+                <span class="toast-message">${LifeRPG.security.escapeHtml(message)}</span>
+            `;
+
+            container.appendChild(toast);
+
+            // 使用 requestAnimationFrame 确保 DOM 更新后再添加动画类
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    toast.classList.add('show');
+                });
+            });
+
+            // 自动移除
+            setTimeout(() => {
+                toast.classList.add('hiding');
+                toast.classList.remove('show');
+                setTimeout(() => {
+                    if (toast.parentNode) {
+                        toast.remove();
+                    }
+                }, 300);
+            }, duration);
+        }
+
+        function showConfirmModal(options) {
+            const modal = document.getElementById('confirmModal');
+            const icon = document.getElementById('confirmIcon');
+            const title = document.getElementById('confirmTitle');
+            const message = document.getElementById('confirmMessage');
+            const okBtn = document.getElementById('confirmOk');
+
+            icon.textContent = options.icon || '⚠️';
+            title.textContent = options.title || '确认操作';
+            message.textContent = options.message || '确定要执行此操作吗？';
+            okBtn.textContent = options.confirmText || '确认';
+
+            // 设置确认按钮样式
+            okBtn.className = 'rune-btn ' + (options.confirmClass || 'rune-btn-primary');
+
+            confirmCallback = options.onConfirm || null;
+
+            modal.classList.add('active');
+
+            // 绑定取消回调
+            if (options.onCancel) {
+                document.getElementById('confirmCancel').onclick = function() {
+                    closeConfirmModal();
+                    options.onCancel();
+                };
+            } else {
+                document.getElementById('confirmCancel').onclick = closeConfirmModal;
+            }
+        }
+
+        /**
+         * 关闭确认弹窗
+         */
+        function closeConfirmModal() {
+            document.getElementById('confirmModal').classList.remove('active');
+            confirmCallback = null;
+        }
+
+        /**
+         * 执行确认回调
+         */
+        function executeConfirmCallback() {
+            if (confirmCallback) {
+                confirmCallback();
+            }
+            closeConfirmModal();
+        }
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            init();
+
+            // 点击遮罩关闭确认弹窗
+            document.getElementById('confirmModal').addEventListener('click', function(e) {
+                if (e.target === this) {
+                    closeConfirmModal();
+                }
+            });
+        });
+    </script>
+
+    <!-- 自定义确认弹窗 -->
+    <div class="confirm-modal-overlay" id="confirmModal">
+        <div class="confirm-modal">
+            <div class="confirm-modal-icon" id="confirmIcon">⚠️</div>
+            <div class="confirm-modal-title" id="confirmTitle">确认操作</div>
+            <div class="confirm-modal-message" id="confirmMessage">确定要执行此操作吗？</div>
+            <div class="confirm-modal-actions">
+                <button class="rune-btn rune-btn-secondary" id="confirmCancel" onclick="closeConfirmModal()">取消</button>
+                <button class="rune-btn" id="confirmOk" onclick="executeConfirmCallback()">确认</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast 提示 -->
+    <div class="toast-container" id="toastContainer"></div>
+</body>
+</html>

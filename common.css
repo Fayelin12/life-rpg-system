@@ -19,13 +19,13 @@
     --border-glow: #3d3d50;
     --border-gold: rgba(201, 162, 39, 0.2);
 
-    /* 文字色 */
-    --text-primary: #e8e6e1;
-    --text-secondary: #8a8680;
-    --text-muted: #5a5650;
-    --text-legend: #e8dcc4;
-    --text-rune: #9b8b6e;
-    --text-whisper: #5a5040;
+    /* 文字色 - 提高亮度增强可读性 */
+    --text-primary: #ffffff;
+    --text-secondary: #c4c0b8;
+    --text-muted: #9a9588;
+    --text-legend: #f0e8d8;
+    --text-rune: #b8a888;
+    --text-whisper: #7a7060;
 
     /* 强调色 */
     --accent-gold: #c9a227;
