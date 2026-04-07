@@ -3194,8 +3194,9 @@
 
             const { draggedStripe, rowStripesContainer, dropIndicator } = stripeDragState;
 
-            // 获取容器内所有条带（排除正在拖拽的）
-            const allStripes = [...rowStripesContainer.querySelectorAll('.checkpoint-stripe:not(.dragging)')];
+            // 获取容器内所有条带（包括正在拖拽的，用于计算总数）
+            const allStripes = [...rowStripesContainer.querySelectorAll('.checkpoint-stripe')];
+            const totalStripes = allStripes.length;
 
             // 计算目标位置
             const containerRect = rowStripesContainer.getBoundingClientRect();
@@ -3207,17 +3208,12 @@
             const gap = 2;
             const totalRowHeight = rowHeight + gap;
 
-            // 计算目标层级（1-based）
-            // 使用向下取整，让指示器跟随鼠标位置
-            // 允许拖到最后一行之后（即 allStripes.length + 1）
-            let targetLevel = Math.floor(relativeY / totalRowHeight) + 1;
-            targetLevel = Math.max(1, Math.min(allStripes.length + 1, targetLevel));
+            // 最大层级 = 总条带数（可以拖到最后一行之后）
+            const maxLevel = totalStripes;
 
-            // 如果鼠标在容器底部区域，允许拖到最后一行之后
-            const maxLevel = allStripes.length + 1;
-            if (relativeY > allStripes.length * totalRowHeight) {
-                targetLevel = maxLevel;
-            }
+            // 计算目标层级（1-based）
+            let targetLevel = Math.floor(relativeY / totalRowHeight) + 1;
+            targetLevel = Math.max(1, Math.min(maxLevel, targetLevel));
 
             stripeDragState.targetLevel = targetLevel;
 
