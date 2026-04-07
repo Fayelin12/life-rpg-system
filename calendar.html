@@ -1665,6 +1665,54 @@
             flex-shrink: 0;
         }
 
+        /* Loading 遮罩 */
+        #loadingOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 10, 12, 0.8);
+            backdrop-filter: blur(4px);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        #loadingOverlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .loading-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border);
+            border-top-color: var(--accent-gold);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            font-size: 14px;
+            color: var(--text-primary);
+        }
+
         /* Toast 提示 */
         .toast-container {
             position: fixed;
@@ -2854,13 +2902,68 @@
         }
 
         /**
+         * 移动历史未完成的待办到今天
+         */
+        async function moveUnfinishedTodosToToday(checkpointId, todayStr) {
+            const history = getCheckpointHistory(checkpointId);
+            if (history.length === 0) return;
+
+            let hasMoved = false;
+            const todayEntry = adminData.calendarEntries[todayStr]?.find(e => e.checkpointId === checkpointId);
+            if (!todayEntry) return;
+
+            // 获取今天的待办列表
+            let todayTodos = todayEntry.description ? markdownToTodos(todayEntry.description) : [];
+
+            // 遍历历史记录，查找未完成的待办
+            for (const record of history) {
+                if (record.date === todayStr) continue; // 跳过今天
+
+                const entries = adminData.calendarEntries[record.date] || [];
+                const entry = entries.find(e => e.checkpointId === checkpointId);
+                if (!entry || !entry.description) continue;
+
+                const todos = markdownToTodos(entry.description);
+                const unfinishedTodos = todos.filter(t => !t.completed);
+
+                if (unfinishedTodos.length > 0) {
+                    // 将未完成的待办移动到今天
+                    todayTodos = [...todayTodos, ...unfinishedTodos];
+
+                    // 从历史记录中移除已移动的待办（标记为完成）
+                    const finishedTodos = todos.filter(t => t.completed);
+                    entry.description = todosToMarkdown(finishedTodos);
+
+                    hasMoved = true;
+                }
+            }
+
+            if (hasMoved) {
+                // 更新今天的待办
+                todayEntry.description = todosToMarkdown(todayTodos);
+                saveData();
+
+                // 显示提示
+                showToast('已将历史未完成的待办移动到今日', 'success');
+            }
+        }
+
+        /**
          * 打开编辑弹窗
          */
-        function openEntryModal(dateStr, entryId) {
+        async function openEntryModal(dateStr, entryId) {
             try {
                 event.stopPropagation();
                 selectedDate = dateStr;
                 editingEntryId = entryId;
+
+                // 检查是否是今天，如果是则移动历史未完成的待办
+                const todayStr = formatDate(new Date());
+                if (dateStr === todayStr) {
+                    showLoading('正在检查历史待办...');
+                    await moveUnfinishedTodosToToday(entryId, dateStr);
+                    hideLoading();
+                }
 
                 const entry = adminData.calendarEntries[dateStr].find(e => e.id === entryId);
                 if (!entry) return;
@@ -3034,6 +3137,9 @@
         function copyToNextDay() {
             try {
                 if (!selectedDate || !editingEntryId) return;
+
+                // 先保存当前条目
+                saveEntry();
 
                 const entry = adminData.calendarEntries[selectedDate].find(e => e.id === editingEntryId);
                 if (!entry) return;
@@ -3866,6 +3972,36 @@
          * @param {Function} options.onConfirm - 确认回调
          * @param {Function} options.onCancel - 取消回调
          */
+
+        /**
+         * 显示 Loading 遮罩
+         */
+        function showLoading(message = '处理中...') {
+            let loading = document.getElementById('loadingOverlay');
+            if (!loading) {
+                loading = document.createElement('div');
+                loading.id = 'loadingOverlay';
+                loading.innerHTML = `
+                    <div class="loading-content">
+                        <div class="loading-spinner"></div>
+                        <div class="loading-text"></div>
+                    </div>
+                `;
+                document.body.appendChild(loading);
+            }
+            loading.querySelector('.loading-text').textContent = message;
+            loading.classList.add('active');
+        }
+
+        /**
+         * 隐藏 Loading 遮罩
+         */
+        function hideLoading() {
+            const loading = document.getElementById('loadingOverlay');
+            if (loading) {
+                loading.classList.remove('active');
+            }
+        }
 
         /**
          * 显示 Toast 提示
