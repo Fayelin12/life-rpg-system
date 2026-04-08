@@ -1859,11 +1859,14 @@
         }
 
         .stripe-todo {
-            white-space: nowrap;
+            white-space: normal;
             overflow: hidden;
             text-overflow: ellipsis;
             padding-left: 0;
             line-height: 1.2;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
         }
 
         .stripe-todo.completed {
@@ -2611,7 +2614,7 @@
 
         // 状态
         let currentDate = new Date();
-        let currentView = 'month';
+        let currentView = localStorage.getItem('lifeRpgCurrentView') || 'month';
         let draggedCheckpoint = null;
         let selectedDate = null;
         let editingEntryId = null;
@@ -2664,6 +2667,8 @@
             try {
                 loadData();
                 renderScrollArchive();
+                // 设置视图按钮的active状态
+                updateViewButtons();
                 renderChamberGrid();
                 updateStats();
                 bindModalEvents();
@@ -2672,6 +2677,19 @@
             } catch (error) {
                 console.error('初始化失败:', error);
             }
+        }
+
+        /**
+         * 更新视图按钮的active状态
+         */
+        function updateViewButtons() {
+            document.querySelectorAll('.view-glyphs .glyph-btn').forEach(btn => {
+                btn.classList.remove('active');
+                const onclickAttr = btn.getAttribute('onclick');
+                if (onclickAttr && onclickAttr.includes(`switchView('${currentView}')`)) {
+                    btn.classList.add('active');
+                }
+            });
         }
 
 
@@ -6016,6 +6034,7 @@
         function switchView(view) {
             try {
                 currentView = view;
+                localStorage.setItem('lifeRpgCurrentView', view);
                 document.querySelectorAll('.glyph-btn').forEach(b => b.classList.remove('active'));
                 event.target.classList.add('active');
 
