@@ -3344,6 +3344,20 @@
 
             console.log(`[WeekView] Rendering ${entries.length} entries for ${dateStr}:`, entries.map(e => ({ name: e.checkpointName, startTime: e.startTime, duration: e.duration })));
 
+            // 调试：输出布局计算结果
+            if (entries.length > 0) {
+                setTimeout(() => {
+                    const dayColumn = document.querySelector(`.week-day-content[data-date="${dateStr}"]`);
+                    if (dayColumn) {
+                        const stripes = dayColumn.querySelectorAll('.checkpoint-stripe');
+                        console.log(`[WeekView Debug] ${dateStr} rendered ${stripes.length} stripes:`);
+                        stripes.forEach((stripe, i) => {
+                            console.log(`  ${i}: ${stripe.dataset.startTime}, duration=${stripe.dataset.duration}, col=${stripe.style.left}, width=${stripe.style.width}`);
+                        });
+                    }
+                }, 100);
+            }
+
             let html = '<div class="week-day-checkpoints">';
 
             // 准备条目数据
@@ -3385,15 +3399,12 @@
             // 按开始时间排序
             entryDataList.sort((a, b) => a.startMinutes - b.startMinutes);
 
-            // 使用扫描线算法计算每个条目的列位置和总列数
-            // 1. 找出所有重叠的条目组
-            // 2. 计算组内最大并发数（最大列数）
-            // 3. 为每个组内的条目分配列（统一使用相同的 totalCols）
+            // 智能布局算法：基于时间切片计算每个条目的列位置
+            // 核心思想：同一天的所有检查项使用统一的最大列数
 
             const positionedEntries = [];
-            const processed = new Set();
 
-            // 预处理：按开始时间排序，开始时间相同则按结束时间排序
+            // 预处理：按开始时间排序
             const sortedEntries = [...entryDataList].sort((a, b) => {
                 if (a.startMinutes !== b.startMinutes) {
                     return a.startMinutes - b.startMinutes;
@@ -3401,93 +3412,62 @@
                 return a.endMinutes - b.endMinutes;
             });
 
-            for (let i = 0; i < sortedEntries.length; i++) {
-                const data = sortedEntries[i];
-                if (processed.has(data.entry.id)) continue;
+            // ========== 步骤1: 计算全天的时间切片和最大并发数 ==========
+            const timePoints = new Set();
+            sortedEntries.forEach(item => {
+                timePoints.add(item.startMinutes);
+                timePoints.add(item.endMinutes);
+            });
+            const sortedTimePoints = Array.from(timePoints).sort((a, b) => a - b);
 
-                // ========== 步骤1: 找出整个重叠组 ==========
-                const group = [];
-                const toProcess = [data];
-                const groupIds = new Set();
-
-                while (toProcess.length > 0) {
-                    const current = toProcess.pop();
-                    if (groupIds.has(current.entry.id)) continue;
-
-                    group.push(current);
-                    groupIds.add(current.entry.id);
-                    processed.add(current.entry.id);
-
-                    // 找出所有直接重叠的条目
-                    sortedEntries.forEach(other => {
-                        if (groupIds.has(other.entry.id)) return;
-                        if (other.startMinutes < current.endMinutes && other.endMinutes > current.startMinutes) {
-                            toProcess.push(other);
-                        }
-                    });
-                }
-
-                // ========== 步骤2: 计算组内最大并发数（最大列数） ==========
-                const events = [];
-                group.forEach(item => {
-                    events.push({ time: item.startMinutes, type: 'start', item });
-                    events.push({ time: item.endMinutes, type: 'end', item });
-                });
-
-                events.sort((a, b) => {
-                    if (a.time !== b.time) return a.time - b.time;
-                    // 同一时刻：结束事件优先于开始事件
-                    return a.type === 'end' ? -1 : 1;
-                });
-
-                let currentOverlap = 0;
-                let maxCols = 0;
-                events.forEach(evt => {
-                    if (evt.type === 'start') {
-                        currentOverlap++;
-                        maxCols = Math.max(maxCols, currentOverlap);
-                    } else {
-                        currentOverlap--;
-                    }
-                });
-
-                // ========== 步骤3: 按开始时间排序组内条目 ==========
-                group.sort((a, b) => {
-                    if (a.startMinutes !== b.startMinutes) {
-                        return a.startMinutes - b.startMinutes;
-                    }
-                    return a.endMinutes - b.endMinutes;
-                });
-
-                // ========== 步骤4: 分配列（贪心算法） ==========
-                const columns = []; // 每列的结束时间
-
-                group.forEach(item => {
-                    // 找到第一个可用列
-                    let colIndex = -1;
-                    for (let j = 0; j < columns.length; j++) {
-                        if (columns[j] <= item.startMinutes) {
-                            colIndex = j;
-                            break;
-                        }
-                    }
-
-                    // 如果没有可用列，创建新列
-                    if (colIndex === -1) {
-                        colIndex = columns.length;
-                        columns.push(0);
-                    }
-
-                    columns[colIndex] = item.endMinutes;
-
-                    // 关键修复：使用统一的 maxCols 作为 totalCols
-                    positionedEntries.push({
-                        ...item,
-                        colIndex,
-                        totalCols: maxCols
-                    });
+            // 计算每个时间切片的最大并发数
+            const timeSlices = [];
+            for (let t = 0; t < sortedTimePoints.length - 1; t++) {
+                const sliceStart = sortedTimePoints[t];
+                const sliceEnd = sortedTimePoints[t + 1];
+                const activeEntries = sortedEntries.filter(item =>
+                    item.startMinutes < sliceEnd && item.endMinutes > sliceStart
+                );
+                timeSlices.push({
+                    start: sliceStart,
+                    end: sliceEnd,
+                    activeEntries,
+                    maxCols: activeEntries.length
                 });
             }
+
+            // 计算全天的最大并发数（所有检查项使用统一的列数）
+            const dayMaxCols = Math.max(...timeSlices.map(s => s.maxCols), 1);
+            console.log(`[WeekView Debug] Day ${dateStr}: ${sortedEntries.length} entries, dayMaxCols=${dayMaxCols}`);
+
+            // ========== 步骤2: 为每个条目分配列 ==========
+            const columns = []; // 每列的结束时间
+
+            sortedEntries.forEach(item => {
+                // 找到第一个可用列
+                let colIndex = -1;
+                for (let j = 0; j < columns.length; j++) {
+                    if (columns[j] <= item.startMinutes) {
+                        colIndex = j;
+                        break;
+                    }
+                }
+
+                // 如果没有可用列，创建新列
+                if (colIndex === -1) {
+                    colIndex = columns.length;
+                    columns.push(0);
+                }
+
+                columns[colIndex] = item.endMinutes;
+
+                positionedEntries.push({
+                    ...item,
+                    colIndex,
+                    totalCols: dayMaxCols  // 使用全天的最大并发数
+                });
+                console.log(`[WeekView Debug]   -> ${item.entry.checkpointName}: colIndex=${colIndex}, totalCols=${dayMaxCols}`);
+            });
 
             // 渲染条目
             positionedEntries.forEach(data => {
@@ -3503,8 +3483,8 @@
                 // 使用百分比布局，确保填满容器
                 const colWidth = 100 / totalCols;
                 const leftPercent = colIndex * colWidth;
-                // 宽度稍微减小一点，留出间隙
-                const widthPercent = colWidth - 0.3;
+                // 增加间隙，让检查项之间有明显分隔
+                const widthPercent = colWidth - 1.5;
 
                 // 获取待办项
                 const todos = entry.description ? markdownToTodos(entry.description) : [];
@@ -3521,19 +3501,19 @@
                     const containerHeight = 450;
                     const heightPx = (heightPercent / 100) * containerHeight;
 
-                    // 根据可用高度和列数决定显示策略
+                    // 根据可用高度和总列数决定显示策略
                     let displayStrategy = 'minimal';
                     if (totalCols === 1) {
                         // 单列时可以有更多空间显示待办
-                        if (heightPx >= 40) displayStrategy = 'full';
-                        else if (heightPx >= 25) displayStrategy = 'summary';
+                        if (heightPx >= 35) displayStrategy = 'full';
+                        else if (heightPx >= 20) displayStrategy = 'summary';
                     } else if (totalCols === 2) {
-                        if (heightPx >= 50) displayStrategy = 'full';
-                        else if (heightPx >= 30) displayStrategy = 'summary';
+                        if (heightPx >= 45) displayStrategy = 'full';
+                        else if (heightPx >= 25) displayStrategy = 'summary';
                     } else {
                         // 3列及以上，空间较紧
-                        if (heightPx >= 60) displayStrategy = 'full';
-                        else if (heightPx >= 40) displayStrategy = 'summary';
+                        if (heightPx >= 55) displayStrategy = 'full';
+                        else if (heightPx >= 35) displayStrategy = 'summary';
                     }
 
                     // 根据策略显示待办
@@ -3566,7 +3546,7 @@
                     progressHtml = `<div class="stripe-progress"><span class="progress-text">${completedCount}/${todos.length}</span></div>`;
                 }
 
-                // 根据列数调整显示
+                // 根据总列数调整显示
                 const nameClass = totalCols >= 3 ? 'stripe-name truncated' : 'stripe-name';
                 const nameStyle = totalCols >= 3 ? 'font-size: 8px;' : '';
 
