@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- 内容安全策略 (CSP) - 防止 XSS 攻击 -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:;">
     <title>时间圣殿 | 人生开放系统</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📅</text></svg>">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -3007,16 +3009,16 @@
                                 html += `
                                     <div class="checkpoint-parchment ${isArchived ? 'completed' : ''}"
                                         draggable="true"
-                                        data-cp-id="${cp.id}"
-                                        data-level-id="${level.id}"
-                                        data-quest-id="${quest.id}"
+                                        data-cp-id="${LifeRPG.security.escapeHtml(cp.id)}"
+                                        data-level-id="${LifeRPG.security.escapeHtml(level.id)}"
+                                        data-quest-id="${LifeRPG.security.escapeHtml(quest.id)}"
                                         data-cp-name="${LifeRPG.security.escapeHtml(cp.name || '检查点' + (idx + 1))}"
                                         data-landmark="${LifeRPG.security.escapeHtml(landmark.name)}"
                                         data-quest="${LifeRPG.security.escapeHtml(quest.name)}"
                                         data-level="${LifeRPG.security.escapeHtml(level.name)}"
                                         data-days="${actualDays}">
                                         <div class="parchment-text">${LifeRPG.security.escapeHtml(cp.name || '检查点' + (idx + 1))}</div>
-                                        <div class="parchment-days">${isArchived ? '已归档 ' + archiveDate : (actualDays > 0 ? actualDays + '天' : '未开始')}</div>
+                                        <div class="parchment-days">${isArchived ? '已归档 ' + LifeRPG.security.escapeHtml(archiveDate) : (actualDays > 0 ? actualDays + '天' : '未开始')}</div>
                                     </div>
                                 `;
                             });
@@ -3396,15 +3398,38 @@
                 };
             });
 
-            // 按开始时间排序
-            entryDataList.sort((a, b) => a.startMinutes - b.startMinutes);
-
-            // 智能布局算法：基于时间切片计算每个条目的列位置
-            // 核心思想：同一天的所有检查项使用统一的最大列数
+            /**
+             * ============================================================
+             * 周视图智能布局算法
+             * ============================================================
+             * 目标：将检查项在时间轴上整齐排列，同一时间重叠的检查项并排显示
+             *
+             * 核心概念：
+             * - 最大并发数(dayMaxCols)：全天任意时刻最多有多少个检查项同时存在
+             * - 列索引(colIndex)：检查项在水平方向上的位置（0, 1, 2...）
+             * - 时间切片：相邻时间点之间的区间，用于计算并发数
+             *
+             * 算法步骤：
+             * 1. 收集所有检查项的开始和结束时间，排序得到时间点序列
+             * 2. 将时间划分为切片，计算每个切片内的活跃检查项数量
+             * 3. 找出最大并发数，作为全天统一的列数
+             * 4. 按开始时间排序检查项，贪心算法分配列索引
+             * 5. 计算每个检查项的位置(left)和宽度(width)
+             *
+             * 示例（3个检查项在9:00-11:00重叠）：
+             *   检查项A: 9:00-11:00
+             *   检查项B: 9:30-10:30
+             *   检查项C: 10:00-12:00
+             *
+             *   最大并发数 = 3（10:00-10:30有3个同时存在）
+             *   每个检查项宽度 = 100% / 3 = 33.3%
+             *   列分配：A=第0列(0%), B=第1列(33.3%), C=第2列(66.7%)
+             * ============================================================
+             */
 
             const positionedEntries = [];
 
-            // 预处理：按开始时间排序
+            // 预处理：按开始时间排序，开始时间相同则按结束时间排序
             const sortedEntries = [...entryDataList].sort((a, b) => {
                 if (a.startMinutes !== b.startMinutes) {
                     return a.startMinutes - b.startMinutes;
@@ -3413,6 +3438,7 @@
             });
 
             // ========== 步骤1: 计算全天的时间切片和最大并发数 ==========
+            // 收集所有时间点（每个检查项的开始和结束时间）
             const timePoints = new Set();
             sortedEntries.forEach(item => {
                 timePoints.add(item.startMinutes);
@@ -3421,10 +3447,12 @@
             const sortedTimePoints = Array.from(timePoints).sort((a, b) => a - b);
 
             // 计算每个时间切片的最大并发数
+            // 时间切片 = 相邻两个时间点之间的区间
             const timeSlices = [];
             for (let t = 0; t < sortedTimePoints.length - 1; t++) {
                 const sliceStart = sortedTimePoints[t];
                 const sliceEnd = sortedTimePoints[t + 1];
+                // 找出在该切片内活跃的所有检查项
                 const activeEntries = sortedEntries.filter(item =>
                     item.startMinutes < sliceEnd && item.endMinutes > sliceStart
                 );
@@ -3437,14 +3465,17 @@
             }
 
             // 计算全天的最大并发数（所有检查项使用统一的列数）
+            // 如果全天都没有检查项，默认使用1列
             const dayMaxCols = Math.max(...timeSlices.map(s => s.maxCols), 1);
             console.log(`[WeekView Debug] Day ${dateStr}: ${sortedEntries.length} entries, dayMaxCols=${dayMaxCols}`);
 
-            // ========== 步骤2: 为每个条目分配列 ==========
+            // ========== 步骤2: 为每个条目分配列索引 ==========
+            // 使用贪心算法：每个检查项尽可能使用最左边的可用列
+            // columns[j] 表示第j列当前被占用到的结束时间
             const columns = []; // 每列的结束时间
 
             sortedEntries.forEach(item => {
-                // 找到第一个可用列
+                // 找到第一个可用列（该列的结束时间 <= 当前检查项的开始时间）
                 let colIndex = -1;
                 for (let j = 0; j < columns.length; j++) {
                     if (columns[j] <= item.startMinutes) {
@@ -3459,6 +3490,7 @@
                     columns.push(0);
                 }
 
+                // 更新该列的结束时间为当前检查项的结束时间
                 columns[colIndex] = item.endMinutes;
 
                 positionedEntries.push({
@@ -3469,18 +3501,21 @@
                 console.log(`[WeekView Debug]   -> ${item.entry.checkpointName}: colIndex=${colIndex}, totalCols=${dayMaxCols}`);
             });
 
-            // 渲染条目
+            // ========== 步骤3: 渲染条目 ==========
+            // 根据计算好的列索引和总列数，计算每个检查项的位置和尺寸
             positionedEntries.forEach(data => {
                 const { entry, startTime, duration, startMinutes, endMinutes, stripeClass, colIndex, totalCols } = data;
 
-                // 计算位置
+                // 垂直位置计算（基于时间）
+                // 9:00 对应 0%，18:00 对应 100%
                 const totalHours = 9;
                 const startPercent = Math.max(0, Math.min(100, (startMinutes / 60) / totalHours * 100));
                 // 固定最小高度为6%，确保有足够空间显示内容
                 const heightPercent = Math.max(6, (duration / 60) / totalHours * 100);
 
-                // 计算宽度和偏移（并排显示）
-                // 使用百分比布局，确保填满容器
+                // 水平位置和宽度计算（基于列索引和总列数）
+                // colIndex=0 -> left=0%, colIndex=1 -> left=33.3%, etc.
+                // width = 100% / totalCols - 间隙
                 const colWidth = 100 / totalCols;
                 const leftPercent = colIndex * colWidth;
                 // 增加间隙，让检查项之间有明显分隔
@@ -3573,23 +3608,35 @@
         }
 
         /**
-         * 初始化周视图的拖拽和调整大小功能
+         * ============================================================
+         * 周视图拖拽和调整大小功能
+         * ============================================================
+         * 功能：
+         * 1. 拖动检查项上下移动，调整开始时间
+         * 2. 拖动检查项下边缘，调整持续时间
+         * 3. 自动吸附到15分钟刻度
+         * 4. 拖动/调整后自动保存并刷新布局
+         *
+         * 实现原理：
+         * - mousedown: 记录初始位置和状态
+         * - mousemove: 计算偏移量，实时更新检查项位置
+         * - mouseup: 吸附到网格，保存数据，刷新布局
+         * ============================================================
          */
         function initWeekViewDragResize() {
             const weekViewBody = document.querySelector('.week-view-body');
             if (!weekViewBody) return;
 
-            let isDragging = false;
-            let isResizing = false;
-            let dragElement = null;
-            let resizeElement = null;
-            let resizeHandle = null;
-            let startY = 0;
-            let startTop = 0;
-            let startHeight = 0;
-            let startTime = '';
-            let startDuration = 0;
-            let snapIndicator = null;
+            let isDragging = false;      // 是否正在拖动
+            let isResizing = false;      // 是否正在调整大小
+            let dragElement = null;      // 当前拖动的检查项元素
+            let resizeElement = null;    // 当前调整大小的检查项元素
+            let resizeHandle = null;     // 调整大小的手柄元素
+            let startY = 0;              // 鼠标按下时的Y坐标
+            let startTop = 0;            // 检查项初始top值（像素）
+            let startHeight = 0;         // 检查项初始高度（像素）
+            let startDuration = 0;       // 检查项初始持续时间
+            let snapIndicator = null;    // 时间吸附指示器元素
 
             // 创建时间吸附指示器
             function createSnapIndicator() {
@@ -3691,7 +3738,6 @@
                     // 使用百分比
                     startTop = parseFloat(stripe.style.top) / 100 * getContainerHeight();
                     startHeight = parseFloat(stripe.style.height) / 100 * getContainerHeight();
-                    startTime = stripe.dataset.startTime;
                     startDuration = parseInt(stripe.dataset.duration);
                     handle.classList.add('resizing');
                 } else if (stripe && !e.target.closest('.resize-handle-top, .resize-handle-bottom')) {
@@ -4495,7 +4541,7 @@
                         }
 
                         const entry = {
-                            id: Date.now().toString(),
+                            id: generateId(),
                             checkpointId: draggedCheckpoint.id,
                             levelId: draggedCheckpoint.levelId,
                             questId: draggedCheckpoint.questId,
@@ -4859,7 +4905,7 @@
             } else {
                 // 创建新记录（不复制描述，只复制标签）
                 const newEntry = {
-                    id: 'entry_' + Date.now(),
+                    id: generateId(),
                     checkpointId: entry.checkpointId,
                     checkpointName: entry.checkpointName,
                     landmarkId: entry.landmarkId,
@@ -5317,7 +5363,13 @@
          */
         function updateTodoText(index, text) {
             if (currentTodos[index]) {
-                currentTodos[index].text = text.trim();
+                const trimmed = text.trim();
+                const MAX_LENGTH = 500;
+                if (trimmed.length > MAX_LENGTH) {
+                    showToast('待办内容过长，最多 500 字符', 'warning');
+                    return;
+                }
+                currentTodos[index].text = trimmed;
                 document.getElementById('todoData').value = todosToMarkdown(currentTodos);
             }
         }
@@ -5379,12 +5431,32 @@
          * 从 Excel 导入待办列表
          */
         function importTodosFromExcel(file) {
+            // 验证文件类型
+            if (!file.name.endsWith('.csv') && file.type !== 'text/csv' && file.type !== 'application/vnd.ms-excel') {
+                showToast('请上传 CSV 文件', 'warning');
+                return;
+            }
+
+            // 验证文件大小 (限制 1MB)
+            const MAX_FILE_SIZE = 1024 * 1024;
+            if (file.size > MAX_FILE_SIZE) {
+                showToast('文件大小超过 1MB 限制', 'warning');
+                return;
+            }
+
             const reader = new FileReader();
             reader.onload = function(e) {
                 try {
                     const content = e.target.result;
+
+                    // 验证内容长度
+                    if (content.length > 100000) {
+                        showToast('文件内容过长', 'warning');
+                        return;
+                    }
+
                     const lines = content.split('\n').slice(1); // 跳过标题行
-                    
+
                     currentTodos = lines.map(line => {
                         const parts = line.split(',');
                         if (parts.length >= 2) {
@@ -5395,12 +5467,22 @@
                         return null;
                     }).filter(todo => todo && todo.text);
 
+                    // 限制导入数量
+                    const MAX_TODOS = 100;
+                    if (currentTodos.length > MAX_TODOS) {
+                        currentTodos = currentTodos.slice(0, MAX_TODOS);
+                        showToast(`待办过多，仅导入前 ${MAX_TODOS} 条`, 'warning');
+                    }
+
                     renderTodoList();
                     showToast('导入成功', 'success');
                 } catch (error) {
                     console.error('导入失败:', error);
                     showToast('导入失败，请检查文件格式', 'warning');
                 }
+            };
+            reader.onerror = function() {
+                showToast('文件读取失败', 'warning');
             };
             reader.readAsText(file);
         }
@@ -6133,6 +6215,14 @@
         function closeConfirmModal() {
             document.getElementById('confirmModal').classList.remove('active');
             confirmCallback = null;
+        }
+
+        /**
+         * 生成唯一 ID
+         * 使用随机数 + 时间戳，避免快速操作时产生重复 ID
+         */
+        function generateId() {
+            return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
         }
 
         /**
