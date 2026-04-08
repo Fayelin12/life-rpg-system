@@ -2644,15 +2644,47 @@
         let selectedDate = null;
         let editingEntryId = null;
 
-        // 条带拖拽排序状态
-        let stripeDragState = {
-            isDragging: false,
+        // ============================================
+        // 条带拖动状态管理 - 有限状态机
+        // ============================================
+        const DragMode = {
+            NONE: 'none',
+            REORDER: 'reorder',      // 条带排序
+            CROSS_CELL: 'crossCell'  // 跨格子拖动
+        };
+
+        const dragState = {
+            mode: DragMode.NONE,
             draggedStripe: null,
+            startX: 0,
             startY: 0,
             startLevel: 0,
             rowStripesContainer: null,
-            dropIndicator: null
+            sourceRowIndex: null,
+            dropIndicator: null,
+            targetLevel: null,
+
+            // 重置状态
+            reset() {
+                this.mode = DragMode.NONE;
+                this.draggedStripe = null;
+                this.startX = 0;
+                this.startY = 0;
+                this.startLevel = 0;
+                this.rowStripesContainer = null;
+                this.sourceRowIndex = null;
+                this.dropIndicator = null;
+                this.targetLevel = null;
+            },
+
+            // 检查是否正在拖动
+            get isActive() {
+                return this.mode !== DragMode.NONE;
+            }
         };
+
+        // 兼容旧代码的别名
+        let stripeDragState = dragState;
 
         /**
          * 初始化
@@ -4265,83 +4297,135 @@
         }
 
         /**
-         * 条带拖拽排序 - 开始
+         * 条带鼠标按下 - 意图检测
          */
         function onStripeDragStart(e) {
             // 只响应左键
             if (e.button !== 0) return;
 
             const stripe = e.currentTarget;
-            const rowIndex = stripe.dataset.rowIndex;
-            const rowContainer = document.querySelector(`.row-stripes[data-row="${rowIndex}"]`);
-
-            if (!rowContainer) return;
 
             console.log('[StripeDrag] mousedown on stripe:', stripe.dataset.cpName);
 
+            // 临时禁用 draggable，防止立即触发 dragstart
+            stripe.draggable = false;
+
             // 记录初始状态，但不立即启动排序
-            // 排序只在垂直移动超过阈值时才启动
-            stripeDragState.potentialDrag = true;
-            stripeDragState.draggedStripe = stripe;
-            stripeDragState.startY = e.clientY;
-            stripeDragState.startX = e.clientX;
-            stripeDragState.startLevel = parseInt(stripe.style.getPropertyValue('--level'));
-            stripeDragState.rowStripesContainer = rowContainer;
-            stripeDragState.sourceRowIndex = rowIndex;
+            dragState.draggedStripe = stripe;
+            dragState.startX = e.clientX;
+            dragState.startY = e.clientY;
 
-            // 绑定全局事件
-            document.addEventListener('mousemove', onStripeDragMove);
-            document.addEventListener('mouseup', onStripeDragEnd);
-
-            // 不要调用 e.preventDefault()，否则会影响 dragstart 事件
+            // 绑定意图检测事件
+            document.addEventListener('mousemove', onMouseMoveForIntent);
+            document.addEventListener('mouseup', onMouseUpForIntent);
         }
 
         /**
-         * 条带拖拽排序 - 移动
+         * 鼠标移动 - 意图检测
          */
-        function onStripeDragMove(e) {
-            // 如果还没有启动排序，检查是否满足启动条件
-            if (stripeDragState.potentialDrag && !stripeDragState.isDragging) {
-                const deltaY = Math.abs(e.clientY - stripeDragState.startY);
-                const deltaX = Math.abs(e.clientX - stripeDragState.startX);
+        function onMouseMoveForIntent(e) {
+            const stripe = dragState.draggedStripe;
+            if (!stripe) return;
 
-                console.log('[StripeDrag] mousemove deltaX:', deltaX, 'deltaY:', deltaY);
+            const deltaX = Math.abs(e.clientX - dragState.startX);
+            const deltaY = Math.abs(e.clientY - dragState.startY);
+            const minDistance = 8; // 最小移动距离阈值
 
-                // 如果水平移动超过垂直移动，可能是跨格子拖动，取消排序
-                if (deltaX > deltaY && deltaX > 10) {
-                    console.log('[StripeDrag] Horizontal move detected, canceling reorder for cross-cell drag');
-                    // 取消排序，让 HTML5 drag 接管
-                    cleanupStripeDragState();
-                    return;
-                }
+            // 移动距离不够，继续等待
+            if (deltaX < minDistance && deltaY < minDistance) return;
 
-                // 垂直移动超过阈值，启动排序
-                if (deltaY > 5) {
-                    console.log('[StripeDrag] Vertical move detected, starting reorder');
-                    stripeDragState.isDragging = true;
-                    stripeDragState.draggedStripe.classList.add('dragging');
+            // 移除意图检测事件
+            document.removeEventListener('mousemove', onMouseMoveForIntent);
+            document.removeEventListener('mouseup', onMouseUpForIntent);
 
-                    // 创建放置指示器
-                    const indicator = document.createElement('div');
-                    indicator.className = 'stripe-drop-indicator';
-                    indicator.style.display = 'none';
-                    stripeDragState.rowStripesContainer.appendChild(indicator);
-                    stripeDragState.dropIndicator = indicator;
-                } else {
-                    return; // 还没有决定是排序还是跨格子拖动
-                }
+            // 判断用户意图
+            if (deltaY > deltaX) {
+                // 垂直移动占主导 - 启动排序
+                console.log('[StripeDrag] Vertical intent detected, starting reorder');
+                onReorderDragStart(e, stripe);
+            } else {
+                // 水平移动占主导 - 让 HTML5 drag 接管
+                console.log('[StripeDrag] Horizontal intent detected, letting HTML5 drag handle');
+                // 恢复 draggable，让 HTML5 drag 正常工作
+                stripe.draggable = true;
+                dragState.reset();
+            }
+        }
+
+        /**
+         * 鼠标抬起 - 意图检测取消
+         */
+        function onMouseUpForIntent(e) {
+            const stripe = dragState.draggedStripe;
+
+            // 鼠标抬起但没有移动足够距离，视为点击
+            document.removeEventListener('mousemove', onMouseMoveForIntent);
+
+            // 恢复 draggable
+            if (stripe) {
+                stripe.draggable = true;
             }
 
-            if (!stripeDragState.isDragging) return;
+            dragState.reset();
+        }
 
-            const { draggedStripe, rowStripesContainer, dropIndicator } = stripeDragState;
+        /**
+         * 条带排序 - 开始
+         */
+        function onReorderDragStart(e, stripe) {
+            const rowIndex = stripe.dataset.rowIndex;
+            const rowContainer = document.querySelector(`.row-stripes[data-row="${rowIndex}"]`);
 
-            // 检查鼠标是否移出了当前行容器
+            if (!rowContainer) {
+                dragState.reset();
+                return;
+            }
+
+            console.log('[Reorder] Start:', stripe.dataset.cpName);
+
+            // 设置排序状态
+            dragState.mode = DragMode.REORDER;
+            dragState.draggedStripe = stripe;
+            dragState.rowStripesContainer = rowContainer;
+            dragState.sourceRowIndex = rowIndex;
+            dragState.startLevel = parseInt(stripe.style.getPropertyValue('--level')) || 1;
+
+            // 禁用 HTML5 drag 防止冲突
+            stripe.draggable = false;
+
+            // 视觉反馈
+            stripe.classList.add('dragging');
+
+            // 创建放置指示器
+            const indicator = document.createElement('div');
+            indicator.className = 'stripe-drop-indicator';
+            indicator.style.display = 'none';
+            rowContainer.appendChild(indicator);
+            dragState.dropIndicator = indicator;
+
+            // 绑定排序移动事件
+            document.addEventListener('mousemove', onReorderDragMove);
+            document.addEventListener('mouseup', onReorderDragEnd);
+
+            // 阻止默认行为，防止选中文本等
+            e.preventDefault();
+        }
+
+        /**
+         * 条带排序 - 移动
+         */
+        function onReorderDragMove(e) {
+            if (dragState.mode !== DragMode.REORDER) return;
+
+            const { draggedStripe, rowStripesContainer, dropIndicator } = dragState;
+
+            // 检查是否移出容器
             const containerRect = rowStripesContainer.getBoundingClientRect();
-            if (e.clientX < containerRect.left || e.clientX > containerRect.right ||
-                e.clientY < containerRect.top || e.clientY > containerRect.bottom) {
-                // 鼠标移出容器，取消排序
-                cleanupStripeDragState();
+            const isOutside = e.clientY < containerRect.top || e.clientY > containerRect.bottom;
+
+            if (isOutside) {
+                console.log('[Reorder] Outside container, canceling');
+                cancelReorder();
                 return;
             }
 
@@ -4365,67 +4449,79 @@
             let targetLevel = Math.floor(relativeY / totalRowHeight) + 1;
             targetLevel = Math.max(1, Math.min(maxLevel, targetLevel));
 
-            stripeDragState.targetLevel = targetLevel;
+            dragState.targetLevel = targetLevel;
 
-            // 显示放置指示器（放在条带之间的间隙位置）
-            // 第 N 行的指示器位置 = (N-1) * 行高
+            // 显示放置指示器
             const indicatorTop = (targetLevel - 1) * totalRowHeight;
             dropIndicator.style.display = 'block';
-            // 允许指示器显示在容器边界外（方便拖到最后一行之后）
             dropIndicator.style.top = Math.max(-2, indicatorTop) + 'px';
         }
 
         /**
-         * 清理条带拖拽状态
+         * 条带排序 - 结束
          */
-        function cleanupStripeDragState() {
-            const { draggedStripe, dropIndicator } = stripeDragState;
+        function onReorderDragEnd(e) {
+            if (dragState.mode !== DragMode.REORDER) return;
 
-            if (draggedStripe) {
-                draggedStripe.classList.remove('dragging');
-            }
+            const { draggedStripe, rowStripesContainer, targetLevel, startLevel } = dragState;
 
-            if (dropIndicator) {
-                dropIndicator.remove();
-            }
+            console.log('[Reorder] End, target:', targetLevel, 'start:', startLevel);
 
-            stripeDragState = {
-                isDragging: false,
-                potentialDrag: false,
-                draggedStripe: null,
-                startY: 0,
-                startX: 0,
-                startLevel: 0,
-                rowStripesContainer: null,
-                dropIndicator: null,
-                targetLevel: null
-            };
-
-            document.removeEventListener('mousemove', onStripeDragMove);
-            document.removeEventListener('mouseup', onStripeDragEnd);
-        }
-
-        /**
-         * 条带拖拽排序 - 结束
-         */
-        function onStripeDragEnd(e) {
-            if (!stripeDragState.isDragging) return;
-
-            const { draggedStripe, rowStripesContainer, dropIndicator, targetLevel, startLevel } = stripeDragState;
-
-            // 清理拖拽状态
-            draggedStripe.classList.remove('dragging');
-            if (dropIndicator) {
-                dropIndicator.remove();
-            }
-
-            // 如果位置有变化，执行重排
+            // 执行重排
             if (targetLevel && targetLevel !== startLevel) {
                 reorderStripesInRow(rowStripesContainer, draggedStripe, targetLevel);
             }
 
-            // 使用通用清理函数
-            cleanupStripeDragState();
+            // 清理
+            cleanupReorder();
+        }
+
+        /**
+         * 取消排序
+         */
+        function cancelReorder() {
+            cleanupReorder();
+        }
+
+        /**
+         * 清理排序状态
+         */
+        function cleanupReorder() {
+            const { draggedStripe, dropIndicator } = dragState;
+
+            if (draggedStripe) {
+                draggedStripe.classList.remove('dragging');
+                draggedStripe.draggable = true; // 恢复跨格子拖动能力
+            }
+
+            if (dropIndicator) {
+                dropIndicator.remove();
+            }
+
+            // 移除事件监听
+            document.removeEventListener('mousemove', onReorderDragMove);
+            document.removeEventListener('mouseup', onReorderDragEnd);
+
+            dragState.reset();
+        }
+
+        // 兼容旧代码的别名
+        function cleanupStripeDragState() {
+            cleanupReorder();
+        }
+
+        /**
+         * 条带拖拽排序 - 移动（兼容旧代码别名）
+         */
+        function onStripeDragMove(e) {
+            // 新实现中不使用此函数，由 onReorderDragMove 替代
+        }
+
+        /**
+         * 条带拖拽排序 - 结束（兼容旧代码别名）
+         */
+        function onStripeDragEnd(e) {
+            // 新实现中不使用此函数，由 onReorderDragEnd 替代
         }
 
         /**
@@ -4434,7 +4530,17 @@
         function onStripeCrossCellDragStart(e) {
             const stripe = e.currentTarget;
 
+            // 如果正在排序，阻止跨格子拖动
+            if (dragState.mode === DragMode.REORDER) {
+                console.log('[CrossCell] Reorder in progress, preventing dragstart');
+                e.preventDefault();
+                return;
+            }
+
             console.log('[CrossCell] dragstart on stripe:', stripe.dataset.cpName);
+
+            // 设置跨格子拖动状态
+            dragState.mode = DragMode.CROSS_CELL;
 
             // 设置 draggedCheckpoint 用于跨格子拖放
             draggedCheckpoint = {
@@ -4459,9 +4565,17 @@
          */
         function onStripeCrossCellDragEnd(e) {
             const stripe = e.currentTarget;
+
+            console.log('[CrossCell] dragend on stripe:', stripe.dataset.cpName);
+
             stripe.classList.remove('dragging');
             document.body.classList.remove('dragging');
             draggedCheckpoint = null;
+
+            // 重置拖动状态
+            if (dragState.mode === DragMode.CROSS_CELL) {
+                dragState.reset();
+            }
         }
 
         /**
@@ -4706,15 +4820,24 @@
                 const rowStripesContainers = document.querySelectorAll('.row-stripes');
                 rowStripesContainers.forEach(container => {
                     LifeRPG.events.add(container, 'dragover', function(e) {
+                        // 如果正在执行条带排序，不处理拖放事件
+                        if (dragState.mode === DragMode.REORDER) return;
+
                         e.preventDefault();
                         this.classList.add('drag-over');
                     });
 
                     LifeRPG.events.add(container, 'dragleave', function() {
+                        // 如果正在执行条带排序，不处理
+                        if (dragState.mode === DragMode.REORDER) return;
+
                         this.classList.remove('drag-over');
                     });
 
                     LifeRPG.events.add(container, 'drop', function(e) {
+                        // 如果正在执行条带排序，不处理拖放事件
+                        if (dragState.mode === DragMode.REORDER) return;
+
                         e.preventDefault();
                         this.classList.remove('drag-over');
 
@@ -5479,6 +5602,16 @@
             const todoList = document.getElementById('todoList');
             if (!todoList) return;
 
+            // 计算改期提示语
+            let rescheduleTitle = "改期到下一天";
+            if (selectedDate) {
+                const currentDate = parseLocalDate(selectedDate);
+                const dayOfWeek = currentDate.getDay();
+                if (dayOfWeek === 5) { // 周五
+                    rescheduleTitle = "改期到下周一";
+                }
+            }
+
             todoList.innerHTML = currentTodos.map((todo, index) => `
                 <div class="todo-item" data-index="${index}">
                     <div class="todo-checkbox ${todo.completed ? 'checked' : ''}" onclick="toggleTodoItem(${index})">
@@ -5488,7 +5621,7 @@
                         value="${LifeRPG.security.escapeHtml(todo.text)}"
                         onchange="updateTodoText(${index}, this.value)"
                         placeholder="输入进展内容...">
-                    <div class="todo-reschedule" onclick="rescheduleTodoItem(${index})" title="改期到下一天，或改期到下周一">📅</div>
+                    <div class="todo-reschedule" onclick="rescheduleTodoItem(${index})" title="${rescheduleTitle}">📅</div>
                     <div class="todo-delete" onclick="deleteTodoItem(${index})">×</div>
                 </div>
             `).join('');
