@@ -4525,14 +4525,6 @@
             const grid = document.querySelector('.chamber-grid');
             const isWeekendCollapsed = grid && grid.classList.contains('weekend-collapsed');
 
-            // 计算列数（隐藏周末时是5列，否则是7列）
-            const totalCols = isWeekendCollapsed ? 5 : 7;
-            const colWidth = rect.width / totalCols;
-
-            // 计算列索引（0-4 或 0-6）
-            let colIndex = Math.floor(relativeX / colWidth);
-            colIndex = Math.max(0, Math.min(colIndex, totalCols - 1));
-
             // 获取行索引
             const rowIndex = parseInt(rowStripes.dataset.row);
 
@@ -4542,21 +4534,17 @@
             const firstDay = new Date(year, month, 1);
             const startDayOfWeek = firstDay.getDay(); // 0=周日, 1=周一...
 
-            // 计算该格子的日期
-            // 隐藏周末时，列索引0-4对应周一到周五
-            // 需要将5列索引映射回7列的日期计算
-            let actualColIndex;
+            // 计算该行的起始日期
+            const rowStartDayOfMonth = rowIndex * 7 - startDayOfWeek + 1;
+
+            let targetDate;
+
             if (isWeekendCollapsed) {
-                // 列索引0-4对应周一到周五
-                // 需要根据行和列计算出实际日期
-                actualColIndex = colIndex;
+                // 隐藏周末时，条带容器是5列（周一到周五）
+                // 需要找到该行所有工作日，然后根据鼠标位置选择对应的工作日
 
-                // 计算这是该行的第几个工作日
-                // 从该行的第一个单元格开始，找到对应的工作日
-                const rowStartDayOfMonth = rowIndex * 7 - startDayOfWeek + 1;
-
-                // 找到该行的工作日
-                let workDayCount = 0;
+                // 收集该行的所有工作日
+                const workDays = [];
                 for (let i = 0; i < 7; i++) {
                     const checkDay = rowStartDayOfMonth + i;
                     if (checkDay < 1) continue;
@@ -4564,23 +4552,37 @@
                     const checkDate = new Date(year, month, checkDay);
                     const checkDayOfWeek = checkDate.getDay();
 
-                    // 跳过周末
+                    // 只收集工作日
                     if (checkDayOfWeek !== 0 && checkDayOfWeek !== 6) {
-                        if (workDayCount === colIndex) {
-                            actualColIndex = i;
-                            break;
-                        }
-                        workDayCount++;
+                        workDays.push({
+                            dayOfMonth: checkDay,
+                            date: checkDate,
+                            colIndex: i // 在7列网格中的列索引
+                        });
                     }
                 }
+
+                // 如果没有工作日，返回该行的第一个有效日期
+                if (workDays.length === 0) {
+                    targetDate = new Date(year, month, Math.max(1, rowStartDayOfMonth));
+                    return formatDate(targetDate);
+                }
+
+                // 根据鼠标X位置计算落在哪个工作日
+                const colWidth = rect.width / workDays.length;
+                let colIndex = Math.floor(relativeX / colWidth);
+                colIndex = Math.max(0, Math.min(colIndex, workDays.length - 1));
+
+                targetDate = workDays[colIndex].date;
             } else {
-                actualColIndex = colIndex;
+                // 正常模式，7列
+                const colWidth = rect.width / 7;
+                let colIndex = Math.floor(relativeX / colWidth);
+                colIndex = Math.max(0, Math.min(colIndex, 6));
+
+                const dayOfMonth = rowIndex * 7 + colIndex - startDayOfWeek + 1;
+                targetDate = new Date(year, month, dayOfMonth);
             }
-
-            const dayOfMonth = rowIndex * 7 + actualColIndex - startDayOfWeek + 1;
-
-            // 创建日期对象
-            const targetDate = new Date(year, month, dayOfMonth);
 
             return formatDate(targetDate);
         }
