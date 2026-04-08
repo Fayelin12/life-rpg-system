@@ -1223,6 +1223,24 @@
             color: var(--accent-ember);
         }
 
+        .todo-reschedule {
+            width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 12px;
+            opacity: 0.5;
+            transition: all 0.2s ease;
+            margin-left: auto;
+        }
+
+        .todo-reschedule:hover {
+            opacity: 1;
+            transform: scale(1.1);
+        }
+
         .tag-list {
             display: flex;
             flex-wrap: wrap;
@@ -5466,10 +5484,11 @@
                     <div class="todo-checkbox ${todo.completed ? 'checked' : ''}" onclick="toggleTodoItem(${index})">
                         ${todo.completed ? '✓' : ''}
                     </div>
-                    <input type="text" class="todo-input ${todo.completed ? 'completed' : ''}" 
-                        value="${LifeRPG.security.escapeHtml(todo.text)}" 
+                    <input type="text" class="todo-input ${todo.completed ? 'completed' : ''}"
+                        value="${LifeRPG.security.escapeHtml(todo.text)}"
                         onchange="updateTodoText(${index}, this.value)"
                         placeholder="输入进展内容...">
+                    <div class="todo-reschedule" onclick="rescheduleTodoItem(${index})" title="改期到下一天，或改期到下周一">📅</div>
                     <div class="todo-delete" onclick="deleteTodoItem(${index})">×</div>
                 </div>
             `).join('');
@@ -5525,6 +5544,96 @@
         function deleteTodoItem(index) {
             currentTodos.splice(index, 1);
             renderTodoList();
+        }
+
+        /**
+         * 改期待办项
+         * 将待办项移动到下一天（周五则移动到周一）
+         */
+        function rescheduleTodoItem(index) {
+            if (!selectedDate || !editingEntryId) {
+                showToast('无法获取当前检查项信息', 'error');
+                return;
+            }
+
+            const entry = adminData.calendarEntries[selectedDate]?.find(e => e.id === editingEntryId);
+            if (!entry) {
+                showToast('无法获取当前检查项信息', 'error');
+                return;
+            }
+
+            const todo = currentTodos[index];
+            if (!todo) {
+                showToast('待办项不存在', 'error');
+                return;
+            }
+
+            // 计算目标日期：下一天，如果是周五则下周一
+            const currentDate = parseLocalDate(selectedDate);
+            const dayOfWeek = currentDate.getDay(); // 0=周日, 1=周一, ..., 5=周五, 6=周六
+
+            let targetDate = new Date(currentDate);
+            if (dayOfWeek === 5) { // 周五
+                targetDate.setDate(currentDate.getDate() + 3); // 下周一
+            } else {
+                targetDate.setDate(currentDate.getDate() + 1); // 下一天
+            }
+            const targetDateStr = formatDate(targetDate);
+
+            // 检查目标日期是否已有该检查项
+            const targetEntries = adminData.calendarEntries[targetDateStr] || [];
+            let targetEntry = targetEntries.find(e => e.checkpointId === entry.checkpointId);
+
+            if (!targetEntry) {
+                // 创建新的检查项
+                targetEntry = {
+                    id: generateId(),
+                    checkpointId: entry.checkpointId,
+                    levelId: entry.levelId,
+                    questId: entry.questId,
+                    checkpointName: entry.checkpointName,
+                    landmarkName: entry.landmarkName,
+                    questName: entry.questName,
+                    levelName: entry.levelName,
+                    date: targetDateStr,
+                    description: '',
+                    completed: false
+                };
+
+                if (!adminData.calendarEntries[targetDateStr]) {
+                    adminData.calendarEntries[targetDateStr] = [];
+                }
+                adminData.calendarEntries[targetDateStr].push(targetEntry);
+
+                // 更新完成记录
+                if (!adminData.checkpointCompletions[entry.checkpointId]) {
+                    adminData.checkpointCompletions[entry.checkpointId] = [];
+                }
+                adminData.checkpointCompletions[entry.checkpointId].push({
+                    date: targetDateStr,
+                    entryId: targetEntry.id,
+                    archived: false
+                });
+            }
+
+            // 将待办项添加到目标检查项
+            const targetTodos = targetEntry.description ? markdownToTodos(targetEntry.description) : [];
+            targetTodos.push({ text: todo.text, completed: todo.completed });
+            targetEntry.description = todosToMarkdown(targetTodos);
+
+            // 从当前检查项中移除待办项
+            currentTodos.splice(index, 1);
+            entry.description = todosToMarkdown(currentTodos);
+
+            // 保存数据
+            saveData();
+
+            // 刷新界面
+            renderTodoList();
+            renderChamberGrid();
+            updateStats();
+
+            showToast(`已改期到 ${targetDateStr}`, 'success');
         }
 
         /**
