@@ -1819,11 +1819,6 @@
             box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
         }
 
-        .week-day-checkpoints .checkpoint-stripe:hover {
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-            filter: brightness(1.15);
-        }
-
         /* 检查项头部 - 名称和进度 */
         .stripe-header {
             display: flex;
@@ -1897,6 +1892,30 @@
         .stripe-todo.completed {
             text-decoration: line-through;
             opacity: 0.5;
+        }
+
+        .stripe-todo.today-pending {
+            color: #ff3333 !important;
+            font-weight: 600 !important;
+        }
+
+        .stripe-todos.today-pending-container,
+        .stripe-todo-summary.today-pending-container {
+            opacity: 1 !important;
+        }
+
+        /* 条带悬停效果 - 使用 transform 代替 brightness，避免影响文字 */
+        .week-day-checkpoints .checkpoint-stripe:hover {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+            transform: scale(1.01);
+            transition: all 0.2s ease;
+            z-index: 1;
+        }
+
+        /* 今天有未完成待办的条带 - 特殊悬停效果 */
+        .week-day-checkpoints .checkpoint-stripe.today-has-pending:hover {
+            box-shadow: 0 2px 12px rgba(255, 51, 51, 0.3);
+            z-index: 2;
         }
 
         .stripe-todo-more {
@@ -3599,6 +3618,9 @@
                 // 获取待办项
                 const todos = entry.description ? markdownToTodos(entry.description) : [];
 
+                // 检查是否是今天
+                const isToday = dateStr === formatDate(new Date());
+
                 // 构建待办项HTML和进度指示器
                 let todosHtml = '';
                 let progressHtml = '';
@@ -3627,25 +3649,35 @@
                     }
 
                     // 根据策略显示待办
+                    // 检查今天是否有未完成的待办
+                    const hasTodayPending = isToday && todos.some(t => !t.completed);
+                    const todosOpacityClass = hasTodayPending ? 'today-pending-container' : '';
+
                     if (displayStrategy === 'full') {
                         // 完整显示：显示前3个待办
                         const maxDisplay = Math.min(3, todos.length);
                         const displayTodos = todos.slice(0, maxDisplay);
                         const remainingCount = todos.length - maxDisplay;
                         todosHtml = `
-                            <div class="stripe-todos">
-                                ${displayTodos.map(todo => `
-                                    <span class="stripe-todo ${todo.completed ? 'completed' : ''}" title="${LifeRPG.security.escapeHtml(todo.text)}">${LifeRPG.security.escapeHtml(todo.text)}</span>
-                                `).join('')}
+                            <div class="stripe-todos ${todosOpacityClass}">
+                                ${displayTodos.map(todo => {
+                                    // 今天且未完成，添加特殊 class
+                                    const isTodayPending = isToday && !todo.completed;
+                                    const todayClass = isTodayPending ? 'today-pending' : '';
+                                    return `<span class="stripe-todo ${todo.completed ? 'completed' : ''} ${todayClass}" title="${LifeRPG.security.escapeHtml(todo.text)}">${LifeRPG.security.escapeHtml(todo.text)}</span>`;
+                                }).join('')}
                                 ${remainingCount > 0 ? `<span class="stripe-todo-more">+${remainingCount}</span>` : ''}
                             </div>
                         `;
                     } else if (displayStrategy === 'summary') {
                         // 摘要显示：只显示第一个待办 + 进度
                         const firstTodo = todos[0];
+                        // 今天且未完成，添加特殊 class
+                        const isTodayPending = isToday && !firstTodo.completed;
+                        const todayClass = isTodayPending ? 'today-pending' : '';
                         todoSummaryHtml = `
-                            <div class="stripe-todo-summary">
-                                <span class="stripe-todo ${firstTodo.completed ? 'completed' : ''}">${LifeRPG.security.escapeHtml(firstTodo.text)}</span>
+                            <div class="stripe-todo-summary ${todosOpacityClass}">
+                                <span class="stripe-todo ${firstTodo.completed ? 'completed' : ''} ${todayClass}">${LifeRPG.security.escapeHtml(firstTodo.text)}</span>
                                 ${todos.length > 1 ? `<span class="stripe-todo-more">+${todos.length - 1}</span>` : ''}
                             </div>
                         `;
@@ -3660,8 +3692,12 @@
                 const nameClass = totalCols >= 3 ? 'stripe-name truncated' : 'stripe-name';
                 const nameStyle = totalCols >= 3 ? 'font-size: 8px;' : '';
 
+                // 检查今天是否有未完成的待办，给条带添加特殊 class
+                const hasTodayPendingTodos = isToday && todos.some(t => !t.completed);
+                const todayStripeClass = hasTodayPendingTodos ? 'today-has-pending' : '';
+
                 html += `
-                    <div class="checkpoint-stripe ${stripeClass}"
+                    <div class="checkpoint-stripe ${stripeClass} ${todayStripeClass}"
                          data-checkpoint-id="${entry.checkpointId}"
                          data-entry-id="${entry.id}"
                          data-date="${dateStr}"
