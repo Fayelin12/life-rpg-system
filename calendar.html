@@ -3418,12 +3418,15 @@
                 // 处理拖拽启动（需要移动超过5px才真正开始拖拽）
                 if (dragElement && !isDragging && !isResizing) {
                     const dragStartY = parseFloat(dragElement.dataset.dragStartY);
-                    if (Math.abs(e.clientY - dragStartY) > 5) {
+                    const deltaY = e.clientY - dragStartY;
+                    if (Math.abs(deltaY) > 5) {
                         isDragging = true;
                         dragElement.dataset.dragging = 'true';
                         dragElement.classList.add('dragging');
                         startY = dragStartY;
                         startTop = parseFloat(dragElement.dataset.dragStartTop);
+                        // 标记为已拖拽，阻止点击事件
+                        hasDraggedOrResized = true;
                     }
                 }
 
@@ -3782,6 +3785,7 @@
             const stripe = document.createElement('div');
             stripe.className = `checkpoint-stripe ${stripeClass}`;
             stripe.innerHTML = stripeContent;
+            stripe.draggable = true;
             stripe.style.setProperty('--start', startCol + 1);
             stripe.style.setProperty('--end', endCol + 2);
             stripe.style.setProperty('--level', level);
@@ -3835,6 +3839,10 @@
             // 条带拖拽排序事件
             stripe.addEventListener('mousedown', onStripeDragStart);
 
+            // 跨格子拖动事件
+            stripe.addEventListener('dragstart', onStripeCrossCellDragStart);
+            stripe.addEventListener('dragend', onStripeCrossCellDragEnd);
+
             return stripe;
         }
 
@@ -3851,42 +3859,79 @@
 
             if (!rowContainer) return;
 
-            stripeDragState.isDragging = true;
+            console.log('[StripeDrag] mousedown on stripe:', stripe.dataset.cpName);
+
+            // 记录初始状态，但不立即启动排序
+            // 排序只在垂直移动超过阈值时才启动
+            stripeDragState.potentialDrag = true;
             stripeDragState.draggedStripe = stripe;
             stripeDragState.startY = e.clientY;
+            stripeDragState.startX = e.clientX;
             stripeDragState.startLevel = parseInt(stripe.style.getPropertyValue('--level'));
             stripeDragState.rowStripesContainer = rowContainer;
-
-            stripe.classList.add('dragging');
-
-            // 创建放置指示器
-            const indicator = document.createElement('div');
-            indicator.className = 'stripe-drop-indicator';
-            indicator.style.display = 'none';
-            rowContainer.appendChild(indicator);
-            stripeDragState.dropIndicator = indicator;
+            stripeDragState.sourceRowIndex = rowIndex;
 
             // 绑定全局事件
             document.addEventListener('mousemove', onStripeDragMove);
             document.addEventListener('mouseup', onStripeDragEnd);
 
-            e.preventDefault();
+            // 不要调用 e.preventDefault()，否则会影响 dragstart 事件
         }
 
         /**
          * 条带拖拽排序 - 移动
          */
         function onStripeDragMove(e) {
+            // 如果还没有启动排序，检查是否满足启动条件
+            if (stripeDragState.potentialDrag && !stripeDragState.isDragging) {
+                const deltaY = Math.abs(e.clientY - stripeDragState.startY);
+                const deltaX = Math.abs(e.clientX - stripeDragState.startX);
+
+                console.log('[StripeDrag] mousemove deltaX:', deltaX, 'deltaY:', deltaY);
+
+                // 如果水平移动超过垂直移动，可能是跨格子拖动，取消排序
+                if (deltaX > deltaY && deltaX > 10) {
+                    console.log('[StripeDrag] Horizontal move detected, canceling reorder for cross-cell drag');
+                    // 取消排序，让 HTML5 drag 接管
+                    cleanupStripeDragState();
+                    return;
+                }
+
+                // 垂直移动超过阈值，启动排序
+                if (deltaY > 5) {
+                    console.log('[StripeDrag] Vertical move detected, starting reorder');
+                    stripeDragState.isDragging = true;
+                    stripeDragState.draggedStripe.classList.add('dragging');
+
+                    // 创建放置指示器
+                    const indicator = document.createElement('div');
+                    indicator.className = 'stripe-drop-indicator';
+                    indicator.style.display = 'none';
+                    stripeDragState.rowStripesContainer.appendChild(indicator);
+                    stripeDragState.dropIndicator = indicator;
+                } else {
+                    return; // 还没有决定是排序还是跨格子拖动
+                }
+            }
+
             if (!stripeDragState.isDragging) return;
 
             const { draggedStripe, rowStripesContainer, dropIndicator } = stripeDragState;
+
+            // 检查鼠标是否移出了当前行容器
+            const containerRect = rowStripesContainer.getBoundingClientRect();
+            if (e.clientX < containerRect.left || e.clientX > containerRect.right ||
+                e.clientY < containerRect.top || e.clientY > containerRect.bottom) {
+                // 鼠标移出容器，取消排序
+                cleanupStripeDragState();
+                return;
+            }
 
             // 获取容器内所有条带（包括正在拖拽的，用于计算总数）
             const allStripes = [...rowStripesContainer.querySelectorAll('.checkpoint-stripe')];
             const totalStripes = allStripes.length;
 
             // 计算目标位置
-            const containerRect = rowStripesContainer.getBoundingClientRect();
             const relativeY = e.clientY - containerRect.top;
 
             // 计算实际条带高度（包含 gap）
@@ -3913,6 +3958,36 @@
         }
 
         /**
+         * 清理条带拖拽状态
+         */
+        function cleanupStripeDragState() {
+            const { draggedStripe, dropIndicator } = stripeDragState;
+
+            if (draggedStripe) {
+                draggedStripe.classList.remove('dragging');
+            }
+
+            if (dropIndicator) {
+                dropIndicator.remove();
+            }
+
+            stripeDragState = {
+                isDragging: false,
+                potentialDrag: false,
+                draggedStripe: null,
+                startY: 0,
+                startX: 0,
+                startLevel: 0,
+                rowStripesContainer: null,
+                dropIndicator: null,
+                targetLevel: null
+            };
+
+            document.removeEventListener('mousemove', onStripeDragMove);
+            document.removeEventListener('mouseup', onStripeDragEnd);
+        }
+
+        /**
          * 条带拖拽排序 - 结束
          */
         function onStripeDragEnd(e) {
@@ -3931,19 +4006,44 @@
                 reorderStripesInRow(rowStripesContainer, draggedStripe, targetLevel);
             }
 
-            // 清理状态
-            stripeDragState = {
-                isDragging: false,
-                draggedStripe: null,
-                startY: 0,
-                startLevel: 0,
-                rowStripesContainer: null,
-                dropIndicator: null,
-                targetLevel: null
+            // 使用通用清理函数
+            cleanupStripeDragState();
+        }
+
+        /**
+         * 条带跨格子拖动 - 开始
+         */
+        function onStripeCrossCellDragStart(e) {
+            const stripe = e.currentTarget;
+
+            console.log('[CrossCell] dragstart on stripe:', stripe.dataset.cpName);
+
+            // 设置 draggedCheckpoint 用于跨格子拖放
+            draggedCheckpoint = {
+                id: stripe.dataset.checkpointId,
+                levelId: stripe.dataset.levelId,
+                questId: stripe.dataset.questId,
+                name: stripe.dataset.cpName,
+                landmark: stripe.dataset.landmark,
+                quest: stripe.dataset.quest,
+                level: stripe.dataset.level,
+                sourceDate: stripe.dataset.sourceDate,
+                isMoving: true,
+                isStripe: true
             };
 
-            document.removeEventListener('mousemove', onStripeDragMove);
-            document.removeEventListener('mouseup', onStripeDragEnd);
+            stripe.classList.add('dragging');
+            document.body.classList.add('dragging');
+        }
+
+        /**
+         * 条带跨格子拖动 - 结束
+         */
+        function onStripeCrossCellDragEnd(e) {
+            const stripe = e.currentTarget;
+            stripe.classList.remove('dragging');
+            document.body.classList.remove('dragging');
+            draggedCheckpoint = null;
         }
 
         /**
@@ -4033,13 +4133,24 @@
                         e.preventDefault();
                         this.classList.remove('drag-over');
 
+                        console.log('[Drop] drop event fired, draggedCheckpoint:', draggedCheckpoint);
+
                         if (!draggedCheckpoint) return;
 
                         const dateStr = this.dataset.date;
 
-                        if (draggedCheckpoint.isMoving && draggedCheckpoint.sourceDate === dateStr) {
-                            draggedCheckpoint = null;
-                            return;
+                        console.log('[Drop] target date:', dateStr, 'source date:', draggedCheckpoint.sourceDate);
+
+                        // 如果是条带拖动
+                        if (draggedCheckpoint.isStripe) {
+                            // 如果是同一日期，不处理（让排序逻辑处理或忽略）
+                            if (draggedCheckpoint.sourceDate === dateStr) {
+                                console.log('[Drop] Same date, ignoring');
+                                draggedCheckpoint = null;
+                                return;
+                            }
+                            // 跨格子拖动，继续执行创建新记录逻辑
+                            console.log('[Drop] Cross-cell drag detected, creating new entry');
                         }
 
                         // 检查该日期是否已有相同检查项
