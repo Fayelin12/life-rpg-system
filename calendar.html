@@ -1616,9 +1616,14 @@
             display: none;
         }
 
-        /* 时间轴标签列 */
+        /* 时间轴标签列（现在作为空白占位保持布局对齐） */
         .time-axis-label {
             border-right: 1px solid var(--border-gold);
+            background: var(--bg-deep);
+        }
+
+        /* 周视图 body 中的时间轴标签列 */
+        .week-view-body .time-axis-label {
             background: var(--bg-deep);
         }
 
@@ -1666,6 +1671,7 @@
             grid-template-columns: 60px repeat(7, 1fr);
             overflow-y: auto;
             position: relative;
+            background: var(--bg-panel);
         }
 
         .week-view-grid.weekend-collapsed .week-view-body {
@@ -1720,38 +1726,6 @@
             opacity: 0.6;
         }
 
-        /* 周视图每一天的内容区 */
-        .week-day-content {
-            border-right: 1px solid rgba(139, 119, 101, 0.1);
-            position: relative;
-            min-height: 400px;
-        }
-
-        .week-day-column:last-child .week-day-content {
-            border-right: none;
-        }
-
-        /* 周视图条带 */
-        .week-view-stripe {
-            position: absolute;
-            left: 4px;
-            right: 4px;
-            border-radius: 4px;
-            padding: 4px 8px;
-            font-size: 11px;
-            cursor: pointer;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            transition: all 0.2s ease;
-            z-index: 10;
-        }
-
-        .week-view-stripe:hover {
-            filter: brightness(1.1);
-            z-index: 20;
-        }
-
         /* 网格线 */
         .week-grid-lines {
             position: absolute;
@@ -1769,6 +1743,113 @@
 
         .week-grid-line.lunch-break {
             background: rgba(139, 119, 101, 0.03);
+        }
+
+        /* 周视图每一天的内容区 */
+        .week-day-content {
+            border-right: 1px solid rgba(139, 119, 101, 0.1);
+            position: relative;
+            height: 400px; /* 9:00-18:00 共10小时，每小时40px */
+            padding: 0;
+        }
+
+        .week-day-column:last-child .week-day-content {
+            border-right: none;
+        }
+
+        /* 周视图检查点列表 */
+        .week-day-checkpoints {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            padding: 0;
+            z-index: 10;
+        }
+
+        .week-day-checkpoints .checkpoint-stripe {
+            position: absolute;
+            left: 4px;
+            right: 4px;
+            border-radius: 3px;
+            font-size: 10px;
+            display: flex;
+            align-items: center;
+            padding: 0 6px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-sizing: border-box;
+            line-height: 1;
+        }
+
+        .week-day-checkpoints .checkpoint-stripe:hover {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+            filter: brightness(1.15);
+        }
+
+        /* 检查项拖拽时的样式 */
+        .week-day-checkpoints .checkpoint-stripe.dragging {
+            opacity: 0.8;
+            cursor: grabbing;
+            z-index: 1000;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Resize Handle - 上边缘 */
+        .checkpoint-stripe .resize-handle-top {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            cursor: ns-resize;
+            z-index: 10;
+        }
+
+        .checkpoint-stripe .resize-handle-top:hover,
+        .checkpoint-stripe .resize-handle-top.resizing {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Resize Handle - 下边缘 */
+        .checkpoint-stripe .resize-handle-bottom {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            cursor: ns-resize;
+            z-index: 10;
+        }
+
+        .checkpoint-stripe .resize-handle-bottom:hover,
+        .checkpoint-stripe .resize-handle-bottom.resizing {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* 拖拽时的镜像元素 */
+        .checkpoint-stripe-mirror {
+            position: fixed;
+            pointer-events: none;
+            z-index: 9999;
+            opacity: 0.9;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+        }
+
+        /* 时间吸附指示器 */
+        .time-snap-indicator {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--accent-gold);
+            box-shadow: 0 0 8px var(--accent-gold);
+            pointer-events: none;
+            z-index: 100;
         }
 
         /* 周总结弹窗 */
@@ -2968,8 +3049,9 @@
          * 渲染月视图
          */
         function renderMonthView(grid) {
-            const year = currentDate.getFullYear();
-            const month = currentDate.getMonth();
+            try {
+                const year = currentDate.getFullYear();
+                const month = currentDate.getMonth();
 
             // 更新标题
             const monthNames = LifeRPG.constants.MONTH_NAMES;
@@ -3149,9 +3231,9 @@
                 });
                 html += '</div>';
 
-                // 渲染该日期的条带
-                const dayStripes = renderWeekViewStripes(day.date);
-                html += dayStripes;
+                // 渲染该日期的检查点列表
+                const dayCheckpoints = renderWeekViewCheckpoints(day.date);
+                html += dayCheckpoints;
 
                 html += '</div></div>';
             });
@@ -3160,41 +3242,308 @@
 
             grid.innerHTML = html;
             grid.className = 'week-view-grid';
+
+            // 初始化拖拽和调整大小功能
+            initWeekViewDragResize();
         }
 
         /**
-         * 渲染周视图某一天的时间轴条带
+         * 渲染周视图某一天的检查点列表
          */
-        function renderWeekViewStripes(dateStr) {
+        function renderWeekViewCheckpoints(dateStr) {
             const entries = adminData.calendarEntries[dateStr] || [];
             if (entries.length === 0) return '';
 
-            let html = '';
+            console.log(`[WeekView] Rendering ${entries.length} entries for ${dateStr}:`, entries.map(e => ({ name: e.checkpointName, startTime: e.startTime, duration: e.duration })));
+
+            let html = '<div class="week-day-checkpoints">';
 
             // 按 order 排序
             const sortedEntries = [...entries].sort((a, b) => (a.order || 0) - (b.order || 0));
 
             sortedEntries.forEach((entry, index) => {
-                // 计算条带位置和高度
-                // 默认从 9:00 开始，每个条带占 1 小时高度（40px）
-                const startHour = 9 + index; // 简单排列，每个条带错开1小时
-                const top = index * 40; // 每个条带40px高度
+                // 获取条带颜色 - 单日使用浅色主题
+                const stripeClass = getStripeColorByDuration(1);
 
-                // 获取条带颜色
-                const stripeClass = getStripeColorByDuration(1); // 单日条带用浅色
+                // 解析已保存的时间，或根据order/index生成默认时间
+                let startTime, duration;
+                if (entry.startTime && typeof entry.startTime === 'string' && entry.startTime.includes(':')) {
+                    startTime = entry.startTime;
+                    duration = entry.duration || 60;
+                } else {
+                    // 根据order或index计算默认时间，从9:00开始，每个错开1小时
+                    const orderIndex = entry.order !== undefined ? entry.order : index;
+                    const defaultHour = 9 + orderIndex;
+                    // 如果超过18点，则循环回9点开始
+                    const wrappedHour = defaultHour > 18 ? 9 + (orderIndex % 10) : defaultHour;
+                    startTime = `${wrappedHour}:00`;
+                    duration = 60;
+                    // 保存默认时间到数据
+                    entry.startTime = startTime;
+                    entry.duration = duration;
+                }
+
+                // 计算位置（每小时40px，9:00对应top=0）
+                const timeParts = startTime.split(':');
+                const hour = parseInt(timeParts[0]) || 9;
+                const minute = parseInt(timeParts[1]) || 0;
+                const top = Math.max(0, ((hour - 9) + minute / 60) * 40);
+                const height = Math.max(20, (duration / 60) * 40);
 
                 html += `
-                    <div class="week-view-stripe ${stripeClass}"
-                         style="top: ${top}px; height: 36px;"
+                    <div class="checkpoint-stripe ${stripeClass}"
                          data-checkpoint-id="${entry.checkpointId}"
                          data-entry-id="${entry.id}"
-                         onclick="openEntryModal('${dateStr}', '${entry.id}')">
-                        ${LifeRPG.security.escapeHtml(entry.checkpointName)}
+                         data-date="${dateStr}"
+                         data-start-time="${startTime}"
+                         data-duration="${duration}"
+                         style="position: absolute; top: ${top}px; height: ${height}px; left: 4px; right: 4px;">
+                        <div class="resize-handle-top" data-resize="top"></div>
+                        <div class="resize-handle-bottom" data-resize="bottom"></div>
+                        <span class="stripe-content">${LifeRPG.security.escapeHtml(entry.checkpointName)}</span>
                     </div>
                 `;
             });
 
+            html += '</div>';
             return html;
+        }
+
+        /**
+         * 初始化周视图的拖拽和调整大小功能
+         */
+        function initWeekViewDragResize() {
+            const weekViewBody = document.querySelector('.week-view-body');
+            if (!weekViewBody) return;
+
+            let isDragging = false;
+            let isResizing = false;
+            let dragElement = null;
+            let resizeElement = null;
+            let resizeHandle = null;
+            let startY = 0;
+            let startTop = 0;
+            let startHeight = 0;
+            let startTime = '';
+            let startDuration = 0;
+            let snapIndicator = null;
+
+            // 创建时间吸附指示器
+            function createSnapIndicator() {
+                const indicator = document.createElement('div');
+                indicator.className = 'time-snap-indicator';
+                indicator.style.display = 'none';
+                weekViewBody.appendChild(indicator);
+                return indicator;
+            }
+
+            snapIndicator = createSnapIndicator();
+
+            // 像素转换为时间（每15分钟一个刻度）
+            function pixelsToTime(px) {
+                const hourHeight = 40; // 每小时40px
+                const totalHours = 9 + (px / hourHeight);
+                const hour = Math.floor(totalHours);
+                const minute = Math.round((totalHours - hour) * 60 / 15) * 15;
+                return { hour, minute: Math.min(59, minute) };
+            }
+
+            // 时间转换为像素
+            function timeToPixels(hour, minute) {
+                return ((hour - 9) + minute / 60) * 40;
+            }
+
+            // 显示吸附指示器
+            function showSnapIndicator(px) {
+                const { hour, minute } = pixelsToTime(px);
+                const snappedPx = timeToPixels(hour, minute);
+                snapIndicator.style.top = snappedPx + 'px';
+                snapIndicator.style.display = 'block';
+                return { hour, minute, px: snappedPx };
+            }
+
+            // 隐藏吸附指示器
+            function hideSnapIndicator() {
+                snapIndicator.style.display = 'none';
+            }
+
+            // 标记是否发生了拖拽或调整大小操作
+            let hasDraggedOrResized = false;
+
+            // 鼠标按下事件
+            weekViewBody.addEventListener('mousedown', (e) => {
+                const handle = e.target.closest('.resize-handle-top, .resize-handle-bottom');
+                const stripe = e.target.closest('.checkpoint-stripe');
+
+                if (handle) {
+                    // 开始调整大小
+                    e.preventDefault();
+                    e.stopPropagation();
+                    hasDraggedOrResized = false;
+                    isResizing = true;
+                    resizeElement = stripe;
+                    resizeHandle = handle;
+                    startY = e.clientY;
+                    startTop = parseFloat(stripe.style.top);
+                    startHeight = parseFloat(stripe.style.height);
+                    startTime = stripe.dataset.startTime;
+                    startDuration = parseInt(stripe.dataset.duration);
+                    handle.classList.add('resizing');
+                } else if (stripe && !e.target.closest('.resize-handle-top, .resize-handle-bottom')) {
+                    // 开始拖拽 - 记录初始位置，但等鼠标移动一定距离才真正开始
+                    e.preventDefault();
+                    hasDraggedOrResized = false;
+                    dragElement = stripe;
+                    startY = e.clientY;
+                    startTop = parseFloat(stripe.style.top);
+                    stripe.dataset.dragStartY = e.clientY;
+                    stripe.dataset.dragStartTop = parseFloat(stripe.style.top);
+                }
+            });
+
+            // 点击事件 - 用于打开弹窗（只有在没有拖拽/调整大小时才触发）
+            weekViewBody.addEventListener('click', (e) => {
+                const stripe = e.target.closest('.checkpoint-stripe');
+                if (stripe && !hasDraggedOrResized && !isDragging && !isResizing) {
+                    const dateStr = stripe.dataset.date;
+                    const entryId = stripe.dataset.entryId;
+                    openEntryModal(dateStr, entryId);
+                }
+                // 重置标记
+                hasDraggedOrResized = false;
+            });
+
+            // 鼠标移动事件
+            document.addEventListener('mousemove', (e) => {
+                // 处理拖拽启动（需要移动超过5px才真正开始拖拽）
+                if (dragElement && !isDragging && !isResizing) {
+                    const dragStartY = parseFloat(dragElement.dataset.dragStartY);
+                    if (Math.abs(e.clientY - dragStartY) > 5) {
+                        isDragging = true;
+                        dragElement.dataset.dragging = 'true';
+                        dragElement.classList.add('dragging');
+                        startY = dragStartY;
+                        startTop = parseFloat(dragElement.dataset.dragStartTop);
+                    }
+                }
+
+                if (isResizing && resizeElement) {
+                    hasDraggedOrResized = true;
+                    const deltaY = e.clientY - startY;
+
+                    if (resizeHandle.dataset.resize === 'bottom') {
+                        // 调整底部 - 改变高度
+                        const newHeight = Math.max(20, startHeight + deltaY); // 最小20px (30分钟)
+                        resizeElement.style.height = newHeight + 'px';
+                        showSnapIndicator(startTop + newHeight);
+                    } else {
+                        // 调整顶部 - 改变位置和高度
+                        const newTop = Math.max(0, startTop + deltaY);
+                        const newHeight = Math.max(20, startHeight + startTop - newTop);
+                        resizeElement.style.top = newTop + 'px';
+                        resizeElement.style.height = newHeight + 'px';
+                        showSnapIndicator(newTop);
+                    }
+                } else if (isDragging && dragElement) {
+                    hasDraggedOrResized = true;
+                    const deltaY = e.clientY - startY;
+                    const newTop = Math.max(0, startTop + deltaY);
+                    dragElement.style.top = newTop + 'px';
+                    showSnapIndicator(newTop);
+                }
+            });
+
+            // 鼠标释放事件
+            function handleMouseUp(e) {
+                if (isResizing && resizeElement) {
+                    // 计算新的时间
+                    const top = parseFloat(resizeElement.style.top);
+                    const height = parseFloat(resizeElement.style.height);
+
+                    if (resizeHandle.dataset.resize === 'bottom') {
+                        const { hour: endHour, minute: endMinute } = pixelsToTime(top + height);
+                        const { hour: startHour, minute: startMinute } = pixelsToTime(top);
+                        const newDuration = Math.round(((endHour - startHour) + (endMinute - startMinute) / 60) * 60);
+                        resizeElement.dataset.duration = Math.max(15, newDuration);
+                    } else {
+                        const { hour, minute } = pixelsToTime(top);
+                        const newStartTime = `${hour}:${String(minute).padStart(2, '0')}`;
+                        resizeElement.dataset.startTime = newStartTime;
+                        resizeElement.dataset.duration = Math.max(15, Math.round(height / 40 * 60));
+                    }
+
+                    // 吸附到网格
+                    const { hour, minute, px } = showSnapIndicator(parseFloat(resizeElement.style.top));
+                    resizeElement.style.top = px + 'px';
+                    const snappedHeight = Math.max(10, Math.round(parseFloat(resizeElement.style.height) / 10) * 10);
+                    resizeElement.style.height = snappedHeight + 'px';
+
+                    // 保存数据
+                    saveWeekViewEntryData(resizeElement);
+
+                    resizeHandle.classList.remove('resizing');
+                    resizeElement = null;
+                    resizeHandle = null;
+                    isResizing = false;
+                } else if (isDragging && dragElement) {
+                    // 吸附到网格
+                    const top = parseFloat(dragElement.style.top);
+                    const { hour, minute, px } = showSnapIndicator(top);
+                    dragElement.style.top = px + 'px';
+
+                    // 更新开始时间
+                    const newStartTime = `${hour}:${String(minute).padStart(2, '0')}`;
+                    dragElement.dataset.startTime = newStartTime;
+
+                    // 保存数据
+                    saveWeekViewEntryData(dragElement);
+
+                    // 清除拖拽状态
+                    dragElement.classList.remove('dragging');
+                    delete dragElement.dataset.dragging;
+                    delete dragElement.dataset.dragStartY;
+                    delete dragElement.dataset.dragStartTop;
+                    dragElement = null;
+                    isDragging = false;
+                } else if (dragElement && !isDragging) {
+                    // 如果没有真正拖拽（移动距离小于阈值），清理状态
+                    delete dragElement.dataset.dragStartY;
+                    delete dragElement.dataset.dragStartTop;
+                    dragElement = null;
+                }
+                hideSnapIndicator();
+            }
+
+            document.addEventListener('mouseup', handleMouseUp);
+
+            // 备用：如果鼠标离开窗口也触发释放
+            document.addEventListener('mouseleave', handleMouseUp);
+
+            // 防止内存泄漏，在视图切换时清理
+            weekViewBody.dataset.hasDragInit = 'true';
+        }
+
+        /**
+         * 保存周视图检查项的时间和持续时间数据
+         */
+        function saveWeekViewEntryData(element) {
+            const dateStr = element.dataset.date;
+            const entryId = element.dataset.entryId;
+            const startTime = element.dataset.startTime;
+            const duration = parseInt(element.dataset.duration);
+
+            console.log(`[WeekView] Saving entry ${entryId}: startTime=${startTime}, duration=${duration}`);
+
+            // 更新数据
+            if (adminData.calendarEntries[dateStr]) {
+                const entry = adminData.calendarEntries[dateStr].find(e => e.id === entryId);
+                if (entry) {
+                    entry.startTime = startTime;
+                    entry.duration = duration;
+                    saveData();
+                    console.log(`[WeekView] Saved successfully`);
+                }
+            }
         }
 
         /**
