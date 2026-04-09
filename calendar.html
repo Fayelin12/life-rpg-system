@@ -4517,10 +4517,8 @@
 
             console.log('[StripeDrag] mousedown on stripe:', stripe.dataset.cpName);
 
-            // 临时禁用 draggable，防止立即触发 dragstart
-            stripe.draggable = false;
-
             // 记录初始状态，但不立即启动排序
+            // 注意：不要禁用 draggable，让 HTML5 drag 自然工作
             dragState.draggedStripe = stripe;
             dragState.startX = e.clientX;
             dragState.startY = e.clientY;
@@ -4554,11 +4552,11 @@
                 console.log('[StripeDrag] Vertical intent detected, starting reorder');
                 onReorderDragStart(e, stripe);
             } else {
-                // 水平移动占主导 - 让 HTML5 drag 接管
-                console.log('[StripeDrag] Horizontal intent detected, letting HTML5 drag handle');
-                // 恢复 draggable，让 HTML5 drag 正常工作
-                stripe.draggable = true;
+                // 水平移动占主导 - 让 HTML5 drag 接管跨格子拖动
+                console.log('[StripeDrag] Horizontal intent detected, letting HTML5 drag handle cross-cell');
+                // 清理排序状态，不阻止 dragstart 事件
                 dragState.reset();
+                // 不要调用 e.preventDefault()，让 dragstart 自然触发
             }
         }
 
@@ -4566,15 +4564,9 @@
          * 鼠标抬起 - 意图检测取消
          */
         function onMouseUpForIntent(e) {
-            const stripe = dragState.draggedStripe;
-
             // 鼠标抬起但没有移动足够距离，视为点击
             document.removeEventListener('mousemove', onMouseMoveForIntent);
-
-            // 恢复 draggable
-            if (stripe) {
-                stripe.draggable = true;
-            }
+            document.removeEventListener('mouseup', onMouseUpForIntent);
 
             dragState.reset();
         }
