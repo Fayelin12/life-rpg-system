@@ -5382,9 +5382,15 @@
             try {
                 if (!selectedDate || !editingEntryId) return;
 
-                // 先获取当前条目和日期（在保存之前，因为saveEntry会关闭弹窗清理状态）
+                // 先保存当前条目的修改（待办、描述等）
                 const entry = adminData.calendarEntries[selectedDate]?.find(e => e.id === editingEntryId);
                 if (!entry) return;
+
+                // 保存当前编辑的内容到条目
+                entry.description = todosToMarkdown(currentTodos);
+                entry.tags = currentTags;
+                saveData();
+
                 const currentDateStr = selectedDate;
 
                 // 计算下一天日期（使用本地时间避免时区问题）
@@ -5522,9 +5528,15 @@
             try {
                 if (!selectedDate || !editingEntryId) return;
 
-                // 先获取当前条目和日期（在保存之前）
+                // 先保存当前条目的修改（待办、描述等）
                 const entry = adminData.calendarEntries[selectedDate]?.find(e => e.id === editingEntryId);
                 if (!entry) return;
+
+                // 保存当前编辑的内容到条目
+                entry.description = todosToMarkdown(currentTodos);
+                entry.tags = currentTags;
+                saveData();
+
                 const currentDateStr = selectedDate;
 
                 // 计算下一天日期（使用本地时间避免时区问题）
@@ -5971,6 +5983,10 @@
                 showToast('待办项不存在', 'error');
                 return;
             }
+
+            // 先保存当前条目的修改（标签等）
+            entry.tags = currentTags;
+            saveData();
 
             // 计算目标日期：下一天，如果是周五则下周一
             const currentDate = parseLocalDate(selectedDate);
