@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>修复日历条目不匹配</title>
+    <style>
+        body {
+            font-family: 'Noto Serif SC', serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #eae2d6;
+            padding: 40px;
+            min-height: 100vh;
+        }
+        h1 {
+            color: #c9a227;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(0,0,0,0.3);
+            padding: 30px;
+            border-radius: 12px;
+            border: 1px solid #c9a227;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 20px;
+            background: rgba(201, 162, 39, 0.05);
+            border-radius: 8px;
+            border-left: 4px solid #c9a227;
+        }
+        .btn {
+            background: linear-gradient(135deg, #c9a227 0%, #a88420 100%);
+            color: #1a1a2e;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            margin: 10px 5px;
+        }
+        .error { color: #ff6b6b; }
+        .success { color: #48dbfb; }
+        .warning { color: #feca57; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #333;
+        }
+        th {
+            background: rgba(201, 162, 39, 0.2);
+            color: #c9a227;
+        }
+        .problem { background: rgba(255, 107, 107, 0.2); }
+    </style>
+</head>
+<body>
+    <h1>修复日历条目不匹配</h1>
+    <div class="container">
+        <div class="section">
+            <h3>问题说明</h3>
+            <p>日历条目的checkpointId与实际检查项不匹配，导致拖动时判断错误</p>
+        </div>
+
+        <div style="text-align: center;">
+            <button class="btn" onclick="checkMismatch()">检查不匹配</button>
+            <button class="btn" onclick="fixMismatch()">修复不匹配</button>
+        </div>
+
+        <div id="result" class="result" style="display: none;"></div>
+    </div>
+
+    <script>
+        const STORAGE_KEY = 'lifeRpgAdminData';
+
+        function loadData() {
+            try {
+                const data = localStorage.getItem(STORAGE_KEY);
+                return data ? JSON.parse(data) : {};
+            } catch (e) {
+                console.error('加载数据失败:', e);
+                return {};
+            }
+        }
+
+        function saveData(data) {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+                return true;
+            } catch (e) {
+                console.error('保存数据失败:', e);
+                return false;
+            }
+        }
+
+        function checkMismatch() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.style.display = 'block';
+
+            const adminData = loadData();
+            const calendarEntries = adminData.calendarEntries || {};
+            const questLevels = adminData.questLevels || {};
+
+            let html = '<h3>检查结果</h3>';
+
+            // 建立checkpointId到检查项的映射
+            const checkpointMap = {};
+            Object.entries(questLevels).forEach(([questId, levels]) => {
+                levels.forEach(level => {
+                    const checkpoints = level.checkpoints || [];
+                    checkpoints.forEach(cp => {
+                        if (cp.id) {
+                            checkpointMap[cp.id] = {
+                                name: cp.name,
+                                levelName: level.name,
+                                levelId: level.id
+                            };
+                        }
+                    });
+                });
+            });
+
+            let mismatches = [];
+
+            Object.entries(calendarEntries).forEach(([date, entries]) => {
+                entries.forEach((entry, idx) => {
+                    if (entry.checkpointId && checkpointMap[entry.checkpointId]) {
+                        const realInfo = checkpointMap[entry.checkpointId];
+                        if (realInfo.name !== entry.checkpointName || 
+                            realInfo.levelName !== entry.levelName) {
+                            mismatches.push({
+                                date,
+                                idx,
+                                entry,
+                                realInfo
+                            });
+                        }
+                    }
+                });
+            });
+
+            if (mismatches.length === 0) {
+                html += '<p class="success">没有发现不匹配的条目</p>';
+            } else {
+                html += `<p class="error">发现 ${mismatches.length} 个不匹配的条目:</p>`;
+                html += '<table>';
+                html += '<tr><th>日期</th><th>条目中的名称</th><th>实际名称</th><th>条目中的关卡</th><th>实际关卡</th></tr>';
+                mismatches.forEach(m => {
+                    html += `<tr class="problem">
+                        <td>${m.date}</td>
+                        <td>${m.entry.checkpointName}</td>
+                        <td class="success">${m.realInfo.name}</td>
+                        <td>${m.entry.levelName}</td>
+                        <td class="success">${m.realInfo.levelName}</td>
+                    </tr>`;
+                });
+                html += '</table>';
+            }
+
+            resultDiv.innerHTML = html;
+        }
+
+        function fixMismatch() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.style.display = 'block';
+
+            const adminData = loadData();
+            const calendarEntries = adminData.calendarEntries || {};
+            const questLevels = adminData.questLevels || {};
+
+            let html = '<h3>修复结果</h3>';
+            let fixedCount = 0;
+
+            // 建立checkpointId到检查项的映射
+            const checkpointMap = {};
+            Object.entries(questLevels).forEach(([questId, levels]) => {
+                levels.forEach(level => {
+                    const checkpoints = level.checkpoints || [];
+                    checkpoints.forEach(cp => {
+                        if (cp.id) {
+                            checkpointMap[cp.id] = {
+                                name: cp.name,
+                                levelName: level.name,
+                                levelId: level.id
+                            };
+                        }
+                    });
+                });
+            });
+
+            Object.entries(calendarEntries).forEach(([date, entries]) => {
+                entries.forEach((entry) => {
+                    if (entry.checkpointId && checkpointMap[entry.checkpointId]) {
+                        const realInfo = checkpointMap[entry.checkpointId];
+                        if (realInfo.name !== entry.checkpointName || 
+                            realInfo.levelName !== entry.levelName) {
+                            html += `<p>修复 ${date}: "${entry.checkpointName}" -> "${realInfo.name}", 关卡: "${entry.levelName}" -> "${realInfo.levelName}"</p>`;
+                            entry.checkpointName = realInfo.name;
+                            entry.levelName = realInfo.levelName;
+                            entry.levelId = realInfo.levelId;
+                            fixedCount++;
+                        }
+                    }
+                });
+            });
+
+            if (fixedCount > 0) {
+                if (saveData(adminData)) {
+                    html += `<h4 class="success">修复完成！共修复 ${fixedCount} 个条目</h4>`;
+                    html += '<p>请刷新日历页面以应用更改。</p>';
+                } else {
+                    html += '<p class="error">保存失败</p>';
+                }
+            } else {
+                html += '<p class="success">没有需要修复的条目</p>';
+            }
+
+            resultDiv.innerHTML = html;
+        }
+
+        window.addEventListener('load', checkMismatch);
+    </script>
+</body>
+</html>

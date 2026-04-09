@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>清理空键</title>
+    <style>
+        body {
+            font-family: 'Noto Serif SC', serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #eae2d6;
+            padding: 40px;
+        }
+        .container { max-width: 600px; margin: 0 auto; text-align: center; }
+        h1 { color: #c9a227; }
+        .btn {
+            background: linear-gradient(135deg, #c9a227 0%, #a88420 100%);
+            color: #1a1a2e; border: none; padding: 12px 30px; border-radius: 6px;
+            cursor: pointer; font-size: 16px; font-weight: bold; margin: 20px;
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(201, 162, 39, 0.4); }
+        .result { margin-top: 20px; padding: 20px; background: rgba(0,0,0,0.3); border-radius: 8px; }
+        .ok { color: #48dbfb; }
+        .warn { color: #feca57; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>清理空键</h1>
+        <p>检测并删除 checkpointCompletions 中的空字符串键</p>
+        <button class="btn" onclick="checkAndFix()">检测并修复</button>
+        <div class="result" id="result"></div>
+    </div>
+
+    <script>
+        function checkAndFix() {
+            const data = JSON.parse(localStorage.getItem('lifeRpgAdminData') || '{}');
+            const result = document.getElementById('result');
+
+            const completions = data.checkpointCompletions || {};
+            const keys = Object.keys(completions);
+
+            let hasEmptyKey = keys.includes('');
+            let emptyKeyData = completions[''];
+
+            if (hasEmptyKey) {
+                // 删除空键
+                delete completions[''];
+                localStorage.setItem('lifeRpgAdminData', JSON.stringify(data));
+
+                result.innerHTML = `
+                    <p class="warn">发现空键，已删除</p>
+                    <p>空键对应的数据：${JSON.stringify(emptyKeyData)}</p>
+                    <p class="ok">✓ 修复完成</p>
+                `;
+            } else {
+                result.innerHTML = '<p class="ok">✓ 没有发现空键，数据正常</p>';
+            }
+        }
+    </script>
+</body>
+</html>

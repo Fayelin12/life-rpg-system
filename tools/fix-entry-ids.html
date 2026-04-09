@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>修复条目ID格式</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Noto Serif SC', serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #eae2d6;
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        .container { max-width: 1000px; margin: 0 auto; }
+        h1 { color: #c9a227; text-align: center; margin-bottom: 30px; }
+        .panel {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid #c9a227;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+        .panel h2 {
+            color: #c9a227;
+            font-size: 16px;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(201, 162, 39, 0.3);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+        th, td {
+            padding: 8px 10px;
+            text-align: left;
+            border-bottom: 1px solid rgba(201, 162, 39, 0.15);
+        }
+        th {
+            background: rgba(201, 162, 39, 0.1);
+            color: #c9a227;
+        }
+        tr:hover { background: rgba(201, 162, 39, 0.05); }
+        .mono { font-family: monospace; font-size: 11px; }
+        .old-id { color: #ff6b6b; text-decoration: line-through; }
+        .new-id { color: #48dbfb; }
+        .btn {
+            background: linear-gradient(135deg, #c9a227 0%, #a88420 100%);
+            color: #1a1a2e; border: none; padding: 12px 24px; border-radius: 6px;
+            cursor: pointer; font-size: 14px; font-weight: bold; margin: 5px;
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(201, 162, 39, 0.4); }
+        .btn-danger { background: linear-gradient(135deg, #d4634e 0%, #b8543e 100%); }
+        .btn-success { background: linear-gradient(135deg, #48dbfb 0%, #0abde3 100%); }
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: rgba(201, 162, 39, 0.05);
+            border: 1px solid rgba(201, 162, 39, 0.3);
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+        }
+        .stat-number { font-size: 28px; font-weight: bold; color: #c9a227; }
+        .stat-label { font-size: 11px; color: #8b7765; margin-top: 4px; }
+        .log {
+            background: #0f0f23; padding: 16px; border-radius: 6px;
+            font-size: 12px; max-height: 300px; overflow-y: auto; margin-top: 16px;
+        }
+        .log-item { padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .log-item.success { color: #48dbfb; }
+        .log-item.warning { color: #feca57; }
+        .log-item.error { color: #ff6b6b; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>修复条目ID格式</h1>
+
+        <div class="panel">
+            <h2>统计</h2>
+            <div class="summary" id="summary">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalEntries">-</div>
+                    <div class="stat-label">总记录数</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="numericCount">-</div>
+                    <div class="stat-label">纯数字ID</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="entryPrefixCount">-</div>
+                    <div class="stat-label">entry_前缀</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="correctCount">-</div>
+                    <div class="stat-label">正确格式</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2>需要修复的记录</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>日期</th>
+                        <th>检查项名称</th>
+                        <th>旧条目ID</th>
+                        <th>新条目ID</th>
+                        <th>状态</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+        </div>
+
+        <div class="panel">
+            <h2>操作</h2>
+            <button class="btn" onclick="analyze()">分析数据</button>
+            <button class="btn btn-success" onclick="fixAll()" id="fixBtn" style="display:none;">执行修复</button>
+            <button class="btn btn-danger" onclick="backup()" id="backupBtn" style="display:none;">备份数据</button>
+        </div>
+
+        <div class="panel hidden" id="logPanel">
+            <h2>执行日志</h2>
+            <div class="log" id="log"></div>
+        </div>
+    </div>
+
+    <script>
+        const STORAGE_KEY = 'lifeRpgAdminData';
+        let adminData = null;
+        let entriesToFix = [];
+
+        function loadData() {
+            return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+        }
+
+        function saveData() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(adminData));
+        }
+
+        function generateId() {
+            return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+        }
+
+        function addLog(msg, type = 'info') {
+            const log = document.getElementById('log');
+            const item = document.createElement('div');
+            item.className = `log-item ${type}`;
+            item.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            log.appendChild(item);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function getIdType(id) {
+            if (!id) return 'empty';
+            if (id.startsWith('entry_')) return 'entry_prefix';
+            if (/^\d+$/.test(id)) return 'numeric';
+            if (/^[a-z0-9]+$/.test(id) && /[a-z]/.test(id) && id.length >= 15) return 'correct';
+            return 'other';
+        }
+
+        function analyze() {
+            adminData = loadData();
+            entriesToFix = [];
+
+            let total = 0;
+            let numeric = 0;
+            let entryPrefix = 0;
+            let correct = 0;
+
+            const tbody = document.getElementById('tableBody');
+            let html = '';
+
+            Object.entries(adminData.calendarEntries || {}).forEach(([date, entries]) => {
+                entries.forEach(entry => {
+                    total++;
+                    const entryId = entry.id || '';
+                    const type = getIdType(entryId);
+
+                    if (type === 'numeric') numeric++;
+                    else if (type === 'entry_prefix') entryPrefix++;
+                    else if (type === 'correct') correct++;
+
+                    // 需要修复：纯数字 或 entry_前缀
+                    if (type === 'numeric' || type === 'entry_prefix') {
+                        const newId = generateId();
+                        entriesToFix.push({
+                            date,
+                            entryId: entry.id,
+                            newId,
+                            checkpointId: entry.checkpointId,
+                            name: entry.checkpointName
+                        });
+
+                        html += `
+                            <tr>
+                                <td>${date}</td>
+                                <td>${entry.checkpointName || ''}</td>
+                                <td class="mono old-id">${entryId}</td>
+                                <td class="mono new-id">${newId}</td>
+                                <td id="status-${entriesToFix.length - 1}">待修复</td>
+                            </tr>
+                        `;
+                    }
+                });
+            });
+
+            tbody.innerHTML = html || '<tr><td colspan="5" style="text-align:center;color:#48dbfb;">所有条目ID格式正确，无需修复</td></tr>';
+
+            // 更新统计
+            document.getElementById('totalEntries').textContent = total;
+            document.getElementById('numericCount').textContent = numeric;
+            document.getElementById('entryPrefixCount').textContent = entryPrefix;
+            document.getElementById('correctCount').textContent = correct;
+
+            // 显示按钮
+            document.getElementById('fixBtn').style.display = entriesToFix.length > 0 ? 'inline-block' : 'none';
+            document.getElementById('backupBtn').style.display = entriesToFix.length > 0 ? 'inline-block' : 'none';
+
+            document.getElementById('logPanel').classList.remove('hidden');
+            addLog(`分析完成：共 ${total} 条记录，${entriesToFix.length} 条需要修复`, entriesToFix.length > 0 ? 'warning' : 'success');
+        }
+
+        function backup() {
+            const blob = new Blob([JSON.stringify(adminData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `lifeRpgBackup_${new Date().toISOString().slice(0, 10)}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            addLog('数据备份已下载', 'success');
+        }
+
+        function fixAll() {
+            if (!confirm(`确认要修复 ${entriesToFix.length} 条记录的条目ID吗？\n\n修复前请先备份数据！`)) {
+                return;
+            }
+
+            addLog('开始修复...', 'warning');
+
+            let fixedCount = 0;
+            let errorCount = 0;
+
+            entriesToFix.forEach((item, idx) => {
+                try {
+                    const entries = adminData.calendarEntries[item.date];
+                    const entry = entries.find(e => e.id === item.entryId);
+
+                    if (!entry) {
+                        addLog(`${item.date}: 找不到条目 ${item.entryId}`, 'error');
+                        errorCount++;
+                        return;
+                    }
+
+                    const oldId = entry.id;
+                    entry.id = item.newId;
+
+                    // 同步更新 checkpointCompletions 中的 entryId
+                    const completions = adminData.checkpointCompletions?.[item.checkpointId] || [];
+                    const completion = completions.find(c => c.entryId === oldId);
+                    if (completion) {
+                        completion.entryId = item.newId;
+                    }
+
+                    // 更新状态显示
+                    const statusCell = document.getElementById(`status-${idx}`);
+                    if (statusCell) {
+                        statusCell.innerHTML = '<span style="color:#48dbfb;">已修复</span>';
+                    }
+
+                    addLog(`${item.date}: ${item.name} - ${oldId} → ${item.newId}`, 'success');
+                    fixedCount++;
+                } catch (e) {
+                    addLog(`${item.date}: 修复失败 - ${e.message}`, 'error');
+                    errorCount++;
+                }
+            });
+
+            // 保存数据
+            if (fixedCount > 0) {
+                saveData();
+                addLog(`修复完成！成功: ${fixedCount}, 失败: ${errorCount}`, 'success');
+                alert(`修复完成！\n成功: ${fixedCount} 条\n失败: ${errorCount} 条`);
+            }
+        }
+
+        // 页面加载时自动分析
+        window.onload = analyze;
+    </script>
+</body>
+</html>

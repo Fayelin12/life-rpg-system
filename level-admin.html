@@ -455,7 +455,7 @@
         function onLandmarkChange() {
             try {
                 const select = document.getElementById('selectLandmark');
-                currentLandmarkId = select.value ? parseInt(select.value) : null;
+                currentLandmarkId = select.value || null;
                 currentQuestId = null;
 
                 const questSelect = document.getElementById('selectQuest');
@@ -483,7 +483,7 @@
         function onQuestChange() {
             try {
                 const select = document.getElementById('selectQuest');
-                currentQuestId = select.value ? parseInt(select.value) : null;
+                currentQuestId = select.value || null;
 
                 if (currentQuestId) {
                     document.getElementById('levelManagement').classList.add('active');
@@ -523,7 +523,7 @@
                     document.getElementById('levelName').value = '';
                     document.getElementById('levelDifficulty').value = '3';
                     document.getElementById('levelTime').value = '1';
-                    checkpoints = [{ id: Date.now(), name: '', time: 1, completed: false }];
+                    checkpoints = [{ id: generateId(), name: '', time: 1, completed: false }];
                 }
                 renderCheckpoints();
                 form.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -562,12 +562,19 @@
         }
 
         /**
+         * 生成唯一ID
+         */
+        function generateId() {
+            return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+        }
+
+        /**
          * 添加检查点
          */
         function addCheckpoint() {
             try {
                 checkpoints.push({
-                    id: Date.now(),
+                    id: generateId(),
                     name: '',
                     time: 1,
                     completed: false
@@ -677,7 +684,7 @@
                     }
                 } else {
                     const level = {
-                        id: Date.now(),
+                        id: generateId(),
                         name: name,
                         difficulty: difficulty,
                         time: time,

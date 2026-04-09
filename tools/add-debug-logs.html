@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>添加拖动调试日志</title>
+    <style>
+        body {
+            font-family: 'Noto Serif SC', serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #eae2d6;
+            padding: 40px;
+            min-height: 100vh;
+        }
+        h1 {
+            color: #c9a227;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: rgba(0,0,0,0.3);
+            padding: 30px;
+            border-radius: 12px;
+            border: 1px solid #c9a227;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 20px;
+            background: rgba(201, 162, 39, 0.05);
+            border-radius: 8px;
+            border-left: 4px solid #c9a227;
+        }
+        .btn {
+            background: linear-gradient(135deg, #c9a227 0%, #a88420 100%);
+            color: #1a1a2e;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            margin: 10px 5px;
+        }
+        .success { color: #48dbfb; }
+        .error { color: #ff6b6b; }
+        .warning { color: #feca57; }
+        pre {
+            background: #0f0f23;
+            padding: 15px;
+            overflow-x: auto;
+            border-radius: 4px;
+        }
+        .code-block {
+            background: #0f0f23;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>添加拖动调试日志</h1>
+    <div class="container">
+        <div class="section">
+            <h3>修复说明</h3>
+            <p>根据代码评审，问题可能在于：</p>
+            <ul>
+                <li>拖动时 <code>checkpoint.id</code> 是空字符串 <code>""</code></li>
+                <li>日历中已存在的条目 <code>checkpointId</code> 也是空字符串</li>
+                <li>两个空字符串比较相等，导致误判为重复</li>
+            </ul>
+            <p class="warning">需要修改 calendar.html 中的两个地方：</p>
+            <ol>
+                <li><strong>renderScrollArchive()</strong> - 确保 data-cp-id 属性正确设置</li>
+                <li><strong>createCheckpointEntry()</strong> - 增强重复检查逻辑</li>
+            </ol>
+        </div>
+
+        <div style="text-align: center;">
+            <button class="btn" onclick="addDebugLogs()">添加调试代码</button>
+        </div>
+
+        <div id="result" class="result" style="display: none;"></div>
+    </div>
+
+    <script>
+        function addDebugLogs() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.style.display = 'block';
+
+            let html = '<h3>需要修改的代码</h3>';
+
+            // 修改1：renderScrollArchive
+            html += '<h4>修改 1: renderScrollArchive() - 确保ID正确传递</h4>';
+            html += '<div class="code-block">';
+            html += '<pre>' +
+                `// 原代码（约第3158行）：
+data-cp-id="${LifeRPG.security.escapeHtml(cp.id)}"
+
+// 确保 cp.id 始终有值
+const checkpointId = cp.id || generateId(); // 如果没有ID则生成
+data-cp-id="${LifeRPG.security.escapeHtml(checkpointId)}"` +
+                '</pre></div>';
+
+            // 修改2：createCheckpointEntry
+            html += '<h4>修改 2: createCheckpointEntry() - 增强重复检查</h4>';
+            html += '<div class="code-block">';
+            html += '<pre>' +
+                `function createCheckpointEntry(dateStr, checkpoint) {
+    const existingEntries = adminData.calendarEntries[dateStr] || [];
+
+    // 获取有效的检查项ID
+    const checkpointId = String(checkpoint.id || '');
+    
+    // 详细调试日志
+    console.group('[DuplicateCheck]');
+    console.log('拖动项:', checkpoint);
+    console.log('checkpoint.id:', checkpoint.id, '(类型:', typeof checkpoint.id + ')');
+    console.log('处理后ID:', checkpointId);
+    console.log('该日期已有条目数:', existingEntries.length);
+    existingEntries.forEach((entry, i) => {
+        console.log(\`  条目[\${i}] checkpointId: \${entry.checkpointId} (\${typeof entry.checkpointId}), 名称: \${entry.checkpointName}\`);
+    });
+    console.groupEnd();
+
+    // 增强的重复检查逻辑
+    const existingEntry = existingEntries.find(entry => {
+        const storedId = String(entry.checkpointId || '');
+        const isMatch = storedId === checkpointId && storedId !== '';
+        console.log(\`  比较: \${storedId} === \${checkpointId} => \${isMatch}\`);
+        return isMatch;
+    });
+
+    if (existingEntry) {
+        const msg = \`「\${checkpoint.name}」已在该日期存在（\${existingEntry.levelName}）\`;
+        showToast(msg, 'warning');
+        console.warn('[Duplicate] 详细对比:', {
+            dragging: {
+                id: checkpoint.id,
+                idType: typeof checkpoint.id,
+                name: checkpoint.name,
+                level: checkpoint.level
+            },
+            existing: {
+                id: existingEntry.checkpointId,
+                idType: typeof existingEntry.checkpointId,
+                name: existingEntry.checkpointName,
+                level: existingEntry.levelName
+            }
+        });
+        return false;
+    }
+
+    // ... 后续代码不变
+}` +
+                '</pre></div>';
+
+            html += '<h4>修改后的效果</h4>';
+            html += '<ul>';
+            html += '<li class="success">✅ 空ID不会误判为重复（因为检查 <code>storedId !== \'\'</code>）</li>';
+            html += '<li class="success">✅ 控制台会显示详细的比较日志</li>';
+            html += '<li class="success">✅ 错误信息更清晰</li>';
+            html += '</ul>';
+
+            html += '<h4>应用修改</h4>';
+            html += '<p>由于需要修改 calendar.html 文件，我可以帮你应用这些修改。</p>';
+            html += '<p class="warning">请确认是否要修改文件？</p>';
+
+            resultDiv.innerHTML = html;
+        }
+
+        window.addEventListener('load', addDebugLogs);
+    </script>
+</body>
+</html>

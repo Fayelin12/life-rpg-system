@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>检查条目ID编码</title>
+    <style>
+        body {
+            font-family: 'Noto Serif SC', serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #eae2d6;
+            padding: 40px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { color: #c9a227; text-align: center; }
+        .panel {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid #c9a227;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+        th, td {
+            padding: 8px 10px;
+            text-align: left;
+            border-bottom: 1px solid rgba(201, 162, 39, 0.15);
+        }
+        th {
+            background: rgba(201, 162, 39, 0.1);
+            color: #c9a227;
+        }
+        tr:hover { background: rgba(201, 162, 39, 0.05); }
+        .ok { color: #48dbfb; }
+        .warn { color: #feca57; }
+        .error { color: #ff6b6b; }
+        .mono { font-family: monospace; font-size: 11px; }
+        .btn {
+            background: linear-gradient(135deg, #c9a227 0%, #a88420 100%);
+            color: #1a1a2e; border: none; padding: 12px 24px; border-radius: 6px;
+            cursor: pointer; font-size: 14px; font-weight: bold; margin: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>检查条目ID编码</h1>
+
+        <div class="panel">
+            <h2>统计</h2>
+            <div id="stats"></div>
+        </div>
+
+        <div class="panel">
+            <h2>所有日历记录</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>日期</th>
+                        <th>条目ID</th>
+                        <th>ID长度</th>
+                        <th>字符类型</th>
+                        <th>检查项ID</th>
+                        <th>检查项名称</th>
+                        <th>状态</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const STORAGE_KEY = 'lifeRpgAdminData';
+
+        function loadData() {
+            return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+        }
+
+        function analyzeEntryId(id) {
+            if (!id) return { type: '空', length: 0, chars: '无' };
+
+            const length = id.length;
+            const hasNumber = /\d/.test(id);
+            const hasLower = /[a-z]/.test(id);
+            const hasUpper = /[A-Z]/.test(id);
+            const hasSpecial = /[^a-zA-Z0-9]/.test(id);
+
+            let chars = [];
+            if (hasNumber) chars.push('数字');
+            if (hasLower) chars.push('小写字母');
+            if (hasUpper) chars.push('大写字母');
+            if (hasSpecial) chars.push('特殊字符');
+
+            // 判断ID类型
+            let type = '未知';
+            if (/^\d+$/.test(id)) {
+                type = '纯数字';
+            } else if (/^[a-z0-9]+$/.test(id)) {
+                type = '小写+数字';
+            } else if (/^[a-zA-Z0-9]+$/.test(id)) {
+                type = '字母+数字';
+            } else {
+                type = '含特殊字符';
+            }
+
+            return { type, length, chars: chars.join('+') || '无' };
+        }
+
+        function analyze() {
+            const data = loadData();
+            const tbody = document.getElementById('tableBody');
+            const statsDiv = document.getElementById('stats');
+
+            let total = 0;
+            let typeStats = {};
+            let lengthStats = {};
+
+            let html = '';
+
+            Object.entries(data.calendarEntries || {}).forEach(([date, entries]) => {
+                entries.forEach(entry => {
+                    total++;
+                    const entryId = entry.id || '';
+                    const analysis = analyzeEntryId(entryId);
+
+                    // 统计
+                    typeStats[analysis.type] = (typeStats[analysis.type] || 0) + 1;
+                    lengthStats[analysis.length] = (lengthStats[analysis.length] || 0) + 1;
+
+                    // 判断状态
+                    let status = '<span class="ok">正常</span>';
+                    if (!entryId) {
+                        status = '<span class="error">空ID</span>';
+                    } else if (analysis.length < 10) {
+                        status = '<span class="warn">短ID</span>';
+                    } else if (analysis.type === '含特殊字符') {
+                        status = '<span class="warn">特殊字符</span>';
+                    }
+
+                    html += `
+                        <tr>
+                            <td>${date}</td>
+                            <td class="mono">${entryId || '(空)'}</td>
+                            <td>${analysis.length}</td>
+                            <td>${analysis.chars}</td>
+                            <td class="mono">${entry.checkpointId || ''}</td>
+                            <td>${entry.checkpointName || ''}</td>
+                            <td>${status}</td>
+                        </tr>
+                    `;
+                });
+            });
+
+            tbody.innerHTML = html;
+
+            // 显示统计
+            let statsHtml = `<p>总记录数: <strong>${total}</strong></p>`;
+            statsHtml += '<p>ID类型分布:</p><ul>';
+            Object.entries(typeStats).forEach(([type, count]) => {
+                statsHtml += `<li>${type}: ${count} 条</li>`;
+            });
+            statsHtml += '</ul>';
+
+            statsDiv.innerHTML = statsHtml;
+        }
+
+        window.onload = analyze;
+    </script>
+</body>
+</html>

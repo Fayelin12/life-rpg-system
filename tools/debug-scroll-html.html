@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>调试卷轴库HTML输出</title>
+    <style>
+        body {
+            font-family: 'Noto Serif SC', serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #eae2d6;
+            padding: 40px;
+            font-size: 13px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { color: #c9a227; text-align: center; }
+        .panel {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid #c9a227;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+        .panel h2 {
+            color: #c9a227;
+            font-size: 16px;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(201, 162, 39, 0.3);
+        }
+        pre {
+            background: #0f0f23;
+            padding: 16px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-size: 11px;
+            line-height: 1.6;
+        }
+        .highlight { background: rgba(201, 162, 39, 0.2); padding: 2px 4px; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>卷轴库HTML输出调试</h1>
+
+        <div class="panel">
+            <h2>生成的HTML（搜索"用户服务体验支撑"）</h2>
+            <pre id="htmlOutput"></pre>
+        </div>
+    </div>
+
+    <script>
+        const STORAGE_KEY = 'lifeRpgAdminData';
+
+        function loadData() {
+            return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function markdownToTodos(markdown) {
+            if (!markdown) return [];
+            const lines = markdown.split('\n');
+            const todos = [];
+            lines.forEach(line => {
+                const match = line.match(/^- \[([ xX])\] (.+)$/);
+                if (match) {
+                    todos.push({
+                        text: match[2].trim(),
+                        completed: match[1].toLowerCase() === 'x'
+                    });
+                }
+            });
+            return todos;
+        }
+
+        function getCheckpointHistory(checkpointId, data) {
+            return data.checkpointCompletions?.[checkpointId] || [];
+        }
+
+        function getCheckpointArchiveDate(checkpointId, data) {
+            const history = data.checkpointCompletions?.[checkpointId] || [];
+            const archived = history.find(h => h.archived);
+            return archived ? archived.date : null;
+        }
+
+        function generateId() {
+            return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+        }
+
+        function renderScrollArchiveDebug(data) {
+            let html = '';
+
+            (data.landmarks || []).forEach(landmark => {
+                const quests = data.landmarkQuests?.[landmark.id] || [];
+                if (quests.length === 0) return;
+
+                html += `<!-- 地标: ${landmark.name} -->\n`;
+                html += `<div class="landmark-tome" data-landmark="${landmark.id}">\n`;
+
+                quests.forEach(quest => {
+                    if (!quest.id) return;
+
+                    const levels = data.questLevels?.[quest.id] || [];
+
+                    levels.forEach(level => {
+                        if (!level.id) return;
+
+                        html += `  <!-- 任务: ${quest.name}, 关卡: ${level.name} -->\n`;
+
+                        level.checkpoints.forEach((cp, idx) => {
+                            // 确保 cp.id 有效
+                            if (!cp.id || cp.id === '') {
+                                html += `  <!-- 检查项 "${cp.name}" 缺少ID，已生成新ID -->\n`;
+                                return;
+                            }
+
+                            const archiveDate = getCheckpointArchiveDate(cp.id, data);
+                            const isArchived = !!archiveDate;
+                            const history = getCheckpointHistory(cp.id, data);
+                            const actualDays = history.length;
+                            const isLevelCheckpointCompleted = cp.completed === true;
+
+                            // 检查待办完成情况
+                            let isAllTodosCompleted = false;
+                            let hasUncompletedTodos = false;
+                            if (history.length > 0) {
+                                isAllTodosCompleted = history.every(h => {
+                                    const entries = data.calendarEntries?.[h.date] || [];
+                                    const entry = entries.find(e => String(e.checkpointId) === String(cp.id));
+                                    if (entry?.description) {
+                                        const todos = markdownToTodos(entry.description);
+                                        return todos.length > 0 && todos.every(t => t.completed);
+                                    }
+                                    return false;
+                                });
+                                history.forEach(h => {
+                                    const entries = data.calendarEntries?.[h.date] || [];
+                                    const entry = entries.find(e => String(e.checkpointId) === String(cp.id));
+                                    if (entry?.description) {
+                                        const todos = markdownToTodos(entry.description);
+                                        if (todos.some(t => !t.completed)) {
+                                            hasUncompletedTodos = true;
+                                        }
+                                    }
+                                });
+                            }
+
+                            // 判断是否显示
+                            let isCompletedOrArchived = false;
+                            let statusText = '未开始';
+
+                            if (isArchived) {
+                                isCompletedOrArchived = true;
+                                statusText = '已归档';
+                            } else if (isLevelCheckpointCompleted || (isAllTodosCompleted && actualDays > 0)) {
+                                isCompletedOrArchived = true;
+                                statusText = '已完成';
+                            } else if (actualDays > 0 || hasUncompletedTodos) {
+                                statusText = '进行中 ' + actualDays + '天';
+                            }
+
+                            if (isCompletedOrArchived) {
+                                html += `  <!-- 检查项 "${cp.name}" 被隐藏 (${statusText}) -->\n`;
+                                return;
+                            }
+
+                            // 生成检查项HTML
+                            html += `  <div class="checkpoint-parchment" data-cp-id="${escapeHtml(cp.id)}">\n`;
+                            html += `    ${escapeHtml(cp.name)} - ${statusText}\n`;
+                            html += `  </div>\n`;
+                        });
+                    });
+                });
+
+                html += `</div>\n`;
+            });
+
+            return html;
+        }
+
+        function debug() {
+            const data = loadData();
+            const html = renderScrollArchiveDebug(data);
+
+            // 高亮"用户服务体验支撑"
+            const highlightedHtml = html.replace(
+                /(用户服务体验支撑|部分蓝牌|扣费异常)/g,
+                '<span class="highlight">$1</span>'
+            );
+
+            document.getElementById('htmlOutput').innerHTML = highlightedHtml;
+        }
+
+        window.onload = debug;
+    </script>
+</body>
+</html>

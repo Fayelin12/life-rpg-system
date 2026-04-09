@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>日历数据诊断工具 | 人生开放系统</title>
+    <link rel="stylesheet" href="common.css">
+    <script src="common.js"></script>
+    <style>
+        body {
+            padding: 40px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        .header h1 {
+            font-family: var(--font-display);
+            font-size: 32px;
+            color: var(--accent-gold);
+            margin-bottom: 10px;
+        }
+        .panel {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+        .panel h2 {
+            font-family: var(--font-display);
+            font-size: 18px;
+            color: var(--accent-gold);
+            margin-bottom: 20px;
+        }
+        .filter-bar {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .filter-bar input, .filter-bar select {
+            padding: 10px 15px;
+            background: var(--bg-deep);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+        .filter-bar button {
+            padding: 10px 20px;
+            background: var(--gradient-gold);
+            border: none;
+            border-radius: 6px;
+            color: var(--bg-deep);
+            font-family: var(--font-display);
+            cursor: pointer;
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        .data-table th {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+        .data-table td {
+            padding: 12px;
+            border-bottom: 1px solid var(--border-gold);
+            vertical-align: top;
+        }
+        .data-table tr:hover {
+            background: var(--bg-elevated);
+        }
+        .id-cell {
+            font-family: monospace;
+            font-size: 11px;
+            color: var(--text-muted);
+            max-width: 150px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .checkpoint-name {
+            color: var(--accent-gold);
+            font-weight: 500;
+        }
+        .level-name {
+            color: var(--accent-magic);
+        }
+        .date-cell {
+            font-family: var(--font-display);
+            color: var(--accent-mist);
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .stat-box {
+            background: var(--bg-deep);
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--accent-gold);
+        }
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 5px;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 60px;
+            color: var(--text-muted);
+        }
+        .highlight {
+            background: rgba(201, 162, 39, 0.2) !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-texture"></div>
+
+    <div class="header">
+        <h1>📅 日历数据诊断工具</h1>
+        <p>查看和分析日历中的所有检查项记录</p>
+    </div>
+
+    <div class="panel">
+        <h2>📊 统计概览</h2>
+        <div class="stats" id="stats">
+            <div class="stat-box">
+                <div class="stat-value" id="totalDates">0</div>
+                <div class="stat-label">有记录的日期</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value" id="totalEntries">0</div>
+                <div class="stat-label">总记录数</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value" id="uniqueCheckpoints">0</div>
+                <div class="stat-label">唯一检查点</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value" id="uniqueLevels">0</div>
+                <div class="stat-label">关卡数</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="panel" id="conflictPanel" style="display: none; border-color: var(--accent-ember);">
+        <h2 style="color: var(--accent-ember);">⚠️ 发现ID冲突</h2>
+        <div id="conflictList"></div>
+    </div>
+
+    <div class="panel">
+        <h2>🔍 记录列表</h2>
+        <div class="filter-bar">
+            <input type="text" id="searchName" placeholder="搜索检查点名称...">
+            <input type="text" id="searchLevel" placeholder="搜索关卡名称...">
+            <input type="date" id="searchDate" placeholder="选择日期">
+            <button onclick="loadData()">刷新数据</button>
+        </div>
+
+        <div id="dataContainer">
+            <div class="empty-state">
+                <div style="font-size: 48px; margin-bottom: 15px;">📊</div>
+                <div>点击"刷新数据"加载日历记录</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let adminData = {};
+        let allEntries = [];
+
+        function loadData() {
+            try {
+                const saved = LifeRPG.data.load();
+                if (saved) {
+                    adminData = saved;
+                }
+                processData();
+            } catch (error) {
+                console.error('加载数据失败:', error);
+            }
+        }
+
+        function processData() {
+            const calendarEntries = adminData.calendarEntries || {};
+            const questLevels = adminData.questLevels || {};
+
+            allEntries = [];
+            const checkpointIds = new Set();
+            const levelIds = new Set();
+
+            // 收集所有记录
+            Object.keys(calendarEntries).forEach(dateStr => {
+                const entries = calendarEntries[dateStr];
+                entries.forEach(entry => {
+                    allEntries.push({
+                        ...entry,
+                        date: dateStr
+                    });
+                    checkpointIds.add(entry.checkpointId);
+                    levelIds.add(entry.levelId);
+                });
+            });
+
+            // 更新统计
+            document.getElementById('totalDates').textContent = Object.keys(calendarEntries).length;
+            document.getElementById('totalEntries').textContent = allEntries.length;
+            document.getElementById('uniqueCheckpoints').textContent = checkpointIds.size;
+            document.getElementById('uniqueLevels').textContent = levelIds.size;
+
+            // 检查ID冲突（同一个ID对应不同名称的检查点）
+            checkIdConflicts();
+
+            renderTable();
+        }
+
+        function renderTable() {
+            const searchName = document.getElementById('searchName').value.toLowerCase();
+            const searchLevel = document.getElementById('searchLevel').value.toLowerCase();
+            const searchDate = document.getElementById('searchDate').value;
+
+            // 过滤数据
+            let filtered = allEntries;
+            if (searchName) {
+                filtered = filtered.filter(e => e.checkpointName && e.checkpointName.toLowerCase().includes(searchName));
+            }
+            if (searchLevel) {
+                filtered = filtered.filter(e => e.levelName && e.levelName.toLowerCase().includes(searchLevel));
+            }
+            if (searchDate) {
+                filtered = filtered.filter(e => e.date === searchDate);
+            }
+
+            // 按日期排序
+            filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            const container = document.getElementById('dataContainer');
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div style="font-size: 48px; margin-bottom: 15px;">🔍</div>
+                        <div>没有找到匹配的记录</div>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = `
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>日期</th>
+                            <th>检查点ID</th>
+                            <th>检查点名称</th>
+                            <th>关卡</th>
+                            <th>任务</th>
+                            <th>地标</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${filtered.map(entry => `
+                            <tr>
+                                <td class="date-cell">${entry.date}</td>
+                                <td class="id-cell" title="${entry.checkpointId}">${entry.checkpointId}</td>
+                                <td class="checkpoint-name">${entry.checkpointName || '未命名'}</td>
+                                <td class="level-name">${entry.levelName || '-'}</td>
+                                <td>${entry.questName || '-'}</td>
+                                <td>${entry.landmarkName || '-'}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        // 检查ID冲突
+        function checkIdConflicts() {
+            const idNameMap = new Map(); // id -> Set of names
+
+            allEntries.forEach(entry => {
+                if (!idNameMap.has(entry.checkpointId)) {
+                    idNameMap.set(entry.checkpointId, new Set());
+                }
+                idNameMap.get(entry.checkpointId).add(entry.checkpointName);
+            });
+
+            const conflicts = [];
+            idNameMap.forEach((names, id) => {
+                if (names.size > 1) {
+                    conflicts.push({ id, names: Array.from(names) });
+                }
+            });
+
+            const conflictPanel = document.getElementById('conflictPanel');
+            const conflictList = document.getElementById('conflictList');
+
+            if (conflicts.length > 0) {
+                conflictPanel.style.display = 'block';
+                conflictList.innerHTML = conflicts.map(c => `
+                    <div style="background: var(--bg-deep); padding: 15px; border-radius: 6px; margin-bottom: 10px;">
+                        <div style="font-family: monospace; font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">ID: ${c.id}</div>
+                        <div style="color: var(--accent-ember); font-weight: 500;">同一个ID被多个检查点使用：</div>
+                        <ul style="margin-left: 20px; margin-top: 8px; line-height: 1.8;">
+                            ${c.names.map(n => `<li>${n}</li>`).join('')}
+                        </ul>
+                    </div>
+                `).join('');
+            } else {
+                conflictPanel.style.display = 'none';
+            }
+        }
+
+        // 监听过滤器变化
+        document.getElementById('searchName').addEventListener('input', renderTable);
+        document.getElementById('searchLevel').addEventListener('input', renderTable);
+        document.getElementById('searchDate').addEventListener('change', renderTable);
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', loadData);
+    </script>
+</body>
+</html>

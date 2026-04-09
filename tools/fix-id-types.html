@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>统一ID类型 - 全部转为字符串</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Noto Serif SC', serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #eae2d6;
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        .container { max-width: 1000px; margin: 0 auto; }
+        h1 { color: #c9a227; text-align: center; margin-bottom: 30px; }
+        .panel {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid #c9a227;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+        .panel h2 {
+            color: #c9a227;
+            font-size: 16px;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(201, 162, 39, 0.3);
+        }
+        .btn {
+            background: linear-gradient(135deg, #c9a227 0%, #a88420 100%);
+            color: #1a1a2e; border: none; padding: 12px 24px; border-radius: 6px;
+            cursor: pointer; font-size: 14px; font-weight: bold; margin: 5px;
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(201, 162, 39, 0.4); }
+        .btn-danger { background: linear-gradient(135deg, #d4634e 0%, #b8543e 100%); }
+        .btn-success { background: linear-gradient(135deg, #48dbfb 0%, #0abde3 100%); }
+        .log {
+            background: #0f0f23; padding: 16px; border-radius: 6px;
+            font-size: 12px; max-height: 400px; overflow-y: auto; margin-top: 16px;
+        }
+        .log-item { padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .log-item.success { color: #48dbfb; }
+        .log-item.warning { color: #feca57; }
+        .log-item.error { color: #ff6b6b; }
+        .log-item.info { color: #8b7765; }
+        .hidden { display: none; }
+        pre { background: #0f0f23; padding: 16px; border-radius: 6px; font-size: 12px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>统一ID类型</h1>
+
+        <div class="panel">
+            <h2>问题分析</h2>
+            <p>当前数据中ID类型混乱：</p>
+            <ul style="margin: 12px 0 12px 24px; line-height: 1.8;">
+                <li>地标ID：<span style="color:#ff6b6b;">数字</span>（如 1775197583614）</li>
+                <li>任务ID：<span style="color:#ff6b6b;">数字</span>（如 1775199267334）</li>
+                <li>关卡ID：<span style="color:#ff6b6b;">数字</span>（如 1775200856627）</li>
+                <li>检查项ID：<span style="color:#ff6b6b;">数字</span>（如 1775200808485）</li>
+                <li>但作为对象键时是<span style="color:#48dbfb;">字符串</span></li>
+            </ul>
+            <p>这导致遍历查找时类型不匹配，返回 undefined，进而生成重复ID。</p>
+        </div>
+
+        <div class="panel">
+            <h2>修复方案</h2>
+            <p>将所有ID统一转为<strong>字符串类型</strong>，包括：</p>
+            <ol style="margin: 12px 0 12px 24px; line-height: 1.8;">
+                <li>landmarks[].id</li>
+                <li>landmarkQuests 的键和任务ID</li>
+                <li>questLevels 的键和关卡ID</li>
+                <li>检查项ID</li>
+                <li>日历记录中的 checkpointId</li>
+                <li>checkpointCompletions 的键</li>
+            </ol>
+        </div>
+
+        <div class="panel">
+            <h2>操作</h2>
+            <button class="btn" onclick="analyze()">分析数据</button>
+            <button class="btn btn-success" onclick="executeFix()" id="fixBtn" style="display:none;">执行修复</button>
+            <button class="btn btn-danger" onclick="backup()" id="backupBtn" style="display:none;">备份数据</button>
+        </div>
+
+        <div class="panel hidden" id="logPanel">
+            <h2>执行日志</h2>
+            <div class="log" id="log"></div>
+        </div>
+
+        <div class="panel hidden" id="previewPanel">
+            <h2>修复预览</h2>
+            <pre id="preview"></pre>
+        </div>
+    </div>
+
+    <script>
+        const STORAGE_KEY = 'lifeRpgAdminData';
+        let adminData = null;
+        let backupData = null;
+
+        function loadData() {
+            return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+        }
+
+        function saveData(data) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        }
+
+        function addLog(msg, type = 'info') {
+            const log = document.getElementById('log');
+            const item = document.createElement('div');
+            item.className = `log-item ${type}`;
+            item.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            log.appendChild(item);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function analyze() {
+            adminData = loadData();
+            if (!adminData.landmarks) {
+                alert('数据为空');
+                return;
+            }
+
+            document.getElementById('logPanel').classList.remove('hidden');
+            addLog('开始分析...', 'warning');
+
+            let issues = [];
+
+            // 检查 landmarks
+            (adminData.landmarks || []).forEach(lm => {
+                if (typeof lm.id === 'number') {
+                    issues.push(`地标 "${lm.name}" ID是数字: ${lm.id}`);
+                }
+            });
+
+            // 检查 landmarkQuests
+            Object.entries(adminData.landmarkQuests || {}).forEach(([lmId, quests]) => {
+                quests.forEach(q => {
+                    if (typeof q.id === 'number') {
+                        issues.push(`任务 "${q.name}" ID是数字: ${q.id}`);
+                    }
+                });
+            });
+
+            // 检查 questLevels
+            Object.entries(adminData.questLevels || {}).forEach(([questId, levels]) => {
+                levels.forEach(lv => {
+                    if (typeof lv.id === 'number') {
+                        issues.push(`关卡 "${lv.name}" ID是数字: ${lv.id}`);
+                    }
+                    (lv.checkpoints || []).forEach(cp => {
+                        if (typeof cp.id === 'number') {
+                            issues.push(`检查项 "${cp.name}" ID是数字: ${cp.id}`);
+                        }
+                    });
+                });
+            });
+
+            // 检查日历记录
+            Object.entries(adminData.calendarEntries || {}).forEach(([date, entries]) => {
+                entries.forEach(entry => {
+                    if (typeof entry.checkpointId === 'number') {
+                        issues.push(`日历 ${date} checkpointId是数字: ${entry.checkpointId}`);
+                    }
+                });
+            });
+
+            // 检查 checkpointCompletions - 检查原始存储的键（通过JSON序列化）
+            const completionsStr = JSON.stringify(adminData.checkpointCompletions || {});
+            const hasNumericKeys = completionsStr.includes('"1775') || completionsStr.match(/:\d{10,}/);
+            if (hasNumericKeys) {
+                issues.push(`checkpointCompletions 包含数字键（需要重建对象）`);
+            }
+
+            addLog(`分析完成：发现 ${issues.length} 个ID类型问题`, issues.length > 0 ? 'warning' : 'success');
+
+            if (issues.length > 0) {
+                issues.forEach(issue => addLog('  - ' + issue, 'info'));
+                document.getElementById('fixBtn').style.display = 'inline-block';
+                document.getElementById('backupBtn').style.display = 'inline-block';
+            } else {
+                addLog('所有ID已是字符串类型，无需修复', 'success');
+            }
+        }
+
+        function backup() {
+            backupData = JSON.parse(JSON.stringify(adminData));
+            const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `lifeRpgBackup_${new Date().toISOString().slice(0, 10)}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            addLog('数据已备份', 'success');
+        }
+
+        function toStr(id) {
+            return id === null || id === undefined ? id : String(id);
+        }
+
+        function executeFix() {
+            if (!confirm(`确认要修复所有ID为字符串类型吗？\n\n修复前请先备份数据！`)) {
+                return;
+            }
+
+            document.getElementById('logPanel').classList.remove('hidden');
+            addLog('开始修复...', 'warning');
+
+            let fixedCount = 0;
+
+            // 1. 修复 landmarks
+            (adminData.landmarks || []).forEach(lm => {
+                if (typeof lm.id === 'number') {
+                    lm.id = toStr(lm.id);
+                    fixedCount++;
+                    addLog(`地标 "${lm.name}" ID: ${lm.id}`, 'success');
+                }
+            });
+
+            // 2. 修复 landmarkQuests - 需要重建对象
+            const newLandmarkQuests = {};
+            Object.entries(adminData.landmarkQuests || {}).forEach(([lmId, quests]) => {
+                const strLmId = toStr(lmId);
+                newLandmarkQuests[strLmId] = quests.map(q => {
+                    if (typeof q.id === 'number') {
+                        q.id = toStr(q.id);
+                        fixedCount++;
+                    }
+                    return q;
+                });
+            });
+            adminData.landmarkQuests = newLandmarkQuests;
+
+            // 3. 修复 questLevels - 需要重建对象
+            const newQuestLevels = {};
+            Object.entries(adminData.questLevels || {}).forEach(([questId, levels]) => {
+                const strQuestId = toStr(questId);
+                newQuestLevels[strQuestId] = levels.map(lv => {
+                    if (typeof lv.id === 'number') {
+                        lv.id = toStr(lv.id);
+                        fixedCount++;
+                    }
+                    lv.checkpoints = (lv.checkpoints || []).map(cp => {
+                        if (typeof cp.id === 'number') {
+                            cp.id = toStr(cp.id);
+                            fixedCount++;
+                        }
+                        return cp;
+                    });
+                    return lv;
+                });
+            });
+            adminData.questLevels = newQuestLevels;
+
+            // 4. 修复日历记录中的 checkpointId
+            Object.entries(adminData.calendarEntries || {}).forEach(([date, entries]) => {
+                entries.forEach(entry => {
+                    if (typeof entry.checkpointId === 'number') {
+                        entry.checkpointId = toStr(entry.checkpointId);
+                        fixedCount++;
+                    }
+                });
+            });
+
+            // 5. 修复 checkpointCompletions - 需要重建对象（修复键的类型）
+            const newCompletions = {};
+            Object.entries(adminData.checkpointCompletions || {}).forEach(([cpId, completions]) => {
+                const strCpId = toStr(cpId);
+                newCompletions[strCpId] = completions;
+                if (cpId !== strCpId) {
+                    fixedCount++;
+                    addLog(`checkpointCompletions 键: ${cpId} → ${strCpId}`, 'success');
+                }
+            });
+            adminData.checkpointCompletions = newCompletions;
+
+            // 保存
+            saveData(adminData);
+            addLog(`修复完成！共转换 ${fixedCount} 个ID`, 'success');
+            alert(`修复完成！\n共转换 ${fixedCount} 个ID为字符串类型`);
+        }
+    </script>
+</body>
+</html>

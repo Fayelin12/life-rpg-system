@@ -192,6 +192,13 @@
         };
 
         /**
+         * 生成唯一ID
+         */
+        function generateId() {
+            return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+        }
+
+        /**
          * 初始化
          */
         function init() {
@@ -334,7 +341,7 @@
                 }
 
                 const newTag = {
-                    id: Date.now(),
+                    id: generateId(),
                     name: name,
                     icon: icon,
                     desc: desc
@@ -560,7 +567,7 @@
                 }
 
                 const newLandmark = {
-                    id: Date.now(),
+                    id: generateId(),
                     name: name,
                     icon: icon,
                     type: type,

@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>检查卷轴库DOM</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Noto Serif SC', serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #eae2d6;
+            min-height: 100vh;
+        }
+        .sanctum-layout {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            height: 100vh;
+        }
+        .scroll-archive {
+            background: #121216;
+            border-right: 1px solid #c9a227;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .archive-header {
+            padding: 24px 20px 16px;
+            border-bottom: 1px solid #c9a227;
+        }
+        .archive-title {
+            font-size: 14px;
+            letter-spacing: 3px;
+            color: #c9a227;
+        }
+        .scroll-collection {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+        .landmark-tome {
+            margin-bottom: 16px;
+            border: 1px solid #c9a227;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .tome-header {
+            padding: 12px 14px;
+            background: rgba(201, 162, 39, 0.05);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .tome-title { font-size: 13px; color: #eae2d6; }
+        .tome-toggle { color: #8b7765; font-size: 12px; }
+        .landmark-tome.collapsed .tome-toggle {
+            transform: rotate(-90deg);
+        }
+        .tome-content {
+            max-height: none;
+            overflow: visible;
+        }
+        .landmark-tome.collapsed .tome-content {
+            max-height: 0;
+            overflow: hidden;
+        }
+        .quest-scroll {
+            padding: 12px 14px;
+            border-bottom: 1px solid #c9a227;
+        }
+        .quest-name {
+            font-size: 12px;
+            color: #8b7765;
+            margin-bottom: 10px;
+            padding-left: 8px;
+            border-left: 2px solid #c9a227;
+        }
+        .checkpoint-parchment {
+            background: #1a1a2e;
+            border: 1px solid #c9a227;
+            border-radius: 6px;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            cursor: grab;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .parchment-text { flex: 1; font-size: 13px; }
+        .parchment-days {
+            font-size: 11px;
+            color: #8b7765;
+            background: rgba(201, 162, 39, 0.1);
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+        .main-content {
+            padding: 40px;
+            overflow: auto;
+        }
+        .btn {
+            background: linear-gradient(135deg, #c9a227 0%, #a88420 100%);
+            color: #1a1a2e;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        #domInspector {
+            background: #0f0f23;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            max-height: 500px;
+            overflow: auto;
+        }
+        .highlight { background: rgba(201, 162, 39, 0.3); padding: 2px 4px; }
+    </style>
+</head>
+<body>
+    <div class="sanctum-layout">
+        <!-- 左侧卷轴库 -->
+        <div class="scroll-archive">
+            <div class="archive-header">
+                <div class="archive-title">📜 待分配卷轴</div>
+            </div>
+            <div class="scroll-collection" id="scrollCollection"></div>
+        </div>
+
+        <!-- 右侧检查区 -->
+        <div class="main-content">
+            <h1 style="color: #c9a227; margin-bottom: 20px;">DOM结构检查</h1>
+            <button class="btn" onclick="inspectDOM()">检查DOM结构</button>
+            <div id="domInspector"></div>
+        </div>
+    </div>
+
+    <script>
+        const STORAGE_KEY = 'lifeRpgAdminData';
+
+        function loadData() {
+            return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function markdownToTodos(markdown) {
+            if (!markdown) return [];
+            const lines = markdown.split('\n');
+            const todos = [];
+            lines.forEach(line => {
+                const match = line.match(/^- \[([ xX])\] (.+)$/);
+                if (match) {
+                    todos.push({
+                        text: match[2].trim(),
+                        completed: match[1].toLowerCase() === 'x'
+                    });
+                }
+            });
+            return todos;
+        }
+
+        function getCheckpointHistory(checkpointId, data) {
+            return data.checkpointCompletions?.[checkpointId] || [];
+        }
+
+        function getCheckpointArchiveDate(checkpointId, data) {
+            const history = data.checkpointCompletions?.[checkpointId] || [];
+            const archived = history.find(h => h.archived);
+            return archived ? archived.date : null;
+        }
+
+        function generateId() {
+            return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+        }
+
+        function renderScrollArchive() {
+            const data = loadData();
+            const container = document.getElementById('scrollCollection');
+            let html = '';
+
+            (data.landmarks || []).forEach(landmark => {
+                const quests = data.landmarkQuests?.[landmark.id] || [];
+                if (quests.length === 0) return;
+
+                html += `
+                    <div class="landmark-tome" data-landmark="${landmark.id}">
+                        <div class="tome-header" onclick="toggleTome(this)">
+                            <div class="tome-title">${landmark.icon} ${escapeHtml(landmark.name)}</div>
+                            <span class="tome-toggle">▼</span>
+                        </div>
+                        <div class="tome-content">
+                `;
+
+                quests.forEach(quest => {
+                    if (!quest.id) return;
+
+                    const levels = data.questLevels?.[quest.id] || [];
+
+                    levels.forEach(level => {
+                        if (!level.id) return;
+
+                        html += `
+                            <div class="quest-scroll">
+                                <div class="quest-name">${escapeHtml(quest.name)} › ${escapeHtml(level.name)}</div>
+                        `;
+
+                        level.checkpoints.forEach((cp, idx) => {
+                            if (!cp.id || cp.id === '') {
+                                cp.id = generateId();
+                            }
+
+                            const archiveDate = getCheckpointArchiveDate(cp.id, data);
+                            const isArchived = !!archiveDate;
+                            const history = getCheckpointHistory(cp.id, data);
+                            const actualDays = history.length;
+                            const isLevelCompleted = cp.completed === true;
+
+                            let isAllTodosCompleted = false;
+                            let hasUncompletedTodos = false;
+                            if (history.length > 0) {
+                                isAllTodosCompleted = history.every(h => {
+                                    const entries = data.calendarEntries?.[h.date] || [];
+                                    const entry = entries.find(e => String(e.checkpointId) === String(cp.id));
+                                    if (entry?.description) {
+                                        const todos = markdownToTodos(entry.description);
+                                        return todos.length > 0 && todos.every(t => t.completed);
+                                    }
+                                    return false;
+                                });
+                                history.forEach(h => {
+                                    const entries = data.calendarEntries?.[h.date] || [];
+                                    const entry = entries.find(e => String(e.checkpointId) === String(cp.id));
+                                    if (entry?.description) {
+                                        const todos = markdownToTodos(entry.description);
+                                        if (todos.some(t => !t.completed)) {
+                                            hasUncompletedTodos = true;
+                                        }
+                                    }
+                                });
+                            }
+
+                            let isCompletedOrArchived = false;
+                            let statusText = '未开始';
+
+                            if (isArchived) {
+                                isCompletedOrArchived = true;
+                            } else if (isLevelCompleted || (isAllTodosCompleted && actualDays > 0)) {
+                                isCompletedOrArchived = true;
+                            } else if (actualDays > 0 || hasUncompletedTodos) {
+                                statusText = '进行中 ' + actualDays + '天';
+                            }
+
+                            if (isCompletedOrArchived) return;
+
+                            html += `
+                                <div class="checkpoint-parchment"
+                                    draggable="true"
+                                    data-cp-id="${escapeHtml(cp.id)}">
+                                    <div class="parchment-text">${escapeHtml(cp.name || '检查点' + (idx + 1))}</div>
+                                    <div class="parchment-days">${statusText}</div>
+                                </div>
+                            `;
+                        });
+
+                        html += '</div>';
+                    });
+                });
+
+                html += '</div></div>';
+            });
+
+            container.innerHTML = html || '<div style="text-align:center;padding:40px;color:#8b7765;">暂无卷轴</div>';
+        }
+
+        function toggleTome(header) {
+            const tome = header.closest('.landmark-tome');
+            if (tome) tome.classList.toggle('collapsed');
+        }
+
+        function inspectDOM() {
+            const container = document.getElementById('scrollCollection');
+            const inspector = document.getElementById('domInspector');
+
+            // 获取所有检查项
+            const parchments = container.querySelectorAll('.checkpoint-parchment');
+
+            let report = `找到 ${parchments.length} 个检查项DOM元素\n`;
+            report += `="=".repeat(50)}\n\n`;
+
+            parchments.forEach((p, idx) => {
+                const cpId = p.dataset.cpId;
+                const text = p.querySelector('.parchment-text')?.textContent || '';
+                const days = p.querySelector('.parchment-days')?.textContent || '';
+                const rect = p.getBoundingClientRect();
+
+                report += `[${idx + 1}] ${text}\n`;
+                report += `    ID: ${cpId}\n`;
+                report += `    状态: ${days}\n`;
+                report += `    位置: x=${Math.round(rect.x)}, y=${Math.round(rect.y)}, w=${Math.round(rect.width)}, h=${Math.round(rect.height)}\n`;
+                report += `    可见: ${rect.height > 0 && rect.width > 0 ? '是' : '否'}\n\n`;
+            });
+
+            // 特别检查"部分蓝牌"和"扣费异常"
+            const targetTexts = ['部分蓝牌', '扣费异常'];
+            report += `="=".repeat(50)}\n`;
+            report += '特别检查:\n';
+
+            targetTexts.forEach(text => {
+                const found = Array.from(parchments).filter(p =>
+                    p.textContent.includes(text)
+                );
+                if (found.length === 0) {
+                    report += `❌ "${text}" - 未找到DOM元素\n`;
+                } else {
+                    found.forEach(p => {
+                        const rect = p.getBoundingClientRect();
+                        report += `✓ "${text}" - 找到, 可见性: ${rect.height > 0 ? '可见' : '不可见'}\n`;
+                    });
+                }
+            });
+
+            inspector.textContent = report;
+        }
+
+        window.onload = renderScrollArchive;
+    </script>
+</body>
+</html>

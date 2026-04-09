@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>修复检查项ID</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Noto Serif SC', serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #eae2d6;
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #c9a227;
+            text-align: center;
+            margin-bottom: 30px;
+            font-family: 'Cinzel', serif;
+        }
+        .panel {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid #c9a227;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+        .panel h2 {
+            color: #c9a227;
+            font-size: 16px;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(201, 162, 39, 0.3);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        th, td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(201, 162, 39, 0.15);
+        }
+        th {
+            background: rgba(201, 162, 39, 0.1);
+            color: #c9a227;
+            font-weight: 600;
+        }
+        tr:hover {
+            background: rgba(201, 162, 39, 0.05);
+        }
+        .wrong {
+            color: #ff6b6b;
+            text-decoration: line-through;
+        }
+        .correct {
+            color: #48dbfb;
+        }
+        .btn {
+            background: linear-gradient(135deg, #c9a227 0%, #a88420 100%);
+            color: #1a1a2e;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            margin: 5px;
+            transition: all 0.3s ease;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(201, 162, 39, 0.4);
+        }
+        .btn-danger {
+            background: linear-gradient(135deg, #d4634e 0%, #b8543e 100%);
+        }
+        .btn-success {
+            background: linear-gradient(135deg, #48dbfb 0%, #0abde3 100%);
+        }
+        .log {
+            background: #0f0f23;
+            padding: 16px;
+            border-radius: 6px;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 16px;
+        }
+        .log-item {
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .log-item.success { color: #48dbfb; }
+        .log-item.warning { color: #feca57; }
+        .log-item.error { color: #ff6b6b; }
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: rgba(201, 162, 39, 0.05);
+            border: 1px solid rgba(201, 162, 39, 0.3);
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 32px;
+            font-weight: bold;
+            color: #c9a227;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #8b7765;
+            margin-top: 4px;
+        }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>修复检查项ID</h1>
+
+        <div class="panel">
+            <h2>数据概览</h2>
+            <div class="summary" id="summary">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalEntries">-</div>
+                    <div class="stat-label">日历记录总数</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="wrongEntries">-</div>
+                    <div class="stat-label">需要修复的记录</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="correctEntries">-</div>
+                    <div class="stat-label">正确的记录</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2>需要修复的记录</h2>
+            <div id="wrongList">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>日期</th>
+                            <th>条目ID</th>
+                            <th>错误的检查项ID</th>
+                            <th>正确的检查项ID</th>
+                            <th>检查项名称</th>
+                            <th>状态</th>
+                        </tr>
+                    </thead>
+                    <tbody id="wrongTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2>操作</h2>
+            <button class="btn" onclick="analyzeData()">分析数据</button>
+            <button class="btn btn-success" onclick="fixData()" id="fixBtn" style="display:none;">执行修复</button>
+            <button class="btn btn-danger" onclick="backupData()" id="backupBtn" style="display:none;">备份当前数据</button>
+        </div>
+
+        <div class="panel hidden" id="logPanel">
+            <h2>执行日志</h2>
+            <div class="log" id="log"></div>
+        </div>
+    </div>
+
+    <script>
+        const STORAGE_KEY = 'lifeRpgAdminData';
+        let adminData = null;
+        let entriesToFix = [];
+
+        // ID映射关系：错误的字符串ID → 正确的数字ID（现在都是字符串）
+        const ID_MAPPING = {
+            'mnr822t5sy541wkba': '1775200808485',  // 北京电商专项
+            'mnr7wxdf60j43ii6b': '1775201030337',  // 硬件一发
+            'mnrbvljwelwb60bjz': '1775200808485',  // 北京电商专项（新生成的错误ID）
+            'mnrbvnjjqj9dw7bwo': '1775200808485',  // 北京电商专项（新生成的错误ID）
+            // 可以继续添加其他错误ID...
+        };
+
+        function loadData() {
+            try {
+                const data = localStorage.getItem(STORAGE_KEY);
+                return data ? JSON.parse(data) : null;
+            } catch (e) {
+                console.error('加载数据失败:', e);
+                return null;
+            }
+        }
+
+        function saveData() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(adminData));
+                return true;
+            } catch (e) {
+                console.error('保存数据失败:', e);
+                return false;
+            }
+        }
+
+        function addLog(message, type = '') {
+            const log = document.getElementById('log');
+            const item = document.createElement('div');
+            item.className = `log-item ${type}`;
+            item.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            log.appendChild(item);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function analyzeData() {
+            adminData = loadData();
+            if (!adminData) {
+                alert('无法加载数据');
+                return;
+            }
+
+            entriesToFix = [];
+            let totalEntries = 0;
+
+            // 遍历所有日历记录
+            Object.entries(adminData.calendarEntries || {}).forEach(([date, entries]) => {
+                entries.forEach(entry => {
+                    totalEntries++;
+                    const cpId = String(entry.checkpointId);
+
+                    // 检查是否需要修复
+                    if (ID_MAPPING[cpId]) {
+                        entriesToFix.push({
+                            date,
+                            entryId: entry.id,
+                            wrongId: cpId,
+                            correctId: ID_MAPPING[cpId],
+                            name: entry.checkpointName
+                        });
+                    }
+                });
+            });
+
+            // 更新统计
+            document.getElementById('totalEntries').textContent = totalEntries;
+            document.getElementById('wrongEntries').textContent = entriesToFix.length;
+            document.getElementById('correctEntries').textContent = totalEntries - entriesToFix.length;
+
+            // 显示需要修复的记录
+            const tbody = document.getElementById('wrongTableBody');
+            tbody.innerHTML = '';
+
+            if (entriesToFix.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#48dbfb;">数据正确，无需修复</td></tr>';
+            } else {
+                entriesToFix.forEach((item, idx) => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${item.date}</td>
+                        <td>${item.entryId}</td>
+                        <td class="wrong">${item.wrongId}</td>
+                        <td class="correct">${item.correctId}</td>
+                        <td>${item.name}</td>
+                        <td id="status-${idx}">待修复</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+
+            // 显示操作按钮
+            document.getElementById('fixBtn').style.display = entriesToFix.length > 0 ? 'inline-block' : 'none';
+            document.getElementById('backupBtn').style.display = entriesToFix.length > 0 ? 'inline-block' : 'none';
+
+            addLog(`分析完成：共 ${totalEntries} 条记录，${entriesToFix.length} 条需要修复`, 'success');
+            document.getElementById('logPanel').classList.remove('hidden');
+        }
+
+        function backupData() {
+            const backup = JSON.stringify(adminData, null, 2);
+            const blob = new Blob([backup], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `lifeRpgBackup_${new Date().toISOString().slice(0, 10)}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            addLog('数据备份已下载', 'success');
+        }
+
+        function fixData() {
+            if (!confirm(`确认要修复 ${entriesToFix.length} 条记录吗？\n\n修复前建议先备份数据！`)) {
+                return;
+            }
+
+            addLog('开始修复...', 'warning');
+
+            let fixedCount = 0;
+            let errorCount = 0;
+
+            entriesToFix.forEach((item, idx) => {
+                try {
+                    const entries = adminData.calendarEntries[item.date];
+                    if (!entries) {
+                        addLog(`${item.date}: 日期记录不存在`, 'error');
+                        errorCount++;
+                        return;
+                    }
+
+                    const entry = entries.find(e => e.id === item.entryId);
+                    if (!entry) {
+                        addLog(`${item.date}: 条目 ${item.entryId} 不存在`, 'error');
+                        errorCount++;
+                        return;
+                    }
+
+                    // 修复检查项ID
+                    const oldId = entry.checkpointId;
+                    entry.checkpointId = item.correctId;
+
+                    // 同时修复 checkpointCompletions 中的记录
+                    if (adminData.checkpointCompletions) {
+                        // 从错误的ID迁移到正确的ID
+                        if (!adminData.checkpointCompletions[item.correctId]) {
+                            adminData.checkpointCompletions[item.correctId] = [];
+                        }
+
+                        const completions = adminData.checkpointCompletions[oldId] || [];
+                        const targetEntry = completions.find(c => c.entryId === item.entryId);
+
+                        if (targetEntry) {
+                            // 移动到正确的ID下
+                            adminData.checkpointCompletions[item.correctId].push(targetEntry);
+                            // 从错误的ID下删除
+                            const idx = completions.indexOf(targetEntry);
+                            if (idx > -1) completions.splice(idx, 1);
+
+                            // 如果错误的ID下没有记录了，删除整个key
+                            if (completions.length === 0) {
+                                delete adminData.checkpointCompletions[oldId];
+                            }
+                        }
+                    }
+
+                    // 更新状态显示
+                    const statusCell = document.getElementById(`status-${idx}`);
+                    if (statusCell) {
+                        statusCell.textContent = '已修复';
+                        statusCell.style.color = '#48dbfb';
+                    }
+
+                    addLog(`${item.date}: ${item.name} - ${oldId} → ${item.correctId}`, 'success');
+                    fixedCount++;
+                } catch (e) {
+                    addLog(`${item.date}: 修复失败 - ${e.message}`, 'error');
+                    errorCount++;
+                }
+            });
+
+            // 保存数据
+            if (fixedCount > 0) {
+                if (saveData()) {
+                    addLog(`修复完成！成功: ${fixedCount}, 失败: ${errorCount}`, 'success');
+                    alert(`修复完成！\n成功: ${fixedCount} 条\n失败: ${errorCount} 条`);
+                } else {
+                    addLog('保存数据失败！', 'error');
+                    alert('保存数据失败！');
+                }
+            }
+        }
+
+        // 页面加载时自动分析
+        window.onload = analyzeData;
+    </script>
+</body>
+</html>

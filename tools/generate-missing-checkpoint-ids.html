@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>为检查项生成缺失ID</title>
+    <style>
+        body {
+            font-family: 'Noto Serif SC', serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #eae2d6;
+            padding: 40px;
+            min-height: 100vh;
+        }
+        h1 {
+            color: #c9a227;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(0,0,0,0.3);
+            padding: 30px;
+            border-radius: 12px;
+            border: 1px solid #c9a227;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 20px;
+            background: rgba(201, 162, 39, 0.05);
+            border-radius: 8px;
+            border-left: 4px solid #c9a227;
+        }
+        .btn {
+            background: linear-gradient(135deg, #c9a227 0%, #a88420 100%);
+            color: #1a1a2e;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            margin: 10px 5px;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(201, 162, 39, 0.4);
+        }
+        .error { color: #ff6b6b; }
+        .success { color: #48dbfb; }
+        .warning { color: #feca57; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #333;
+        }
+        th {
+            background: rgba(201, 162, 39, 0.2);
+            color: #c9a227;
+        }
+        .missing { background: rgba(255, 165, 0, 0.2); }
+        .fixed { background: rgba(72, 219, 251, 0.2); }
+        pre {
+            background: #0f0f23;
+            padding: 15px;
+            overflow-x: auto;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>为检查项生成缺失ID</h1>
+    <div class="container">
+        <div class="section">
+            <h3>问题说明</h3>
+            <p>部分检查项在创建时没有分配ID，导致拖动时无法正确关联。</p>
+            <p class="warning">需要为所有缺失ID的检查项生成唯一ID。</p>
+        </div>
+
+        <div style="text-align: center;">
+            <button class="btn" onclick="scanMissingIds()">扫描缺失ID</button>
+            <button class="btn" onclick="generateMissingIds()">生成缺失ID</button>
+        </div>
+
+        <div id="result" class="result" style="display: none;"></div>
+    </div>
+
+    <script>
+        const STORAGE_KEY = 'lifeRpgAdminData';
+
+        function loadData() {
+            try {
+                const data = localStorage.getItem(STORAGE_KEY);
+                return data ? JSON.parse(data) : {};
+            } catch (e) {
+                console.error('加载数据失败:', e);
+                return {};
+            }
+        }
+
+        function saveData(data) {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+                return true;
+            } catch (e) {
+                console.error('保存数据失败:', e);
+                return false;
+            }
+        }
+
+        function generateId() {
+            return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+        }
+
+        function scanMissingIds() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.style.display = 'block';
+
+            const adminData = loadData();
+            const questLevels = adminData.questLevels || {};
+
+            let html = '<h3>扫描结果</h3>';
+
+            let totalCheckpoints = 0;
+            let missingIdCheckpoints = [];
+
+            Object.entries(questLevels).forEach(([questId, levels]) => {
+                levels.forEach((level, levelIdx) => {
+                    const checkpoints = level.checkpoints || [];
+                    checkpoints.forEach((cp, cpIdx) => {
+                        totalCheckpoints++;
+                        if (!cp.id || cp.id === '') {
+                            missingIdCheckpoints.push({
+                                questId,
+                                levelId: level.id || 'EMPTY',
+                                levelName: level.name || '未命名关卡',
+                                cpIdx,
+                                cpName: cp.name || `检查点${cpIdx + 1}`,
+                                time: cp.time || 1,
+                                completed: cp.completed || false
+                            });
+                        }
+                    });
+                });
+            });
+
+            html += `<p>总检查项数: ${totalCheckpoints}</p>`;
+            html += `<p class="${missingIdCheckpoints.length > 0 ? 'error' : 'success'}">缺失ID的检查项数: ${missingIdCheckpoints.length}</p>`;
+
+            if (missingIdCheckpoints.length > 0) {
+                html += '<h4 class="error">缺失ID的检查项详情:</h4>';
+                html += '<table>';
+                html += '<tr><th>任务ID</th><th>关卡ID</th><th>关卡名</th><th>检查项索引</th><th>检查项名</th><th>天数</th></tr>';
+                missingIdCheckpoints.forEach(item => {
+                    html += `<tr class="missing">
+                        <td>${item.questId}</td>
+                        <td>${item.levelId}</td>
+                        <td>${item.levelName}</td>
+                        <td>${item.cpIdx}</td>
+                        <td>${item.cpName}</td>
+                        <td>${item.time}</td>
+                    </tr>`;
+                });
+                html += '</table>';
+            }
+
+            resultDiv.innerHTML = html;
+        }
+
+        function generateMissingIds() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.style.display = 'block';
+
+            const adminData = loadData();
+            const questLevels = adminData.questLevels || {};
+
+            let html = '<h3>生成ID结果</h3>';
+            let generatedCount = 0;
+
+            Object.entries(questLevels).forEach(([questId, levels]) => {
+                levels.forEach((level, levelIdx) => {
+                    const checkpoints = level.checkpoints || [];
+                    checkpoints.forEach((cp, cpIdx) => {
+                        if (!cp.id || cp.id === '') {
+                            const oldId = cp.id || 'EMPTY';
+                            const newId = generateId();
+                            cp.id = newId;
+                            generatedCount++;
+                            html += `<p class="fixed">✓ ${level.name} › ${cp.name || `检查点${cpIdx + 1}`}: ${oldId} → ${newId}</p>`;
+                        }
+                    });
+                });
+            });
+
+            if (generatedCount > 0) {
+                if (saveData(adminData)) {
+                    html += `<h4 class="success">生成完成！共为 ${generatedCount} 个检查项生成ID</h4>`;
+                    html += '<p class="warning">请刷新日历页面以应用更改。</p>';
+                } else {
+                    html += '<p class="error">保存失败</p>';
+                }
+            } else {
+                html += '<p class="success">没有发现需要生成ID的检查项。</p>';
+            }
+
+            resultDiv.innerHTML = html;
+        }
+
+        // 自动扫描
+        window.addEventListener('load', scanMissingIds);
+    </script>
+</body>
+</html>

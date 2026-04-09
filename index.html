@@ -927,6 +927,13 @@
 
         let currentLandmark = null;
 
+        /**
+         * 生成唯一ID
+         */
+        function generateId() {
+            return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+        }
+
         // 管理数据
         let adminData = {
             tags: [],
@@ -1030,7 +1037,7 @@
                         existingLm.completed = existingLm.questList.filter(q => q.completed).length;
                     } else {
                         const newLandmark = {
-                            id: Date.now() + Math.random(),
+                            id: generateId(),
                             name: adminLm.name,
                             type: adminLm.type,
                             icon: adminLm.icon,
@@ -1277,7 +1284,79 @@
                 const level = levels.find(l => l.id === levelId);
                 if (!level || !level.checkpoints[checkpointIndex]) return;
 
-                level.checkpoints[checkpointIndex].completed = !level.checkpoints[checkpointIndex].completed;
+                const checkpoint = level.checkpoints[checkpointIndex];
+                const checkpointId = checkpoint.id;
+
+                // 获取该检查点的日历记录
+                const calendarEntries = adminData.calendarEntries || {};
+                const checkpointDates = [];
+                Object.keys(calendarEntries).forEach(dateStr => {
+                    const entries = calendarEntries[dateStr];
+                    if (entries.some(e => e.checkpointId === checkpointId)) {
+                        checkpointDates.push(dateStr);
+                    }
+                });
+
+                // 如果正在勾选完成（不是取消勾选）
+                if (!checkpoint.completed) {
+                    // 情况1：0个日期记录，直接归档
+                    if (checkpointDates.length === 0) {
+                        checkpoint.completed = true;
+                        checkpoint.archived = true;
+                        // 添加到 checkpointCompletions
+                        if (!adminData.checkpointCompletions) {
+                            adminData.checkpointCompletions = {};
+                        }
+                        if (!adminData.checkpointCompletions[checkpointId]) {
+                            adminData.checkpointCompletions[checkpointId] = [];
+                        }
+                        // 检查是否已存在归档记录
+                        const hasArchiveRecord = adminData.checkpointCompletions[checkpointId].some(h => h.archived);
+                        if (!hasArchiveRecord) {
+                            adminData.checkpointCompletions[checkpointId].push({
+                                date: new Date().toISOString().split('T')[0],
+                                entryId: 'archived_' + checkpointId,
+                                archived: true
+                            });
+                        }
+                        showToast('检查项已直接归档（无日历记录）', 'success');
+                    } else {
+                        // 情况2：有日期记录，检查是否有未完成的待办
+                        let hasUncompletedTodos = false;
+                        let totalTodos = 0;
+                        let completedTodos = 0;
+
+                        checkpointDates.forEach(dateStr => {
+                            const entries = calendarEntries[dateStr];
+                            const entry = entries.find(e => e.checkpointId === checkpointId);
+                            if (entry && entry.description) {
+                                const todos = markdownToTodos(entry.description);
+                                todos.forEach(todo => {
+                                    totalTodos++;
+                                    if (todo.completed) {
+                                        completedTodos++;
+                                    } else {
+                                        hasUncompletedTodos = true;
+                                    }
+                                });
+                            }
+                        });
+
+                        // 如果有未完成的待办，拦截并提示
+                        if (hasUncompletedTodos) {
+                            showToast(`该检查项有未完成的待办（${completedTodos}/${totalTodos}），请先完成所有待办`, 'warning');
+                            return;
+                        }
+
+                        // 所有待办已完成，可以勾选
+                        checkpoint.completed = true;
+                        showToast('检查项已完成', 'success');
+                    }
+                } else {
+                    // 取消勾选
+                    checkpoint.completed = false;
+                    checkpoint.archived = false;
+                }
 
                 const allLevelsCompleted = levels.every(l => l.checkpoints.every(cp => cp.completed));
                 const quest = currentLandmark.questList.find(q => q.id === questId);
@@ -1312,6 +1391,19 @@
             } catch (error) {
                 console.error('切换检查点失败:', error);
             }
+        }
+
+        /**
+         * 从 Markdown 解析待办列表
+         */
+        function markdownToTodos(markdown) {
+            if (!markdown || !markdown.trim()) return [];
+            const lines = markdown.trim().split('\n');
+            return lines.map(line => {
+                const completed = line.trim().startsWith('[x]') || line.trim().startsWith('[X]');
+                const text = line.replace(/^\[[ xX]\]\s*/, '').trim();
+                return { text, completed };
+            }).filter(todo => todo.text);
         }
 
         /**
@@ -1375,6 +1467,48 @@
                 console.error('切换任务状态失败:', error);
             }
         }
+
+        /**
+         * 显示 Toast 提示
+         */
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 12px 20px;
+                background: ${type === 'success' ? 'rgba(74, 155, 139, 0.9)' : type === 'warning' ? 'rgba(201, 162, 39, 0.9)' : 'rgba(100, 100, 100, 0.9)'};
+                color: white;
+                border-radius: 4px;
+                font-size: 14px;
+                z-index: 10000;
+                animation: slideIn 0.3s ease;
+                max-width: 300px;
+                line-height: 1.5;
+            `;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // 添加动画样式
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideIn {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes slideOut {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(100%); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
 
         /**
          * 保存数据到本地存储

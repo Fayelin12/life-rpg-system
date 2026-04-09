@@ -2831,6 +2831,95 @@
         }
 
         /**
+         * 根据 checkpointId 查找完整的层级信息（地标 → 任务 → 关卡 → 检查项）
+         * @param {string} checkpointId - 检查项ID
+         * @returns {Object|null} - { levelId, levelName, questId, questName, landmarkId, landmarkName, checkpointName } 或 null
+         */
+        function getCheckpointHierarchy(checkpointId) {
+            if (!checkpointId) return null;
+
+            // 遍历所有地标
+            const landmarks = adminData.landmarks || [];
+            for (const landmark of landmarks) {
+                const quests = adminData.landmarkQuests[landmark.id] || [];
+                for (const quest of quests) {
+                    const levels = adminData.questLevels[quest.id] || [];
+                    for (const level of levels) {
+                        const checkpoint = level.checkpoints?.find(cp => cp.id === checkpointId);
+                        if (checkpoint) {
+                            return {
+                                levelId: level.id,
+                                levelName: level.name,
+                                questId: quest.id,
+                                questName: quest.name,
+                                landmarkId: landmark.id,
+                                landmarkName: landmark.name,
+                                checkpointName: checkpoint.name
+                            };
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
+        /**
+         * 通过检查项名称和关卡/任务ID在关卡数据中查找正确的检查项ID
+         * @param {string} name - 检查项名称
+         * @param {string} levelId - 关卡ID（可选）
+         * @param {string} questId - 任务ID（可选）
+         * @returns {string|null} - 找到的检查项ID，或 null
+         */
+        function findCheckpointIdByName(name, levelId, questId) {
+            if (!name) return null;
+
+            const landmarks = adminData.landmarks || [];
+            for (const landmark of landmarks) {
+                const quests = adminData.landmarkQuests[landmark.id] || [];
+                for (const quest of quests) {
+                    // 如果指定了questId，跳过不匹配的任务
+                    if (questId && String(quest.id) !== String(questId)) continue;
+
+                    const levels = adminData.questLevels[quest.id] || [];
+                    for (const level of levels) {
+                        // 如果指定了levelId，跳过不匹配的关卡
+                        if (levelId && String(level.id) !== String(levelId)) continue;
+
+                        const checkpoint = level.checkpoints?.find(cp => cp.name === name);
+                        if (checkpoint) {
+                            return checkpoint.id;
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
+        /**
+         * 在整个关卡数据中通过名称模糊匹配查找检查项ID
+         * @param {string} name - 检查项名称
+         * @returns {string|null} - 找到的检查项ID，或 null
+         */
+        function findCheckpointIdByNameInAllLevels(name) {
+            if (!name) return null;
+
+            const landmarks = adminData.landmarks || [];
+            for (const landmark of landmarks) {
+                const quests = adminData.landmarkQuests[landmark.id] || [];
+                for (const quest of quests) {
+                    const levels = adminData.questLevels[quest.id] || [];
+                    for (const level of levels) {
+                        const checkpoint = level.checkpoints?.find(cp => cp.name === name);
+                        if (checkpoint) {
+                            return checkpoint.id;
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
+        /**
          * 获取检查点的完成历史
          */
         function getCheckpointHistory(checkpointId) {
@@ -3087,21 +3176,100 @@
                     `;
 
                     quests.forEach(quest => {
+                        // 确保 quest.id 有效
+                        if (!quest.id) {
+                            console.warn('[ScrollArchive] quest missing id:', quest);
+                            return;
+                        }
+
                         const levels = adminData.questLevels[quest.id] || [];
+                        if (levels.length === 0) {
+                            console.log('[ScrollArchive] no levels for quest:', quest.id, quest.name);
+                        }
 
                         levels.forEach(level => {
+                            // 确保 level.id 有效
+                            if (!level.id) {
+                                console.warn('[ScrollArchive] level missing id:', level);
+                                return;
+                            }
+
                             html += `
                                 <div class="quest-scroll">
                                     <div class="quest-name">${LifeRPG.security.escapeHtml(quest.name)} › ${LifeRPG.security.escapeHtml(level.name)}</div>
                             `;
 
                             level.checkpoints.forEach((cp, idx) => {
+                                // 确保 cp.id 有效
+                                if (!cp.id || cp.id === '') {
+                                    cp.id = generateId();
+                                    saveData();
+                                    console.warn('[ScrollArchive] generated missing cp.id:', {
+                                        quest: quest.name,
+                                        level: level.name,
+                                        checkpoint: cp.name,
+                                        id: cp.id
+                                    });
+                                }
+
                                 const archiveDate = getCheckpointArchiveDate(cp.id);
                                 const isArchived = !!archiveDate;
                                 const history = getCheckpointHistory(cp.id);
                                 const actualDays = history.length;
+
+                                // 检查关卡数据中检查项是否已完成（世界地图勾选）
+                                const isLevelCheckpointCompleted = cp.completed === true;
+
+                                // 检查是否所有日历条目中的待办都已完成
+                                let isAllTodosCompleted = false;
+                                let hasUncompletedTodos = false;
+                                if (history.length > 0) {
+                                    isAllTodosCompleted = history.every(h => {
+                                        const entries = adminData.calendarEntries[h.date] || [];
+                                        const entry = entries.find(e => e.checkpointId === cp.id);
+                                        if (entry && entry.description) {
+                                            const todos = markdownToTodos(entry.description);
+                                            return todos.length > 0 && todos.every(t => t.completed);
+                                        }
+                                        return false;
+                                    });
+                                    // 检查是否有未完成的待办
+                                    history.forEach(h => {
+                                        const entries = adminData.calendarEntries[h.date] || [];
+                                        const entry = entries.find(e => e.checkpointId === cp.id);
+                                        if (entry && entry.description) {
+                                            const todos = markdownToTodos(entry.description);
+                                            if (todos.some(t => !t.completed)) {
+                                                hasUncompletedTodos = true;
+                                            }
+                                        }
+                                    });
+                                }
+
+                                // 判断检查项状态优先级：
+                                // 1. 已归档（有归档日期）- 不显示
+                                // 2. 关卡已勾选完成 - 不显示
+                                // 3. 进行中（有日期记录）
+                                // 4. 未开始（无日期记录且未勾选）
+                                let statusText = '未开始';
+                                let statusClass = '';
+                                let isCompletedOrArchived = false;
+
+                                if (isArchived) {
+                                    // 已归档：不显示在卷轴库
+                                    isCompletedOrArchived = true;
+                                } else if (isLevelCheckpointCompleted) {
+                                    // 关卡已勾选完成：不显示在卷轴库
+                                    isCompletedOrArchived = true;
+                                } else if (actualDays > 0 || hasUncompletedTodos) {
+                                    statusText = '进行中 ' + actualDays + '天';
+                                }
+
+                                // 跳过已归档或关卡已勾选的检查项
+                                if (isCompletedOrArchived) return;
+
                                 html += `
-                                    <div class="checkpoint-parchment ${isArchived ? 'completed' : ''}"
+                                    <div class="checkpoint-parchment ${statusClass}"
                                         draggable="true"
                                         data-cp-id="${LifeRPG.security.escapeHtml(cp.id)}"
                                         data-level-id="${LifeRPG.security.escapeHtml(level.id)}"
@@ -3112,7 +3280,7 @@
                                         data-level="${LifeRPG.security.escapeHtml(level.name)}"
                                         data-days="${actualDays}">
                                         <div class="parchment-text">${LifeRPG.security.escapeHtml(cp.name || '检查点' + (idx + 1))}</div>
-                                        <div class="parchment-days">${isArchived ? '已归档 ' + LifeRPG.security.escapeHtml(archiveDate) : (actualDays > 0 ? actualDays + '天' : '未开始')}</div>
+                                        <div class="parchment-days">${statusText}</div>
                                     </div>
                                 `;
                             });
@@ -3158,14 +3326,18 @@
                 const parchments = document.querySelectorAll('.checkpoint-parchment');
                 parchments.forEach(p => {
                     LifeRPG.events.add(p, 'dragstart', function(e) {
+                        // 优先使用 getCheckpointHierarchy 获取完整层级信息
+                        const cpId = this.dataset.cpId;
+                        const hierarchy = getCheckpointHierarchy(cpId);
+
                         draggedCheckpoint = {
-                            id: this.dataset.cpId,
-                            levelId: this.dataset.levelId,
-                            questId: this.dataset.questId,
-                            name: this.dataset.cpName,
-                            landmark: this.dataset.landmark,
-                            quest: this.dataset.quest,
-                            level: this.dataset.level,
+                            id: cpId,
+                            levelId: hierarchy?.levelId || this.dataset.levelId,
+                            questId: hierarchy?.questId || this.dataset.questId,
+                            name: hierarchy?.checkpointName || this.dataset.cpName,
+                            landmark: hierarchy?.landmarkName || this.dataset.landmark,
+                            quest: hierarchy?.questName || this.dataset.quest,
+                            level: hierarchy?.levelName || this.dataset.level,
                             days: this.dataset.days
                         };
                         this.classList.add('dragging');
@@ -4122,14 +4294,16 @@
                 const entries = adminData.calendarEntries[dateStr];
                 entries.forEach(entry => {
                     if (!checkpointData[entry.checkpointId]) {
+                        // 使用 getCheckpointHierarchy 获取层级信息，不再依赖 entry 中的冗余字段
+                        const hierarchy = getCheckpointHierarchy(entry.checkpointId);
                         checkpointData[entry.checkpointId] = {
-                            name: entry.checkpointName,
+                            name: entry.checkpointName || hierarchy?.checkpointName || '未知检查项',
                             entries: [],
-                            levelId: entry.levelId,
-                            questId: entry.questId,
-                            landmarkName: entry.landmarkName,
-                            questName: entry.questName,
-                            levelName: entry.levelName
+                            levelId: hierarchy?.levelId || null,
+                            questId: hierarchy?.questId || null,
+                            landmarkName: hierarchy?.landmarkName || '',
+                            questName: hierarchy?.questName || '',
+                            levelName: hierarchy?.levelName || ''
                         };
                     }
                     checkpointData[entry.checkpointId].entries.push({
@@ -4759,26 +4933,95 @@
          * 创建检查点记录
          */
         function createCheckpointEntry(dateStr, checkpoint) {
-            // 检查该日期是否已有相同检查项
-            const existingEntries = adminData.calendarEntries[dateStr] || [];
-            const hasDuplicate = existingEntries.some(entry =>
-                entry.checkpointId === checkpoint.id
-            );
+            console.group('[CreateEntry] 创建日历记录');
+            console.log('拖拽的checkpoint:', checkpoint);
 
-            if (hasDuplicate) {
-                showToast(`该日期已存在「${checkpoint.name}」检查项`, 'warning');
+            // 步骤1: 尝试直接查找（用拖拽带来的ID）
+            let effectiveCheckpointId = checkpoint.id ? String(checkpoint.id) : '';
+            let foundInLevels = effectiveCheckpointId;
+
+            // 步骤2: 如果直接查找失败，通过名称+关卡信息反向查找正确的ID
+            if (!foundInLevels) {
+                console.log('ID为空，尝试通过名称和关卡信息查找...');
+                foundInLevels = findCheckpointIdByName(
+                    checkpoint.name,
+                    checkpoint.levelId,
+                    checkpoint.questId
+                );
+                if (foundInLevels) {
+                    console.log('通过反向查找找到ID:', foundInLevels);
+                    effectiveCheckpointId = foundInLevels;
+                }
+            }
+
+            // 步骤3: 如果还是找不到，检查是否是因为关卡数据ID和日历记录ID不一致
+            // 这种情况下，通过名称在关卡数据中模糊匹配
+            if (!foundInLevels && checkpoint.name) {
+                console.log('反向查找失败，尝试通过名称在关卡数据中模糊匹配...');
+                foundInLevels = findCheckpointIdByNameInAllLevels(checkpoint.name);
+                if (foundInLevels) {
+                    console.log('通过名称模糊匹配找到ID:', foundInLevels);
+                    effectiveCheckpointId = foundInLevels;
+                }
+            }
+
+            // 步骤4: 如果所有查找都失败，生成新ID（仅在确实不存在时）
+            if (!effectiveCheckpointId) {
+                console.warn('所有查找都失败，生成新ID');
+                effectiveCheckpointId = generateId();
+            }
+
+            console.log('最终使用的checkpointId:', effectiveCheckpointId);
+            console.groupEnd();
+            
+            // 检查该日期是否已有相同检查项（同一检查点ID）
+            const existingEntries = adminData.calendarEntries[dateStr] || [];
+            console.log('📋 该日期已有条目数:', existingEntries.length);
+            
+            const existingEntry = existingEntries.find((entry, idx) => {
+                const storedId = String(entry.checkpointId || '');
+                const isMatch = storedId === effectiveCheckpointId && storedId !== '';
+                
+                const existingHierarchy = getCheckpointHierarchy(entry.checkpointId);
+                const existingLevelName = existingHierarchy?.levelName || entry.levelName || '';
+                console.log(`  条目[${idx}] checkpointId: ${entry.checkpointId} (${typeof entry.checkpointId}), 名称: ${entry.checkpointName}, 关卡: ${existingLevelName}`);
+                console.log(`  比较: "${storedId}" === "${effectiveCheckpointId}" => ${isMatch}`);
+                
+                return isMatch;
+            });
+            console.groupEnd();
+
+            if (existingEntry) {
+                // 提供更详细的错误信息
+                // 使用 getCheckpointHierarchy 获取层级信息
+                const existingHierarchy = getCheckpointHierarchy(existingEntry.checkpointId);
+                const existingLevelName = existingHierarchy?.levelName || existingEntry.levelName || '';
+                const msg = `「${checkpoint.name}」已在该日期存在（${existingLevelName}）`;
+                showToast(msg, 'warning');
+                console.warn('[Duplicate] 详细对比:', {
+                    dragging: {
+                        id: checkpoint.id,
+                        idType: typeof checkpoint.id,
+                        name: checkpoint.name,
+                        level: checkpoint.level
+                    },
+                    existing: {
+                        id: existingEntry.checkpointId,
+                        idType: typeof existingEntry.checkpointId,
+                        name: existingEntry.checkpointName,
+                        level: existingLevelName
+                    }
+                });
                 return false;
             }
 
+            // 注意：允许同名但不同ID的检查项存在（不同关卡可能有同名检查项）
+
+            // 不再存储冗余字段，只保存核心数据
             const entry = {
                 id: generateId(),
-                checkpointId: checkpoint.id,
-                levelId: checkpoint.levelId,
-                questId: checkpoint.questId,
+                checkpointId: effectiveCheckpointId,
                 checkpointName: checkpoint.name,
-                landmarkName: checkpoint.landmark,
-                questName: checkpoint.quest,
-                levelName: checkpoint.level,
                 date: dateStr,
                 description: '',
                 completed: false
@@ -4789,10 +5032,10 @@
             }
             adminData.calendarEntries[dateStr].push(entry);
 
-            if (!adminData.checkpointCompletions[checkpoint.id]) {
-                adminData.checkpointCompletions[checkpoint.id] = [];
+            if (!adminData.checkpointCompletions[effectiveCheckpointId]) {
+                adminData.checkpointCompletions[effectiveCheckpointId] = [];
             }
-            adminData.checkpointCompletions[checkpoint.id].push({
+            adminData.checkpointCompletions[effectiveCheckpointId].push({
                 date: dateStr,
                 entryId: entry.id,
                 archived: false
@@ -4973,9 +5216,15 @@
                 document.getElementById('modalDate').textContent =
                     `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
 
+                // 使用 getCheckpointHierarchy 获取层级信息
+                const hierarchy = getCheckpointHierarchy(entry.checkpointId);
+                const landmarkName = hierarchy?.landmarkName || entry.landmarkName || '';
+                const questName = hierarchy?.questName || entry.questName || '';
+                const levelName = hierarchy?.levelName || entry.levelName || '';
+
                 document.getElementById('modalCheckpoint').innerHTML = `
                     ${LifeRPG.security.escapeHtml(entry.checkpointName)}
-                    <span class="breadcrumb-path">${LifeRPG.security.escapeHtml(entry.landmarkName)} › ${LifeRPG.security.escapeHtml(entry.questName)} › ${LifeRPG.security.escapeHtml(entry.levelName)}</span>
+                    <span class="breadcrumb-path">${LifeRPG.security.escapeHtml(landmarkName)} › ${LifeRPG.security.escapeHtml(questName)} › ${LifeRPG.security.escapeHtml(levelName)}</span>
                 `;
 
                 // 加载待办列表（优先使用 entry.todos，兼容旧数据 entry.description）
@@ -5225,17 +5474,11 @@
                     });
                 }
             } else {
-                // 创建新记录（不复制描述，只复制标签）
+                // 创建新记录（不复制描述，只复制标签，不再存储冗余字段）
                 const newEntry = {
                     id: generateId(),
                     checkpointId: entry.checkpointId,
                     checkpointName: entry.checkpointName,
-                    landmarkId: entry.landmarkId,
-                    landmarkName: entry.landmarkName,
-                    questId: entry.questId,
-                    questName: entry.questName,
-                    levelId: entry.levelId,
-                    levelName: entry.levelName,
                     description: '',
                     tags: entry.tags || (entry.tag ? [entry.tag] : []),
                     completed: false,
@@ -5754,16 +5997,11 @@
             let targetEntry = targetEntries.find(e => e.checkpointId === entry.checkpointId);
 
             if (!targetEntry) {
-                // 创建新的检查项
+                // 创建新的检查项（不再存储冗余字段）
                 targetEntry = {
                     id: generateId(),
                     checkpointId: entry.checkpointId,
-                    levelId: entry.levelId,
-                    questId: entry.questId,
                     checkpointName: entry.checkpointName,
-                    landmarkName: entry.landmarkName,
-                    questName: entry.questName,
-                    levelName: entry.levelName,
                     date: targetDateStr,
                     description: '',
                     completed: false
@@ -6245,12 +6483,14 @@
             summary.forEach(day => {
                 day.entries.forEach(entry => {
                     if (!checkpointMap.has(entry.checkpointId)) {
+                        // 使用 getCheckpointHierarchy 获取层级信息
+                        const hierarchy = getCheckpointHierarchy(entry.checkpointId);
                         checkpointMap.set(entry.checkpointId, {
                             id: entry.checkpointId,
                             name: entry.checkpointName,
-                            landmarkName: entry.landmarkName,
-                            questName: entry.questName,
-                            levelName: entry.levelName,
+                            landmarkName: hierarchy?.landmarkName || entry.landmarkName || '',
+                            questName: hierarchy?.questName || entry.questName || '',
+                            levelName: hierarchy?.levelName || entry.levelName || '',
                             days: {}
                         });
                     }
@@ -6352,11 +6592,13 @@
             weeklySummaryData.forEach(day => {
                 day.entries.forEach(entry => {
                     if (!checkpointMap.has(entry.checkpointId)) {
+                        // 使用 getCheckpointHierarchy 获取层级信息
+                        const hierarchy = getCheckpointHierarchy(entry.checkpointId);
                         checkpointMap.set(entry.checkpointId, {
                             name: entry.checkpointName,
-                            landmarkName: entry.landmarkName,
-                            questName: entry.questName,
-                            levelName: entry.levelName,
+                            landmarkName: hierarchy?.landmarkName || entry.landmarkName || '',
+                            questName: hierarchy?.questName || entry.questName || '',
+                            levelName: hierarchy?.levelName || entry.levelName || '',
                             days: {}
                         });
                     }
