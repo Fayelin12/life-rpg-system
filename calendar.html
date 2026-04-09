@@ -3730,16 +3730,18 @@
                 });
             }
 
-            // 计算全天的最大并发数（所有检查项使用统一的列数）
+            // 计算全天的最大并发数（用于确定需要的列数）
             // 如果全天都没有检查项，默认使用1列
             const dayMaxCols = Math.max(...timeSlices.map(s => s.maxCols), 1);
             console.log(`[WeekView Debug] Day ${dateStr}: ${sortedEntries.length} entries, dayMaxCols=${dayMaxCols}`);
 
-            // ========== 步骤2: 为每个条目分配列索引 ==========
+            // ========== 步骤2: 为每个条目分配列索引和计算局部并发数 ==========
             // 使用贪心算法：每个检查项尽可能使用最左边的可用列
             // columns[j] 表示第j列当前被占用到的结束时间
             const columns = []; // 每列的结束时间
 
+            // 先为每个检查项分配列索引
+            const entriesWithColIndex = [];
             sortedEntries.forEach(item => {
                 // 找到第一个可用列（该列的结束时间 <= 当前检查项的开始时间）
                 let colIndex = -1;
@@ -3759,12 +3761,39 @@
                 // 更新该列的结束时间为当前检查项的结束时间
                 columns[colIndex] = item.endMinutes;
 
+                entriesWithColIndex.push({
+                    ...item,
+                    colIndex
+                });
+            });
+
+            // 为每个检查项计算其所在时间段的实际并发数
+            // 这样当列数>1但某个时间段只有1个检查项时，它能占满整个格子
+            entriesWithColIndex.forEach(item => {
+                // 找出该检查项所在的所有时间切片
+                const itemSlices = timeSlices.filter(slice =>
+                    item.startMinutes < slice.end && item.endMinutes > slice.start
+                );
+
+                // 计算该检查项所在时间段的最大并发数
+                // 对于每个切片，找出与该检查项同时活跃的检查项数量
+                let maxLocalCols = 1;
+                itemSlices.forEach(slice => {
+                    // 在该切片内，与该检查项同时活跃的检查项数量
+                    const concurrentCount = slice.activeEntries.length;
+                    maxLocalCols = Math.max(maxLocalCols, concurrentCount);
+                });
+
+                // 如果该检查项在某些时间段是唯一的，但在其他时间段有重叠
+                // 我们使用它所占用的最大并发数作为 totalCols
+                // 这样可以确保它在独占的时间段占满格子，在重叠的时间段正确并排
+                const effectiveTotalCols = Math.max(maxLocalCols, item.colIndex + 1);
+
                 positionedEntries.push({
                     ...item,
-                    colIndex,
-                    totalCols: dayMaxCols  // 使用全天的最大并发数
+                    totalCols: effectiveTotalCols  // 使用局部并发数，而不是全天最大并发数
                 });
-                console.log(`[WeekView Debug]   -> ${item.entry.checkpointName}: colIndex=${colIndex}, totalCols=${dayMaxCols}`);
+                console.log(`[WeekView Debug]   -> ${item.entry.checkpointName}: colIndex=${item.colIndex}, totalCols=${effectiveTotalCols} (local max: ${maxLocalCols})`);
             });
 
             // ========== 步骤3: 渲染条目 ==========
