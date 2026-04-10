@@ -4147,26 +4147,17 @@
                 // 更新该列的结束时间为当前检查项的结束时间
                 columns[colIndex] = item.endMinutes;
 
-                // 计算该条目在生命周期内的最大并发数（用于动态宽度）
-                // 找到该条目存在的所有时间切片，取最大并发数
-                const entryMaxConcurrent = Math.max(...timeSlices
-                    .filter(slice =>
-                        item.startMinutes < slice.end && item.endMinutes > slice.start
-                    )
-                    .map(slice => slice.maxCols), 1);
-
                 positionedEntries.push({
                     ...item,
                     colIndex,
-                    totalCols: dayMaxCols,  // 全天最大并发数（用于统一布局）
-                    entryMaxConcurrent       // 该条目时间段内的最大并发数（用于动态宽度）
+                    totalCols: dayMaxCols  // 全天最大并发数（统一布局）
                 });
             });
 
             // ========== 步骤3: 渲染条目 ==========
             // 根据计算好的列索引和总列数，计算每个检查项的位置和尺寸
             positionedEntries.forEach(data => {
-                const { entry, startTime, duration, startMinutes, endMinutes, stripeClass, colIndex, totalCols, entryMaxConcurrent } = data;
+                const { entry, startTime, duration, startMinutes, endMinutes, stripeClass, colIndex, totalCols } = data;
 
                 // 垂直位置计算（基于时间）
                 // 9:00 对应 0%，18:00 对应 100%
@@ -4175,10 +4166,10 @@
                 // 固定最小高度为6%，确保有足够空间显示内容
                 const heightPercent = Math.max(6, (duration / 60) / totalHours * 100);
 
-                // 水平位置和宽度计算（基于列索引和总列数）
-                // 使用 entryMaxConcurrent 而不是 totalCols 来计算宽度
-                // 这样当单个条目独占时间段时，它会占满可用空间
-                const colWidth = 100 / entryMaxConcurrent;
+                // 水平位置和宽度计算（基于全天最大列数）
+                // 所有条目统一使用 totalCols，保持视觉整齐
+                // 1个条目→33.3%, 2个条目→各33.3%, 3个条目→各33.3%
+                const colWidth = 100 / totalCols;
                 const leftPercent = colIndex * colWidth;
                 // 增加间隙，让检查项之间有明显分隔
                 const widthPercent = colWidth - 1.5;
@@ -4368,12 +4359,12 @@
                 return content ? content.offsetHeight : 400;
             }
 
-            // 像素转换为时间（每15分钟一个刻度）
+            // 像素转换为时间（每30分钟一个刻度）
             function pixelsToTime(px) {
                 const containerHeight = getContainerHeight();
                 const totalHours = 9 + (px / containerHeight * 9);
                 const hour = Math.floor(totalHours);
-                const minute = Math.round((totalHours - hour) * 60 / 15) * 15;
+                const minute = Math.round((totalHours - hour) * 60 / 30) * 30;
                 return { hour, minute: Math.min(59, minute) };
             }
 
