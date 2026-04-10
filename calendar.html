@@ -599,6 +599,16 @@
             margin-top: -1px;
         }
 
+        /* 跨格子拖拽幽灵元素 */
+        .stripe-ghost {
+            position: fixed;
+            pointer-events: none;
+            z-index: 9999;
+            opacity: 0.8;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+            transform: scale(1.02);
+        }
+
         /* 跨天条带 */
         .checkpoint-stripe.continuous {
             border-radius: 0;
@@ -2674,7 +2684,9 @@
 
         const dragState = {
             mode: DragMode.NONE,
+            intent: null, // 'vertical' | 'horizontal' | null
             draggedStripe: null,
+            ghostElement: null, // 幽灵元素（跨格子拖拽时使用）
             startX: 0,
             startY: 0,
             startLevel: 0,
@@ -2682,11 +2694,14 @@
             sourceRowIndex: null,
             dropIndicator: null,
             targetLevel: null,
+            currentRowIndex: null, // 当前悬停的行
 
             // 重置状态
             reset() {
                 this.mode = DragMode.NONE;
+                this.intent = null;
                 this.draggedStripe = null;
+                this.ghostElement = null;
                 this.startX = 0;
                 this.startY = 0;
                 this.startLevel = 0;
@@ -2694,6 +2709,7 @@
                 this.sourceRowIndex = null;
                 this.dropIndicator = null;
                 this.targetLevel = null;
+                this.currentRowIndex = null;
             },
 
             // 检查是否正在拖动
@@ -3730,18 +3746,16 @@
                 });
             }
 
-            // 计算全天的最大并发数（用于确定需要的列数）
+            // 计算全天的最大并发数（所有检查项使用统一的列数）
             // 如果全天都没有检查项，默认使用1列
             const dayMaxCols = Math.max(...timeSlices.map(s => s.maxCols), 1);
             console.log(`[WeekView Debug] Day ${dateStr}: ${sortedEntries.length} entries, dayMaxCols=${dayMaxCols}`);
 
-            // ========== 步骤2: 为每个条目分配列索引和计算局部并发数 ==========
+            // ========== 步骤2: 为每个条目分配列索引 ==========
             // 使用贪心算法：每个检查项尽可能使用最左边的可用列
             // columns[j] 表示第j列当前被占用到的结束时间
             const columns = []; // 每列的结束时间
 
-            // 先为每个检查项分配列索引
-            const entriesWithColIndex = [];
             sortedEntries.forEach(item => {
                 // 找到第一个可用列（该列的结束时间 <= 当前检查项的开始时间）
                 let colIndex = -1;
@@ -3761,39 +3775,12 @@
                 // 更新该列的结束时间为当前检查项的结束时间
                 columns[colIndex] = item.endMinutes;
 
-                entriesWithColIndex.push({
-                    ...item,
-                    colIndex
-                });
-            });
-
-            // 为每个检查项计算其所在时间段的实际并发数
-            // 这样当列数>1但某个时间段只有1个检查项时，它能占满整个格子
-            entriesWithColIndex.forEach(item => {
-                // 找出该检查项所在的所有时间切片
-                const itemSlices = timeSlices.filter(slice =>
-                    item.startMinutes < slice.end && item.endMinutes > slice.start
-                );
-
-                // 计算该检查项所在时间段的最大并发数
-                // 对于每个切片，找出与该检查项同时活跃的检查项数量
-                let maxLocalCols = 1;
-                itemSlices.forEach(slice => {
-                    // 在该切片内，与该检查项同时活跃的检查项数量
-                    const concurrentCount = slice.activeEntries.length;
-                    maxLocalCols = Math.max(maxLocalCols, concurrentCount);
-                });
-
-                // 如果该检查项在某些时间段是唯一的，但在其他时间段有重叠
-                // 我们使用它所占用的最大并发数作为 totalCols
-                // 这样可以确保它在独占的时间段占满格子，在重叠的时间段正确并排
-                const effectiveTotalCols = Math.max(maxLocalCols, item.colIndex + 1);
-
                 positionedEntries.push({
                     ...item,
-                    totalCols: effectiveTotalCols  // 使用局部并发数，而不是全天最大并发数
+                    colIndex,
+                    totalCols: dayMaxCols  // 使用全天的最大并发数
                 });
-                console.log(`[WeekView Debug]   -> ${item.entry.checkpointName}: colIndex=${item.colIndex}, totalCols=${effectiveTotalCols} (local max: ${maxLocalCols})`);
+                console.log(`[WeekView Debug]   -> ${item.entry.checkpointName}: colIndex=${colIndex}, totalCols=${dayMaxCols}`);
             });
 
             // ========== 步骤3: 渲染条目 ==========
@@ -4474,7 +4461,8 @@
             const stripe = document.createElement('div');
             stripe.className = `checkpoint-stripe ${stripeClass}`;
             stripe.innerHTML = stripeContent;
-            stripe.draggable = true;
+            // 禁用原生拖拽，使用纯JS方案
+            stripe.draggable = false;
             stripe.style.setProperty('--start', startCol + 1);
             stripe.style.setProperty('--end', endCol + 2);
             stripe.style.setProperty('--level', level);
@@ -4525,20 +4513,17 @@
                 }
             };
 
-            // 条带拖拽排序事件
-            stripe.addEventListener('mousedown', onStripeDragStart);
-
-            // 跨格子拖动事件
-            stripe.addEventListener('dragstart', onStripeCrossCellDragStart);
-            stripe.addEventListener('dragend', onStripeCrossCellDragEnd);
+            // 条带拖拽事件 - 纯JS方案统一处理
+            stripe.addEventListener('mousedown', onStripeMouseDown);
 
             return stripe;
         }
 
         /**
-         * 条带鼠标按下 - 意图检测
+         * 条带鼠标按下 - 统一入口
+         * 纯JS拖拽方案：禁用原生HTML5拖拽，完全由鼠标事件接管
          */
-        function onStripeDragStart(e) {
+        function onStripeMouseDown(e) {
             // 只响应左键
             if (e.button !== 0) return;
 
@@ -4546,64 +4531,91 @@
 
             console.log('[StripeDrag] mousedown on stripe:', stripe.dataset.cpName);
 
-            // 记录初始状态，但不立即启动排序
-            // 注意：不要禁用 draggable，让 HTML5 drag 自然工作
+            // 记录初始状态
             dragState.draggedStripe = stripe;
             dragState.startX = e.clientX;
             dragState.startY = e.clientY;
+            dragState.sourceRowIndex = stripe.dataset.rowIndex;
 
-            // 绑定意图检测事件
-            document.addEventListener('mousemove', onMouseMoveForIntent);
-            document.addEventListener('mouseup', onMouseUpForIntent);
+            // 绑定全局鼠标事件
+            document.addEventListener('mousemove', onStripeMouseMove);
+            document.addEventListener('mouseup', onStripeMouseUp);
+
+            // 阻止默认行为，防止选中文本
+            e.preventDefault();
         }
 
         /**
-         * 鼠标移动 - 意图检测
+         * 条带鼠标移动 - 意图检测与拖拽处理
+         * 纯JS方案：根据移动方向判断意图，进入不同模式
          */
-        function onMouseMoveForIntent(e) {
+        function onStripeMouseMove(e) {
             const stripe = dragState.draggedStripe;
             if (!stripe) return;
 
             const deltaX = Math.abs(e.clientX - dragState.startX);
             const deltaY = Math.abs(e.clientY - dragState.startY);
-            const minDistance = 8; // 最小移动距离阈值
+            const minDistance = 5; // 最小移动阈值
 
             // 移动距离不够，继续等待
-            if (deltaX < minDistance && deltaY < minDistance) return;
+            if (dragState.mode === DragMode.NONE && deltaX < minDistance && deltaY < minDistance) {
+                return;
+            }
 
-            // 移除意图检测事件
-            document.removeEventListener('mousemove', onMouseMoveForIntent);
-            document.removeEventListener('mouseup', onMouseUpForIntent);
+            // 意图检测阶段
+            if (dragState.mode === DragMode.NONE) {
+                if (deltaY > deltaX) {
+                    // 垂直移动占主导 - 进入排序模式
+                    console.log('[StripeDrag] Vertical intent, entering REORDER mode');
+                    dragState.mode = DragMode.REORDER;
+                    dragState.intent = 'vertical';
+                    startReorderMode(stripe);
+                } else {
+                    // 水平移动占主导 - 进入跨格子拖拽模式
+                    console.log('[StripeDrag] Horizontal intent, entering CROSS_CELL mode');
+                    dragState.mode = DragMode.CROSS_CELL;
+                    dragState.intent = 'horizontal';
+                    startCrossCellMode(stripe, e);
+                }
+            }
 
-            // 判断用户意图
-            if (deltaY > deltaX) {
-                // 垂直移动占主导 - 启动排序
-                console.log('[StripeDrag] Vertical intent detected, starting reorder');
-                onReorderDragStart(e, stripe);
-            } else {
-                // 水平移动占主导 - 让 HTML5 drag 接管跨格子拖动
-                console.log('[StripeDrag] Horizontal intent detected, letting HTML5 drag handle cross-cell');
-                // 清理排序状态，不阻止 dragstart 事件
-                dragState.reset();
-                // 不要调用 e.preventDefault()，让 dragstart 自然触发
+            // 根据当前模式执行相应逻辑
+            if (dragState.mode === DragMode.REORDER) {
+                handleReorderMove(e);
+            } else if (dragState.mode === DragMode.CROSS_CELL) {
+                handleCrossCellMove(e);
             }
         }
 
         /**
-         * 鼠标抬起 - 意图检测取消
+         * 条带鼠标抬起 - 结束拖拽
          */
-        function onMouseUpForIntent(e) {
-            // 鼠标抬起但没有移动足够距离，视为点击
-            document.removeEventListener('mousemove', onMouseMoveForIntent);
-            document.removeEventListener('mouseup', onMouseUpForIntent);
+        function onStripeMouseUp(e) {
+            // 移除全局鼠标事件
+            document.removeEventListener('mousemove', onStripeMouseMove);
+            document.removeEventListener('mouseup', onStripeMouseUp);
 
+            const stripe = dragState.draggedStripe;
+            if (!stripe) {
+                dragState.reset();
+                return;
+            }
+
+            // 根据当前模式执行结束逻辑
+            if (dragState.mode === DragMode.REORDER) {
+                finishReorder(e);
+            } else if (dragState.mode === DragMode.CROSS_CELL) {
+                finishCrossCell(e);
+            }
+
+            // 重置状态
             dragState.reset();
         }
 
         /**
-         * 条带排序 - 开始
+         * 启动排序模式
          */
-        function onReorderDragStart(e, stripe) {
+        function startReorderMode(stripe) {
             const rowIndex = stripe.dataset.rowIndex;
             const rowContainer = document.querySelector(`.row-stripes[data-row="${rowIndex}"]`);
 
@@ -4614,15 +4626,8 @@
 
             console.log('[Reorder] Start:', stripe.dataset.cpName);
 
-            // 设置排序状态
-            dragState.mode = DragMode.REORDER;
-            dragState.draggedStripe = stripe;
             dragState.rowStripesContainer = rowContainer;
-            dragState.sourceRowIndex = rowIndex;
             dragState.startLevel = parseInt(stripe.style.getPropertyValue('--level')) || 1;
-
-            // 禁用 HTML5 drag 防止冲突
-            stripe.draggable = false;
 
             // 视觉反馈
             stripe.classList.add('dragging');
@@ -4633,13 +4638,67 @@
             indicator.style.display = 'none';
             rowContainer.appendChild(indicator);
             dragState.dropIndicator = indicator;
+        }
 
-            // 绑定排序移动事件
-            document.addEventListener('mousemove', onReorderDragMove);
-            document.addEventListener('mouseup', onReorderDragEnd);
+        /**
+         * 处理排序移动
+         */
+        function handleReorderMove(e) {
+            const { draggedStripe, rowStripesContainer, dropIndicator } = dragState;
+            if (!draggedStripe || !rowStripesContainer || !dropIndicator) return;
 
-            // 阻止默认行为，防止选中文本等
-            e.preventDefault();
+            // 检查是否移出容器
+            const containerRect = rowStripesContainer.getBoundingClientRect();
+            const isOutside = e.clientY < containerRect.top || e.clientY > containerRect.bottom;
+
+            if (isOutside) {
+                dropIndicator.style.display = 'none';
+                return;
+            }
+
+            // 获取容器内所有条带
+            const allStripes = [...rowStripesContainer.querySelectorAll('.checkpoint-stripe')];
+            const totalStripes = allStripes.length;
+
+            // 计算目标位置
+            const relativeY = e.clientY - containerRect.top;
+            const rowHeight = 20;
+            const gap = 2;
+            const totalRowHeight = rowHeight + gap;
+            const maxLevel = totalStripes + 1;
+
+            let targetLevel = Math.floor(relativeY / totalRowHeight) + 1;
+            targetLevel = Math.max(1, Math.min(maxLevel, targetLevel));
+
+            dragState.targetLevel = targetLevel;
+
+            // 显示放置指示器
+            const indicatorTop = (targetLevel - 1) * totalRowHeight;
+            dropIndicator.style.display = 'block';
+            dropIndicator.style.top = Math.max(-2, indicatorTop) + 'px';
+        }
+
+        /**
+         * 结束排序
+         */
+        function finishReorder(e) {
+            const { draggedStripe, rowStripesContainer, targetLevel, startLevel } = dragState;
+
+            if (!draggedStripe || !rowStripesContainer) return;
+
+            console.log('[Reorder] End, target:', targetLevel, 'start:', startLevel);
+
+            // 移除视觉反馈
+            draggedStripe.classList.remove('dragging');
+
+            // 执行重排
+            if (targetLevel && targetLevel !== startLevel) {
+                reorderStripesInRow(rowStripesContainer, draggedStripe, targetLevel);
+            }
+
+            // 移除放置指示器
+            const indicator = rowStripesContainer.querySelector('.stripe-drop-indicator');
+            if (indicator) indicator.remove();
         }
 
         /**
@@ -4729,49 +4788,14 @@
                 dropIndicator.remove();
             }
 
-            // 移除事件监听
-            document.removeEventListener('mousemove', onReorderDragMove);
-            document.removeEventListener('mouseup', onReorderDragEnd);
-
             dragState.reset();
         }
 
-        // 兼容旧代码的别名
-        function cleanupStripeDragState() {
-            cleanupReorder();
-        }
-
         /**
-         * 条带拖拽排序 - 移动（兼容旧代码别名）
+         * 启动跨格子拖拽模式
          */
-        function onStripeDragMove(e) {
-            // 新实现中不使用此函数，由 onReorderDragMove 替代
-        }
-
-        /**
-         * 条带拖拽排序 - 结束（兼容旧代码别名）
-         */
-        function onStripeDragEnd(e) {
-            // 新实现中不使用此函数，由 onReorderDragEnd 替代
-        }
-
-        /**
-         * 条带跨格子拖动 - 开始
-         */
-        function onStripeCrossCellDragStart(e) {
-            const stripe = e.currentTarget;
-
-            // 如果正在排序，阻止跨格子拖动
-            if (dragState.mode === DragMode.REORDER) {
-                console.log('[CrossCell] Reorder in progress, preventing dragstart');
-                e.preventDefault();
-                return;
-            }
-
-            console.log('[CrossCell] dragstart on stripe:', stripe.dataset.cpName);
-
-            // 设置跨格子拖动状态
-            dragState.mode = DragMode.CROSS_CELL;
+        function startCrossCellMode(stripe, e) {
+            console.log('[CrossCell] Start ghost drag:', stripe.dataset.cpName);
 
             // 设置 draggedCheckpoint 用于跨格子拖放
             draggedCheckpoint = {
@@ -4787,26 +4811,156 @@
                 isStripe: true
             };
 
+            // 创建幽灵元素
+            const ghost = stripe.cloneNode(true);
+            ghost.classList.add('stripe-ghost');
+            ghost.style.position = 'fixed';
+            ghost.style.pointerEvents = 'none';
+            ghost.style.zIndex = '9999';
+            ghost.style.opacity = '0.8';
+            ghost.style.width = stripe.offsetWidth + 'px';
+            ghost.style.height = stripe.offsetHeight + 'px';
+            document.body.appendChild(ghost);
+            dragState.ghostElement = ghost;
+
+            // 初始位置
+            updateGhostPosition(e.clientX, e.clientY);
+
+            // 视觉反馈
             stripe.classList.add('dragging');
             document.body.classList.add('dragging');
         }
 
         /**
-         * 条带跨格子拖动 - 结束
+         * 更新幽灵元素位置
          */
-        function onStripeCrossCellDragEnd(e) {
-            const stripe = e.currentTarget;
+        function updateGhostPosition(clientX, clientY) {
+            const ghost = dragState.ghostElement;
+            if (!ghost) return;
 
-            console.log('[CrossCell] dragend on stripe:', stripe.dataset.cpName);
+            const offsetX = ghost.offsetWidth / 2;
+            const offsetY = ghost.offsetHeight / 2;
+            ghost.style.left = (clientX - offsetX) + 'px';
+            ghost.style.top = (clientY - offsetY) + 'px';
+        }
 
+        /**
+         * 处理跨格子移动
+         */
+        function handleCrossCellMove(e) {
+            // 更新幽灵元素位置
+            updateGhostPosition(e.clientX, e.clientY);
+
+            // 使用 elementFromPoint 检测当前悬停的行
+            const elementBelow = document.elementFromPoint(e.clientX, e.clientY);
+            if (!elementBelow) return;
+
+            // 查找行容器
+            const rowContainer = elementBelow.closest('.row-stripes');
+            if (rowContainer) {
+                const rowIndex = rowContainer.dataset.row;
+                if (rowIndex !== dragState.currentRowIndex) {
+                    dragState.currentRowIndex = rowIndex;
+                    console.log('[CrossCell] Hovering row:', rowIndex);
+                }
+            }
+        }
+
+        /**
+         * 结束跨格子拖拽
+         */
+        function finishCrossCell(e) {
+            const stripe = dragState.draggedStripe;
+            const ghost = dragState.ghostElement;
+
+            if (!stripe) return;
+
+            console.log('[CrossCell] Finish ghost drag');
+
+            // 移除幽灵元素
+            if (ghost) {
+                ghost.remove();
+            }
+
+            // 移除视觉反馈
             stripe.classList.remove('dragging');
             document.body.classList.remove('dragging');
-            draggedCheckpoint = null;
 
-            // 重置拖动状态
-            if (dragState.mode === DragMode.CROSS_CELL) {
-                dragState.reset();
+            // 使用 elementFromPoint 获取释放位置的元素
+            const elementBelow = document.elementFromPoint(e.clientX, e.clientY);
+            if (elementBelow) {
+                // 检查是否释放在有效的放置区域
+                const chamberCell = elementBelow.closest('.chamber-cell');
+                const rowStripes = elementBelow.closest('.row-stripes');
+
+                if (chamberCell || rowStripes) {
+                    // 获取目标日期
+                    let targetDate = null;
+                    if (chamberCell) {
+                        targetDate = chamberCell.dataset.date;
+                    } else if (rowStripes) {
+                        // 从行容器获取日期（需要计算）
+                        targetDate = getDateFromRowStripes(rowStripes, e.clientX);
+                    }
+
+                    if (targetDate && targetDate !== stripe.dataset.sourceDate) {
+                        console.log('[CrossCell] Dropped on date:', targetDate);
+                        // 执行跨格子移动
+                        executeCrossCellMove(stripe, targetDate);
+                    }
+                }
             }
+
+            draggedCheckpoint = null;
+        }
+
+        /**
+         * 执行跨格子移动
+         */
+        function executeCrossCellMove(stripe, targetDate) {
+            const checkpointId = stripe.dataset.checkpointId;
+            const sourceDate = stripe.dataset.sourceDate;
+
+            // 检查目标日期是否已有相同检查点
+            const targetEntries = adminData.calendarEntries[targetDate] || [];
+            const existingEntry = targetEntries.find(e => e.checkpointId === checkpointId);
+
+            if (existingEntry) {
+                showToast('目标日期已有该检查点', 'warning');
+                return;
+            }
+
+            // 创建新记录
+            const newEntry = {
+                id: generateId(),
+                checkpointId: checkpointId,
+                checkpointName: stripe.dataset.cpName,
+                description: '',
+                tags: [],
+                completed: false,
+                createdAt: new Date().toISOString()
+            };
+
+            if (!adminData.calendarEntries[targetDate]) {
+                adminData.calendarEntries[targetDate] = [];
+            }
+            adminData.calendarEntries[targetDate].push(newEntry);
+
+            // 更新 checkpointCompletions
+            if (!adminData.checkpointCompletions[checkpointId]) {
+                adminData.checkpointCompletions[checkpointId] = [];
+            }
+            adminData.checkpointCompletions[checkpointId].push({
+                date: targetDate,
+                entryId: newEntry.id,
+                completed: false
+            });
+
+            saveData();
+            renderChamberGrid();
+            updateStats();
+
+            showToast(`已移动到 ${targetDate}`, 'success');
         }
 
         /**
@@ -5411,15 +5565,9 @@
             try {
                 if (!selectedDate || !editingEntryId) return;
 
-                // 先保存当前条目的修改（待办、描述等）
+                // 先获取当前条目和日期（在保存之前，因为saveEntry会关闭弹窗清理状态）
                 const entry = adminData.calendarEntries[selectedDate]?.find(e => e.id === editingEntryId);
                 if (!entry) return;
-
-                // 保存当前编辑的内容到条目
-                entry.description = todosToMarkdown(currentTodos);
-                entry.tags = currentTags;
-                saveData();
-
                 const currentDateStr = selectedDate;
 
                 // 计算下一天日期（使用本地时间避免时区问题）
@@ -5557,15 +5705,9 @@
             try {
                 if (!selectedDate || !editingEntryId) return;
 
-                // 先保存当前条目的修改（待办、描述等）
+                // 先获取当前条目和日期（在保存之前）
                 const entry = adminData.calendarEntries[selectedDate]?.find(e => e.id === editingEntryId);
                 if (!entry) return;
-
-                // 保存当前编辑的内容到条目
-                entry.description = todosToMarkdown(currentTodos);
-                entry.tags = currentTags;
-                saveData();
-
                 const currentDateStr = selectedDate;
 
                 // 计算下一天日期（使用本地时间避免时区问题）
@@ -6012,10 +6154,6 @@
                 showToast('待办项不存在', 'error');
                 return;
             }
-
-            // 先保存当前条目的修改（标签等）
-            entry.tags = currentTags;
-            saveData();
 
             // 计算目标日期：下一天，如果是周五则下周一
             const currentDate = parseLocalDate(selectedDate);
