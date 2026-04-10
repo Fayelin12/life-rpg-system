@@ -2625,6 +2625,10 @@
                     <button class="chronicle-arrow" onclick="changeMonth(1)">▶</button>
                 </div>
                 <div style="display: flex; align-items: center; gap: 12px;">
+                    <button class="weekend-toggle-btn-inline" onclick="exportToCSV()" title="导出所有数据到CSV">
+                        <span>📥</span>
+                        <span>导出CSV</span>
+                    </button>
                     <button class="weekend-toggle-btn-inline" id="weekendToggleBtn" onclick="toggleWeekend()">
                         <span>📅</span>
                         <span>显示周末</span>
@@ -2963,6 +2967,9 @@
             try {
                 loadData();
 
+                // 数据迁移：为历史日历条目补全创建时间（已执行完毕，可注释掉）
+                // migrateCalendarEntries();
+
                 // 如果没有选中的地标，默认选中第一个
                 if (!selectedLandmarkId && adminData.landmarks && adminData.landmarks.length > 0) {
                     setSelectedLandmarkId(adminData.landmarks[0].id);
@@ -3029,6 +3036,33 @@
         }
 
         /**
+         * 数据迁移：为历史日历条目补全创建时间
+         */
+        function migrateCalendarEntries() {
+            try {
+                let migratedCount = 0;
+                const entries = adminData.calendarEntries || {};
+
+                Object.keys(entries).forEach(dateStr => {
+                    entries[dateStr].forEach(entry => {
+                        if (!entry.createdAt) {
+                            // 如果没有创建时间，使用日期字符串作为近似时间
+                            entry.createdAt = new Date(dateStr + 'T09:00:00').toISOString();
+                            migratedCount++;
+                        }
+                    });
+                });
+
+                if (migratedCount > 0) {
+                    saveData();
+                    console.log(`[Migrate] 已为 ${migratedCount} 条历史日历条目补全创建时间`);
+                }
+            } catch (error) {
+                console.error('数据迁移失败:', error);
+            }
+        }
+
+        /**
          * 清空所有日历数据（调试用）
          */
         function clearAllCalendarData() {
@@ -3044,6 +3078,151 @@
             } catch (error) {
                 console.error('清空数据失败:', error);
             }
+        }
+
+        /**
+         * 导出所有数据到CSV
+         * 包含：地标、任务、关卡、检查项、日历条目、待办项
+         */
+        function exportToCSV() {
+            try {
+                const rows = [];
+                const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+
+                // CSV 头部
+                rows.push([
+                    '数据类型',
+                    '地标ID', '地标名称', '地标图标',
+                    '任务ID', '任务名称',
+                    '关卡ID', '关卡名称',
+                    '检查项ID', '检查项名称', '检查项完成状态',
+                    '日期', '开始时间', '持续时间(分钟)',
+                    '日历条目ID', '日历条目描述',
+                    '待办项内容', '待办项完成状态',
+                    '创建时间', '更新时间'
+                ].map(escapeCSV).join(','));
+
+                // 遍历所有地标
+                (adminData.landmarks || []).forEach(landmark => {
+                    const quests = adminData.landmarkQuests[landmark.id] || [];
+
+                    quests.forEach(quest => {
+                        const levels = adminData.questLevels[quest.id] || [];
+
+                        levels.forEach(level => {
+                            (level.checkpoints || []).forEach(cp => {
+                                // 基础行数据（不含日历条目）
+                                const baseRow = {
+                                    dataType: '检查项',
+                                    landmarkId: landmark.id,
+                                    landmarkName: landmark.name,
+                                    landmarkIcon: landmark.icon,
+                                    questId: quest.id,
+                                    questName: quest.name,
+                                    levelId: level.id,
+                                    levelName: level.name,
+                                    checkpointId: cp.id,
+                                    checkpointName: cp.name,
+                                    checkpointCompleted: cp.completed ? '是' : '否'
+                                };
+
+                                // 查找该检查项的所有日历条目
+                                let hasCalendarEntry = false;
+                                Object.keys(adminData.calendarEntries || {}).forEach(dateStr => {
+                                    const entries = adminData.calendarEntries[dateStr];
+                                    entries.forEach(entry => {
+                                        if (entry.checkpointId === cp.id) {
+                                            hasCalendarEntry = true;
+                                            const todos = entry.description ? markdownToTodos(entry.description) : [];
+
+                                            if (todos.length === 0) {
+                                                // 没有待办项，输出一行
+                                                rows.push([
+                                                    '日历条目',
+                                                    baseRow.landmarkId, baseRow.landmarkName, baseRow.landmarkIcon,
+                                                    baseRow.questId, baseRow.questName,
+                                                    baseRow.levelId, baseRow.levelName,
+                                                    baseRow.checkpointId, baseRow.checkpointName, baseRow.checkpointCompleted,
+                                                    dateStr, entry.startTime || '', entry.duration || '',
+                                                    entry.id || '', entry.description || '',
+                                                    '', '', // 无待办项
+                                                    entry.createdAt || '', entry.updatedAt || ''
+                                                ].map(escapeCSV).join(','));
+                                            } else {
+                                                // 有待办项，每个待办输出一行
+                                                todos.forEach(todo => {
+                                                    rows.push([
+                                                        '日历条目',
+                                                        baseRow.landmarkId, baseRow.landmarkName, baseRow.landmarkIcon,
+                                                        baseRow.questId, baseRow.questName,
+                                                        baseRow.levelId, baseRow.levelName,
+                                                        baseRow.checkpointId, baseRow.checkpointName, baseRow.checkpointCompleted,
+                                                        dateStr, entry.startTime || '', entry.duration || '',
+                                                        entry.id || '', entry.description || '',
+                                                        todo.text, todo.completed ? '是' : '否',
+                                                        entry.createdAt || '', entry.updatedAt || ''
+                                                    ].map(escapeCSV).join(','));
+                                                });
+                                            }
+                                        }
+                                    });
+                                });
+
+                                // 如果没有日历条目，输出检查项基本信息
+                                if (!hasCalendarEntry) {
+                                    rows.push([
+                                        baseRow.dataType,
+                                        baseRow.landmarkId, baseRow.landmarkName, baseRow.landmarkIcon,
+                                        baseRow.questId, baseRow.questName,
+                                        baseRow.levelId, baseRow.levelName,
+                                        baseRow.checkpointId, baseRow.checkpointName, baseRow.checkpointCompleted,
+                                        '', '', '', '', '', '', '', '', '', ''
+                                    ].map(escapeCSV).join(','));
+                                }
+                            });
+                        });
+                    });
+                });
+
+                // 添加原始数据结构摘要（作为注释行）
+                rows.push(''); // 空行
+                rows.push('# 原始数据结构摘要');
+                rows.push(['数据类型', '记录数'].map(escapeCSV).join(','));
+                rows.push(['landmarks', (adminData.landmarks || []).length].map(escapeCSV).join(','));
+                rows.push(['landmarkQuests', Object.keys(adminData.landmarkQuests || {}).length].map(escapeCSV).join(','));
+                rows.push(['questLevels', Object.keys(adminData.questLevels || {}).length].map(escapeCSV).join(','));
+                rows.push(['calendarEntries', Object.keys(adminData.calendarEntries || {}).length].map(escapeCSV).join(','));
+                rows.push(['checkpointCompletions', Object.keys(adminData.checkpointCompletions || {}).length].map(escapeCSV).join(','));
+
+                // 生成并下载CSV文件
+                const csvContent = '\uFEFF' + rows.join('\n'); // BOM for Excel
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `life-rpg-export-${timestamp}.csv`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                showToast(`已导出 ${rows.length - 8} 条记录到CSV`, 'success');
+                console.log('[Export] CSV exported:', rows.length - 8, 'rows');
+            } catch (error) {
+                console.error('导出CSV失败:', error);
+                showToast('导出失败：' + error.message, 'error');
+            }
+        }
+
+        /**
+         * 转义CSV字段
+         */
+        function escapeCSV(value) {
+            if (value === null || value === undefined) return '';
+            const str = String(value);
+            // 如果包含逗号、引号或换行，需要用引号包裹并转义内部引号
+            if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+                return '"' + str.replace(/"/g, '""') + '"';
+            }
+            return str;
         }
 
         /**
@@ -5413,7 +5592,8 @@
                 checkpointName: checkpoint.name,
                 date: dateStr,
                 description: '',
-                completed: false
+                completed: false,
+                createdAt: new Date().toISOString()
             };
 
             if (!adminData.calendarEntries[dateStr]) {
@@ -6015,7 +6195,8 @@
                 // 创建新记录（移动原记录的所有数据）
                 const movedEntry = {
                     ...entry,
-                    date: nextDateStr
+                    date: nextDateStr,
+                    createdAt: entry.createdAt || new Date().toISOString()
                 };
 
                 if (!adminData.calendarEntries[nextDateStr]) {
@@ -6393,7 +6574,8 @@
                     checkpointName: entry.checkpointName,
                     date: targetDateStr,
                     description: '',
-                    completed: false
+                    completed: false,
+                    createdAt: new Date().toISOString()
                 };
 
                 if (!adminData.calendarEntries[targetDateStr]) {
