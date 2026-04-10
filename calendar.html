@@ -325,6 +325,11 @@
             height: calc(100vh - 80px);
         }
 
+        .time-sanctum.year-view-active {
+            height: auto;
+            min-height: calc(100vh - 80px);
+        }
+
         .sanctum-nav {
             padding: 12px 30px;
             display: flex;
@@ -2559,6 +2564,159 @@
                 max-height: 200px;
             }
         }
+
+        /* 年视图矩阵样式 */
+        .year-matrix {
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-panel);
+            border: 1px solid var(--border-gold);
+            border-radius: 8px;
+            margin: 0 20px 20px;
+            padding: 20px;
+            overflow: hidden;
+            height: auto;
+            flex: 0 0 auto;
+        }
+
+        .year-matrix-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+            padding-left: 0;
+        }
+
+        .year-matrix-day-header {
+            flex: 1;
+            min-width: 28px;
+            max-width: 40px;
+            text-align: center;
+            font-size: 11px;
+            color: var(--text-muted);
+            padding: 4px 0;
+        }
+
+        .year-matrix-body {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+
+        .year-matrix-row {
+            display: flex;
+            align-items: flex-start;
+            min-height: 0;
+        }
+
+        .year-matrix-month-label {
+            width: 36px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-family: var(--font-display);
+            text-align: right;
+            padding-right: 8px;
+            padding-top: 2px;
+            flex-shrink: 0;
+        }
+
+        .year-matrix-cells {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+            position: relative;
+        }
+
+        .year-matrix-grid {
+            display: flex;
+            height: 20px;
+        }
+
+        .year-matrix-cell {
+            flex: 1;
+            min-width: 28px;
+            max-width: 40px;
+            height: 20px;
+            border-radius: 0;
+            background: transparent;
+            border: 1px solid transparent;
+            border-left: 1px solid rgba(139, 119, 101, 0.15);
+            box-sizing: border-box;
+        }
+
+        .year-matrix-cell:first-child {
+            border-left: 1px solid transparent;
+        }
+
+        /* 任务行容器 - 有背景色和边框 */
+        .year-matrix-task-row {
+            display: flex;
+            position: relative;
+            height: 20px;
+            margin-bottom: 2px;
+            background: rgba(139, 119, 101, 0.05);
+            border-radius: 4px;
+        }
+
+        .year-matrix-task-bar {
+            position: absolute;
+            height: 18px;
+            background: var(--accent-gold);
+            opacity: 0.85;
+            border-radius: 9px;
+            font-size: 10px;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            padding: 0 8px;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            cursor: pointer;
+            transition: opacity 0.2s ease;
+            z-index: 1;
+            top: 1px;
+        }
+
+        .year-matrix-task-bar:hover {
+            opacity: 1;
+            z-index: 2;
+        }
+
+        .year-matrix-legend {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border-gold);
+        }
+
+        .year-matrix-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .year-matrix-legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+            background: var(--accent-gold);
+            opacity: 0.7;
+        }
+
+        .year-matrix-legend-empty {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+            background: rgba(139, 119, 101, 0.1);
+            border: 1px solid transparent;
+        }
     </style>
 </head>
 <body>
@@ -2636,14 +2794,21 @@
                         <span>显示周末</span>
                     </button>
                     <div class="view-glyphs">
-                        <button class="glyph-btn active" onclick="switchView('month')">月</button>
                         <button class="glyph-btn" onclick="switchView('week')">周</button>
+                        <button class="glyph-btn active" onclick="switchView('month')">月</button>
+                        <button class="glyph-btn" onclick="switchView('year')">年</button>
                     </div>
                 </div>
             </div>
 
             <div class="chamber-grid" id="chamberGrid">
                 <!-- 动态生成 -->
+            </div>
+
+            <!-- 年视图矩阵 -->
+            <div class="year-matrix" id="yearMatrix" style="display: none;">
+                <div class="year-matrix-header" id="yearMatrixHeader"></div>
+                <div class="year-matrix-body" id="yearMatrixBody"></div>
             </div>
         </section>
     </main>
@@ -2980,8 +3145,26 @@
                 renderScrollArchive();
                 // 设置视图按钮的active状态
                 updateViewButtons();
-                renderChamberGrid();
-                renderWeekView();
+
+                // 根据当前视图渲染对应内容
+                const chamberGrid = document.getElementById('chamberGrid');
+                const yearMatrix = document.getElementById('yearMatrix');
+                const timeSanctum = document.querySelector('.time-sanctum');
+
+                if (currentView === 'year') {
+                    if (chamberGrid) chamberGrid.style.display = 'none';
+                    if (yearMatrix) {
+                        yearMatrix.style.display = 'block';
+                        renderYearMatrix();
+                    }
+                    if (timeSanctum) timeSanctum.classList.add('year-view-active');
+                } else {
+                    if (chamberGrid) chamberGrid.style.display = '';
+                    if (yearMatrix) yearMatrix.style.display = 'none';
+                    if (timeSanctum) timeSanctum.classList.remove('year-view-active');
+                    renderChamberGrid();
+                }
+
                 updateStats();
                 bindModalEvents();
                 applyWeekendToggle();
@@ -3881,6 +4064,155 @@
                 bindChamberDragEvents();
             } catch (error) {
                 console.error('渲染月视图失败:', error);
+            }
+        }
+
+        /**
+         * 渲染年视图矩阵
+         * 展示关卡名称，多日连续任务用绝对定位条带展示
+         */
+        function renderYearMatrix() {
+            try {
+                const year = currentDate.getFullYear();
+                document.getElementById('chronicleTitle').textContent = `${year}年`;
+
+                const headerContainer = document.getElementById('yearMatrixHeader');
+                const bodyContainer = document.getElementById('yearMatrixBody');
+
+                if (!headerContainer || !bodyContainer) return;
+
+                // 渲染表头（1-31日）
+                let headerHtml = '<div style="width: 36px; flex-shrink: 0;"></div>';
+                for (let day = 1; day <= 31; day++) {
+                    headerHtml += `<div class="year-matrix-day-header">${day}</div>`;
+                }
+                headerContainer.innerHTML = headerHtml;
+
+                // 获取选中的地标ID
+                const selectedLandmarkId = getSelectedLandmarkId();
+                let allowedCheckpointIds = null;
+                if (selectedLandmarkId) {
+                    const landmarkCheckpoints = getCheckpointsByLandmark(selectedLandmarkId);
+                    allowedCheckpointIds = new Set(landmarkCheckpoints.map(cp => cp.id));
+                }
+
+                // 收集所有任务（按关卡分组）
+                const levelTasks = new Map();
+
+                Object.keys(adminData.calendarEntries || {}).forEach(dateStr => {
+                    const entries = adminData.calendarEntries[dateStr];
+                    entries.forEach(entry => {
+                        if (allowedCheckpointIds && !allowedCheckpointIds.has(entry.checkpointId)) {
+                            return;
+                        }
+
+                        const hierarchy = getCheckpointHierarchy(entry.checkpointId);
+                        if (!hierarchy) return;
+
+                        const levelId = hierarchy.levelId;
+                        const levelName = hierarchy.levelName;
+
+                        if (!levelTasks.has(levelId)) {
+                            levelTasks.set(levelId, {
+                                name: levelName,
+                                dates: new Set()
+                            });
+                        }
+                        levelTasks.get(levelId).dates.add(dateStr);
+                    });
+                });
+
+                // 渲染12个月
+                let bodyHtml = '';
+                for (let month = 1; month <= 12; month++) {
+                    const daysInMonth = new Date(year, month, 0).getDate();
+
+                    // 收集该月的任务
+                    const monthTasks = [];
+                    levelTasks.forEach((task, levelId) => {
+                        const monthDates = [...task.dates].filter(dateStr => {
+                            const date = new Date(dateStr);
+                            return date.getFullYear() === year && date.getMonth() + 1 === month;
+                        }).sort();
+
+                        if (monthDates.length > 0) {
+                            monthTasks.push({
+                                levelId,
+                                name: task.name,
+                                dates: monthDates
+                            });
+                        }
+                    });
+
+                    bodyHtml += '<div class="year-matrix-row">';
+                    bodyHtml += `<div class="year-matrix-month-label">${month}月</div>`;
+                    bodyHtml += '<div class="year-matrix-cells">';
+
+                    if (monthTasks.length === 0) {
+                        // 该月无任务，渲染背景格子行
+                        bodyHtml += '<div class="year-matrix-task-row">';
+                        for (let day = 1; day <= 31; day++) {
+                            if (day <= daysInMonth) {
+                                bodyHtml += '<div class="year-matrix-cell"></div>';
+                            } else {
+                                bodyHtml += '<div class="year-matrix-cell" style="visibility: hidden;"></div>';
+                            }
+                        }
+                        bodyHtml += '</div>';
+                    } else {
+                        // 有任务，只为每个任务创建行容器（不显示背景格子行）
+                        monthTasks.forEach((task) => {
+                            // 计算连续日期段
+                            const segments = [];
+                            let startDay = null;
+                            let prevDay = null;
+
+                            task.dates.forEach(dateStr => {
+                                const day = parseInt(dateStr.split('-')[2]);
+                                if (startDay === null) {
+                                    startDay = day;
+                                    prevDay = day;
+                                } else if (day === prevDay + 1) {
+                                    prevDay = day;
+                                } else {
+                                    segments.push({ start: startDay, end: prevDay });
+                                    startDay = day;
+                                    prevDay = day;
+                                }
+                            });
+                            if (startDay !== null) {
+                                segments.push({ start: startDay, end: prevDay });
+                            }
+
+                            // 创建任务行容器
+                            bodyHtml += '<div class="year-matrix-task-row">';
+
+                            // 为每个连续段渲染条带
+                            segments.forEach(segment => {
+                                const startPercent = ((segment.start - 1) / 31) * 100;
+                                const endPercent = (segment.end / 31) * 100;
+                                const widthPercent = endPercent - startPercent;
+
+                                bodyHtml += `
+                                    <div class="year-matrix-task-bar"
+                                         style="left: ${startPercent}%; width: calc(${widthPercent}% - 2px);"
+                                         title="${task.name}: ${month}月${segment.start}日-${segment.end}日">
+                                        ${task.name}
+                                    </div>
+                                `;
+                            });
+
+                            bodyHtml += '</div>';
+                        });
+                    }
+
+                    bodyHtml += '</div></div>';
+                }
+
+                bodyContainer.innerHTML = bodyHtml;
+                console.log('[YearView] Rendered', 12, 'months');
+            } catch (error) {
+                console.error('渲染年视图失败:', error);
             }
         }
 
@@ -7258,11 +7590,34 @@
             try {
                 currentView = view;
                 localStorage.setItem('lifeRpgCurrentView', view);
-                document.querySelectorAll('.glyph-btn').forEach(b => b.classList.remove('active'));
-                event.target.classList.add('active');
 
-                // 重新渲染日历
-                renderChamberGrid();
+                // 更新按钮状态
+                document.querySelectorAll('.glyph-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                    const onclickAttr = btn.getAttribute('onclick');
+                    if (onclickAttr && onclickAttr.includes(`switchView('${view}')`)) {
+                        btn.classList.add('active');
+                    }
+                });
+
+                // 切换视图显示
+                const chamberGrid = document.getElementById('chamberGrid');
+                const yearMatrix = document.getElementById('yearMatrix');
+                const timeSanctum = document.querySelector('.time-sanctum');
+
+                if (view === 'year') {
+                    if (chamberGrid) chamberGrid.style.display = 'none';
+                    if (yearMatrix) {
+                        yearMatrix.style.display = 'block';
+                        renderYearMatrix();
+                    }
+                    if (timeSanctum) timeSanctum.classList.add('year-view-active');
+                } else {
+                    if (chamberGrid) chamberGrid.style.display = '';
+                    if (yearMatrix) yearMatrix.style.display = 'none';
+                    if (timeSanctum) timeSanctum.classList.remove('year-view-active');
+                    renderChamberGrid();
+                }
             } catch (error) {
                 console.error('切换视图失败:', error);
             }
