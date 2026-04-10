@@ -1026,8 +1026,7 @@
             border-radius: 8px;
             width: 90%;
             max-width: 900px;
-            height: 85vh;
-            max-height: 85vh;
+            max-height: 600px;
             overflow: hidden;
             transform: scaleY(0) translateY(50px);
             transform-origin: bottom;
@@ -1419,6 +1418,8 @@
             background: var(--bg-elevated);
             border-radius: 8px;
             padding: 16px;
+            max-height: 360px;
+            overflow: hidden;
         }
 
         .timeline-panel-title {
@@ -1483,7 +1484,8 @@
         .history-timeline {
             flex: 1;
             overflow-y: auto;
-            max-height: none;
+            max-height: 100%;
+            scroll-behavior: smooth;
         }
 
         .timeline-item {
@@ -5936,6 +5938,11 @@
                 });
 
                 timeline.innerHTML = html || '<div class="timeline-empty">暂无历史记录</div>';
+
+                // 滚动到底部显示最新记录
+                setTimeout(() => {
+                    timeline.scrollTop = timeline.scrollHeight;
+                }, 0);
             } catch (error) {
                 console.error('渲染历史时间轴失败:', error);
             }
