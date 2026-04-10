@@ -3966,17 +3966,26 @@
                 // 更新该列的结束时间为当前检查项的结束时间
                 columns[colIndex] = item.endMinutes;
 
+                // 计算该条目在生命周期内的最大并发数（用于动态宽度）
+                // 找到该条目存在的所有时间切片，取最大并发数
+                const entryMaxConcurrent = Math.max(...timeSlices
+                    .filter(slice =>
+                        item.startMinutes < slice.end && item.endMinutes > slice.start
+                    )
+                    .map(slice => slice.maxCols), 1);
+
                 positionedEntries.push({
                     ...item,
                     colIndex,
-                    totalCols: dayMaxCols  // 使用全天的最大并发数
+                    totalCols: dayMaxCols,  // 全天最大并发数（用于统一布局）
+                    entryMaxConcurrent       // 该条目时间段内的最大并发数（用于动态宽度）
                 });
             });
 
             // ========== 步骤3: 渲染条目 ==========
             // 根据计算好的列索引和总列数，计算每个检查项的位置和尺寸
             positionedEntries.forEach(data => {
-                const { entry, startTime, duration, startMinutes, endMinutes, stripeClass, colIndex, totalCols } = data;
+                const { entry, startTime, duration, startMinutes, endMinutes, stripeClass, colIndex, totalCols, entryMaxConcurrent } = data;
 
                 // 垂直位置计算（基于时间）
                 // 9:00 对应 0%，18:00 对应 100%
@@ -3986,9 +3995,9 @@
                 const heightPercent = Math.max(6, (duration / 60) / totalHours * 100);
 
                 // 水平位置和宽度计算（基于列索引和总列数）
-                // colIndex=0 -> left=0%, colIndex=1 -> left=33.3%, etc.
-                // width = 100% / totalCols - 间隙
-                const colWidth = 100 / totalCols;
+                // 使用 entryMaxConcurrent 而不是 totalCols 来计算宽度
+                // 这样当单个条目独占时间段时，它会占满可用空间
+                const colWidth = 100 / entryMaxConcurrent;
                 const leftPercent = colIndex * colWidth;
                 // 增加间隙，让检查项之间有明显分隔
                 const widthPercent = colWidth - 1.5;
@@ -7047,11 +7056,18 @@
          */
         function changeMonth(delta) {
             try {
-                currentDate.setMonth(currentDate.getMonth() + delta);
-                renderChamberGrid();
+                if (currentView === 'week') {
+                    // 周视图：切换周（加减7天）
+                    currentDate.setDate(currentDate.getDate() + delta * 7);
+                    renderChamberGrid();
+                } else {
+                    // 月视图：切换月份
+                    currentDate.setMonth(currentDate.getMonth() + delta);
+                    renderChamberGrid();
+                }
                 updateStats();
             } catch (error) {
-                console.error('切换月份失败:', error);
+                console.error('切换时间失败:', error);
             }
         }
 
