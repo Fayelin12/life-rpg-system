@@ -62,6 +62,48 @@
             padding-left: 26px;
         }
 
+        /* 地标选择器 - 新增 */
+        .landmark-filter {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-gold);
+            background: rgba(201, 162, 39, 0.05);
+        }
+
+        .landmark-select {
+            width: 100%;
+            padding: 10px 32px 10px 12px;
+            background: var(--bg-dark);
+            border: 1px solid var(--border-gold);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 13px;
+            cursor: pointer;
+            outline: none;
+            transition: all 0.2s ease;
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23c9a227' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+        }
+
+        .landmark-select option {
+            background: #ffffff;
+            color: #1a1a1a;
+            padding: 8px;
+            font-size: 13px;
+        }
+
+        .landmark-select:hover {
+            border-color: var(--accent-gold);
+        }
+
+        .landmark-select:focus {
+            border-color: var(--accent-gold);
+            box-shadow: 0 0 0 2px rgba(201, 162, 39, 0.2);
+        }
+
         .scroll-collection {
             flex: 1;
             overflow-y: auto;
@@ -2542,6 +2584,12 @@
                 <div class="archive-subtitle">拖拽卷轴至时间密室</div>
             </div>
 
+            <!-- 地标选择器 - 新增 -->
+            <div class="landmark-filter" id="landmarkFilter">
+                <select class="landmark-select" id="landmarkSelect" onchange="onLandmarkSelectChange(this.value)">
+                </select>
+            </div>
+
             <div class="scroll-collection" id="scrollCollection">
                 <!-- 动态生成 -->
             </div>
@@ -2674,6 +2722,162 @@
         let editingEntryId = null;
 
         // ============================================
+        // 地标选择状态 - 新增
+        // ============================================
+        let selectedLandmarkId = localStorage.getItem('lifeRpgSelectedLandmarkId') || null;
+
+        /**
+         * 获取选中的地标ID
+         */
+        function getSelectedLandmarkId() {
+            return selectedLandmarkId;
+        }
+
+        /**
+         * 设置选中的地标
+         */
+        function setSelectedLandmarkId(landmarkId) {
+            selectedLandmarkId = landmarkId;
+            localStorage.setItem('lifeRpgSelectedLandmarkId', landmarkId || '');
+            console.log('[Landmark] Selected:', landmarkId);
+        }
+
+        /**
+         * 获取指定地标下的所有检查项（扁平化）
+         */
+        function getCheckpointsByLandmark(landmarkId) {
+            if (!landmarkId) return [];
+
+            const checkpoints = [];
+            const quests = adminData.landmarkQuests[landmarkId] || [];
+
+            quests.forEach(quest => {
+                const levels = adminData.questLevels[quest.id] || [];
+                levels.forEach(level => {
+                    (level.checkpoints || []).forEach(cp => {
+                        checkpoints.push({
+                            ...cp,
+                            levelId: level.id,
+                            questId: quest.id,
+                            landmarkId: landmarkId,
+                            levelName: level.name,
+                            questName: quest.name,
+                            landmarkName: getLandmarkName(landmarkId)
+                        });
+                    });
+                });
+            });
+
+            return checkpoints;
+        }
+
+        /**
+         * 获取指定地标在指定日期的日历条目
+         */
+        function getLandmarkCalendarEntries(landmarkId, dateStr) {
+            const allEntries = adminData.calendarEntries[dateStr] || [];
+            if (!landmarkId) return allEntries;
+
+            // 获取该地标下的所有检查项ID
+            const landmarkCheckpoints = getCheckpointsByLandmark(landmarkId);
+            const checkpointIds = new Set(landmarkCheckpoints.map(cp => cp.id));
+
+            return allEntries.filter(entry => checkpointIds.has(entry.checkpointId));
+        }
+
+        /**
+         * 获取所有日期中指定地标的日历条目
+         */
+        function getAllCalendarEntriesForLandmark(landmarkId) {
+            if (!landmarkId) return adminData.calendarEntries;
+
+            const result = {};
+            const landmarkCheckpoints = getCheckpointsByLandmark(landmarkId);
+            const checkpointIds = new Set(landmarkCheckpoints.map(cp => cp.id));
+
+            Object.keys(adminData.calendarEntries).forEach(dateStr => {
+                const entries = adminData.calendarEntries[dateStr].filter(
+                    entry => checkpointIds.has(entry.checkpointId)
+                );
+                if (entries.length > 0) {
+                    result[dateStr] = entries;
+                }
+            });
+
+            return result;
+        }
+
+        /**
+         * 地标选择器变化处理
+         */
+        function onLandmarkSelectChange(landmarkId) {
+            if (landmarkId) {
+                switchLandmark(landmarkId);
+            }
+        }
+
+        /**
+         * 更新地标选择器选项
+         */
+        function updateLandmarkSelect() {
+            const select = document.getElementById('landmarkSelect');
+            if (!select) return;
+
+            const currentValue = select.value;
+            const landmarks = adminData.landmarks || [];
+
+            // 只生成地标选项（不包含"全部地标"）
+            let html = '';
+            landmarks.forEach(landmark => {
+                const selected = landmark.id === currentValue ? 'selected' : '';
+                html += `<option value="${landmark.id}" ${selected}>${landmark.icon} ${LifeRPG.security.escapeHtml(landmark.name)}</option>`;
+            });
+
+            select.innerHTML = html;
+
+            // 如果没有选中任何地标，默认选中第一个
+            if (!selectedLandmarkId && landmarks.length > 0) {
+                setSelectedLandmarkId(landmarks[0].id);
+            }
+
+            // 恢复选中状态
+            if (selectedLandmarkId) {
+                select.value = selectedLandmarkId;
+            }
+        }
+
+        /**
+         * 切换地标并刷新所有视图
+         */
+        function switchLandmark(landmarkId) {
+            if (!landmarkId) return;
+
+            setSelectedLandmarkId(landmarkId);
+
+            // 更新选择器显示
+            const select = document.getElementById('landmarkSelect');
+            if (select) {
+                select.value = landmarkId;
+            }
+
+            // 刷新所有视图
+            renderScrollArchive();
+            renderChamberGrid();
+            renderWeekView();
+            updateStats();
+
+            showToast(`已切换到：${getLandmarkName(landmarkId)}`, 'success');
+        }
+
+        /**
+         * 获取地标名称
+         */
+        function getLandmarkName(landmarkId) {
+            const landmark = (adminData.landmarks || []).find(l => l.id === landmarkId);
+            return landmark ? landmark.name : '未知地标';
+        }
+
+        // ============================================
         // 条带拖动状态管理 - 有限状态机
         // ============================================
         const DragMode = {
@@ -2758,10 +2962,17 @@
         function init() {
             try {
                 loadData();
+
+                // 如果没有选中的地标，默认选中第一个
+                if (!selectedLandmarkId && adminData.landmarks && adminData.landmarks.length > 0) {
+                    setSelectedLandmarkId(adminData.landmarks[0].id);
+                }
+
                 renderScrollArchive();
                 // 设置视图按钮的active状态
                 updateViewButtons();
                 renderChamberGrid();
+                renderWeekView();
                 updateStats();
                 bindModalEvents();
                 applyWeekendToggle();
@@ -3174,139 +3385,112 @@
                 const container = document.getElementById('scrollCollection');
                 if (!container) return;
 
+                // 更新地标选择器
+                updateLandmarkSelect();
+
                 let html = '';
 
-                (adminData.landmarks || []).forEach(landmark => {
-                    const quests = adminData.landmarkQuests[landmark.id] || [];
-                    if (quests.length === 0) return;
+                // 获取选中的地标ID
+                const selectedId = getSelectedLandmarkId();
 
-                    html += `
-                        <div class="landmark-tome" data-landmark="${landmark.id}">
-                            <div class="tome-header" onclick="toggleTome(this)">
-                                <div class="tome-title">
-                                    ${landmark.icon} ${LifeRPG.security.escapeHtml(landmark.name)}
-                                </div>
-                                <span class="tome-toggle">▼</span>
-                            </div>
-                            <div class="tome-content">
-                    `;
+                // 只渲染选中的地标（不再显示地标标题）
+                if (selectedId) {
+                    const landmark = (adminData.landmarks || []).find(l => l.id === selectedId);
+                    if (landmark) {
+                        const quests = adminData.landmarkQuests[landmark.id] || [];
 
-                    quests.forEach(quest => {
-                        // 确保 quest.id 有效
-                        if (!quest.id) {
-                            console.warn('[ScrollArchive] quest missing id:', quest);
-                            return;
-                        }
-
-                        const levels = adminData.questLevels[quest.id] || [];
-                        if (levels.length === 0) {
-                            console.log('[ScrollArchive] no levels for quest:', quest.id, quest.name);
-                        }
-
-                        levels.forEach(level => {
-                            // 确保 level.id 有效
-                            if (!level.id) {
-                                console.warn('[ScrollArchive] level missing id:', level);
+                        quests.forEach(quest => {
+                            if (!quest.id) {
+                                console.warn('[ScrollArchive] quest missing id:', quest);
                                 return;
                             }
 
-                            html += `
-                                <div class="quest-scroll">
-                                    <div class="quest-name">${LifeRPG.security.escapeHtml(quest.name)} › ${LifeRPG.security.escapeHtml(level.name)}</div>
-                            `;
+                            const levels = adminData.questLevels[quest.id] || [];
 
-                            level.checkpoints.forEach((cp, idx) => {
-                                // 确保 cp.id 有效
-                                if (!cp.id || cp.id === '') {
-                                    cp.id = generateId();
-                                    saveData();
-                                    console.warn('[ScrollArchive] generated missing cp.id:', {
-                                        quest: quest.name,
-                                        level: level.name,
-                                        checkpoint: cp.name,
-                                        id: cp.id
-                                    });
+                            levels.forEach(level => {
+                                if (!level.id) {
+                                    console.warn('[ScrollArchive] level missing id:', level);
+                                    return;
                                 }
 
-                                const archiveDate = getCheckpointArchiveDate(cp.id);
-                                const isArchived = !!archiveDate;
-                                const history = getCheckpointHistory(cp.id);
-                                const actualDays = history.length;
+                                let checkpointHtml = '';
 
-                                // 检查关卡数据中检查项是否已完成（世界地图勾选）
-                                const isLevelCheckpointCompleted = cp.completed === true;
+                                level.checkpoints.forEach((cp, idx) => {
+                                    if (!cp.id || cp.id === '') {
+                                        cp.id = generateId();
+                                        saveData();
+                                        console.warn('[ScrollArchive] generated missing cp.id:', {
+                                            quest: quest.name,
+                                            level: level.name,
+                                            checkpoint: cp.name,
+                                            id: cp.id
+                                        });
+                                    }
 
-                                // 检查是否所有日历条目中的待办都已完成
-                                let isAllTodosCompleted = false;
-                                let hasUncompletedTodos = false;
-                                if (history.length > 0) {
-                                    isAllTodosCompleted = history.every(h => {
-                                        const entries = adminData.calendarEntries[h.date] || [];
-                                        const entry = entries.find(e => e.checkpointId === cp.id);
-                                        if (entry && entry.description) {
-                                            const todos = markdownToTodos(entry.description);
-                                            return todos.length > 0 && todos.every(t => t.completed);
-                                        }
-                                        return false;
-                                    });
-                                    // 检查是否有未完成的待办
-                                    history.forEach(h => {
-                                        const entries = adminData.calendarEntries[h.date] || [];
-                                        const entry = entries.find(e => e.checkpointId === cp.id);
-                                        if (entry && entry.description) {
-                                            const todos = markdownToTodos(entry.description);
-                                            if (todos.some(t => !t.completed)) {
-                                                hasUncompletedTodos = true;
+                                    const archiveDate = getCheckpointArchiveDate(cp.id);
+                                    const isArchived = !!archiveDate;
+                                    const history = getCheckpointHistory(cp.id);
+                                    const actualDays = history.length;
+                                    const isLevelCheckpointCompleted = cp.completed === true;
+
+                                    let hasUncompletedTodos = false;
+                                    if (history.length > 0) {
+                                        history.forEach(h => {
+                                            const entries = adminData.calendarEntries[h.date] || [];
+                                            const entry = entries.find(e => e.checkpointId === cp.id);
+                                            if (entry && entry.description) {
+                                                const todos = markdownToTodos(entry.description);
+                                                if (todos.some(t => !t.completed)) {
+                                                    hasUncompletedTodos = true;
+                                                }
                                             }
-                                        }
-                                    });
+                                        });
+                                    }
+
+                                    let statusText = '未开始';
+                                    let statusClass = '';
+                                    let isCompletedOrArchived = false;
+
+                                    if (isArchived) {
+                                        isCompletedOrArchived = true;
+                                    } else if (isLevelCheckpointCompleted) {
+                                        isCompletedOrArchived = true;
+                                    } else if (actualDays > 0 || hasUncompletedTodos) {
+                                        statusText = '进行中 ' + actualDays + '天';
+                                    }
+
+                                    if (isCompletedOrArchived) return;
+
+                                    checkpointHtml += `
+                                        <div class="checkpoint-parchment ${statusClass}"
+                                            draggable="true"
+                                            data-cp-id="${LifeRPG.security.escapeHtml(cp.id)}"
+                                            data-level-id="${LifeRPG.security.escapeHtml(level.id)}"
+                                            data-quest-id="${LifeRPG.security.escapeHtml(quest.id)}"
+                                            data-cp-name="${LifeRPG.security.escapeHtml(cp.name || '检查点' + (idx + 1))}"
+                                            data-landmark="${LifeRPG.security.escapeHtml(landmark.name)}"
+                                            data-quest="${LifeRPG.security.escapeHtml(quest.name)}"
+                                            data-level="${LifeRPG.security.escapeHtml(level.name)}"
+                                            data-days="${actualDays}">
+                                            <div class="parchment-text">${LifeRPG.security.escapeHtml(cp.name || '检查点' + (idx + 1))}</div>
+                                            <div class="parchment-days">${statusText}</div>
+                                        </div>
+                                    `;
+                                });
+
+                                // 只显示有检查项的关卡
+                                if (checkpointHtml) {
+                                    html += `
+                                        <div class="quest-scroll">
+                                            <div class="quest-name">${LifeRPG.security.escapeHtml(quest.name)} › ${LifeRPG.security.escapeHtml(level.name)}</div>
+                                            ${checkpointHtml}
+                                        </div>
+                                    `;
                                 }
-
-                                // 判断检查项状态优先级：
-                                // 1. 已归档（有归档日期）- 不显示
-                                // 2. 关卡已勾选完成 - 不显示
-                                // 3. 进行中（有日期记录）
-                                // 4. 未开始（无日期记录且未勾选）
-                                let statusText = '未开始';
-                                let statusClass = '';
-                                let isCompletedOrArchived = false;
-
-                                if (isArchived) {
-                                    // 已归档：不显示在卷轴库
-                                    isCompletedOrArchived = true;
-                                } else if (isLevelCheckpointCompleted) {
-                                    // 关卡已勾选完成：不显示在卷轴库
-                                    isCompletedOrArchived = true;
-                                } else if (actualDays > 0 || hasUncompletedTodos) {
-                                    statusText = '进行中 ' + actualDays + '天';
-                                }
-
-                                // 跳过已归档或关卡已勾选的检查项
-                                if (isCompletedOrArchived) return;
-
-                                html += `
-                                    <div class="checkpoint-parchment ${statusClass}"
-                                        draggable="true"
-                                        data-cp-id="${LifeRPG.security.escapeHtml(cp.id)}"
-                                        data-level-id="${LifeRPG.security.escapeHtml(level.id)}"
-                                        data-quest-id="${LifeRPG.security.escapeHtml(quest.id)}"
-                                        data-cp-name="${LifeRPG.security.escapeHtml(cp.name || '检查点' + (idx + 1))}"
-                                        data-landmark="${LifeRPG.security.escapeHtml(landmark.name)}"
-                                        data-quest="${LifeRPG.security.escapeHtml(quest.name)}"
-                                        data-level="${LifeRPG.security.escapeHtml(level.name)}"
-                                        data-days="${actualDays}">
-                                        <div class="parchment-text">${LifeRPG.security.escapeHtml(cp.name || '检查点' + (idx + 1))}</div>
-                                        <div class="parchment-days">${statusText}</div>
-                                    </div>
-                                `;
                             });
-
-                            html += '</div>';
                         });
-                    });
-
-                    html += '</div></div>';
-                });
+                    }
+                }
 
                 container.innerHTML = html || `
                     <div class="empty-archive">
@@ -3522,7 +3706,10 @@
         /**
          * 渲染周视图
          */
-        function renderWeekView(grid) {
+        function renderWeekView() {
+            const grid = document.getElementById('chamberGrid');
+            if (!grid) return;
+
             const year = currentDate.getFullYear();
             const month = currentDate.getMonth();
             const today = new Date();
@@ -3623,21 +3810,26 @@
          * 支持同一时间段的检查项并排显示
          */
         function renderWeekViewCheckpoints(dateStr) {
-            const entries = adminData.calendarEntries[dateStr] || [];
+            // 获取选中的地标ID并过滤条目
+            const selectedLandmarkId = getSelectedLandmarkId();
+            let entries = adminData.calendarEntries[dateStr] || [];
+
+            if (selectedLandmarkId) {
+                const landmarkCheckpoints = getCheckpointsByLandmark(selectedLandmarkId);
+                const allowedIds = new Set(landmarkCheckpoints.map(cp => cp.id));
+                entries = entries.filter(e => allowedIds.has(e.checkpointId));
+            }
+
             if (entries.length === 0) return '';
-
-            console.log(`[WeekView] Rendering ${entries.length} entries for ${dateStr}:`, entries.map(e => ({ name: e.checkpointName, startTime: e.startTime, duration: e.duration })));
-
-            // 调试：输出布局计算结果
             if (entries.length > 0) {
                 setTimeout(() => {
                     const dayColumn = document.querySelector(`.week-day-content[data-date="${dateStr}"]`);
                     if (dayColumn) {
                         const stripes = dayColumn.querySelectorAll('.checkpoint-stripe');
-                        console.log(`[WeekView Debug] ${dateStr} rendered ${stripes.length} stripes:`);
-                        stripes.forEach((stripe, i) => {
-                            console.log(`  ${i}: ${stripe.dataset.startTime}, duration=${stripe.dataset.duration}, col=${stripe.style.left}, width=${stripe.style.width}`);
-                        });
+                        // Debug: 验证渲染结果
+                        if (stripes.length === 0) {
+                            console.warn(`[WeekView] No stripes rendered for ${dateStr}`);
+                        }
                     }
                 }, 100);
             }
@@ -3749,7 +3941,6 @@
             // 计算全天的最大并发数（所有检查项使用统一的列数）
             // 如果全天都没有检查项，默认使用1列
             const dayMaxCols = Math.max(...timeSlices.map(s => s.maxCols), 1);
-            console.log(`[WeekView Debug] Day ${dateStr}: ${sortedEntries.length} entries, dayMaxCols=${dayMaxCols}`);
 
             // ========== 步骤2: 为每个条目分配列索引 ==========
             // 使用贪心算法：每个检查项尽可能使用最左边的可用列
@@ -3780,7 +3971,6 @@
                     colIndex,
                     totalCols: dayMaxCols  // 使用全天的最大并发数
                 });
-                console.log(`[WeekView Debug]   -> ${item.entry.checkpointName}: colIndex=${colIndex}, totalCols=${dayMaxCols}`);
             });
 
             // ========== 步骤3: 渲染条目 ==========
@@ -4304,11 +4494,26 @@
             // 按行收集所有条带数据
             const rowStripesData = {}; // { rowIndex: [stripeData, ...] }
 
+            // 获取选中的地标ID
+            const selectedLandmarkId = getSelectedLandmarkId();
+
+            // 获取选中地标下的所有检查项ID（用于过滤）
+            let allowedCheckpointIds = null;
+            if (selectedLandmarkId) {
+                const landmarkCheckpoints = getCheckpointsByLandmark(selectedLandmarkId);
+                allowedCheckpointIds = new Set(landmarkCheckpoints.map(cp => cp.id));
+            }
+
             // 收集每个检查点的所有条目
             const checkpointData = {};
             Object.keys(adminData.calendarEntries || {}).forEach(dateStr => {
                 const entries = adminData.calendarEntries[dateStr];
                 entries.forEach(entry => {
+                    // 如果选中了地标，只收集该地标下的检查项
+                    if (allowedCheckpointIds && !allowedCheckpointIds.has(entry.checkpointId)) {
+                        return;
+                    }
+
                     if (!checkpointData[entry.checkpointId]) {
                         // 使用 getCheckpointHierarchy 获取层级信息，不再依赖 entry 中的冗余字段
                         const hierarchy = getCheckpointHierarchy(entry.checkpointId);
@@ -6879,10 +7084,23 @@
                 let pending = 0;
                 let activeDays = 0;
 
+                // 获取选中的地标ID，只统计该地标的条目
+                const selectedLandmarkId = getSelectedLandmarkId();
+                let allowedCheckpointIds = null;
+                if (selectedLandmarkId) {
+                    const landmarkCheckpoints = getCheckpointsByLandmark(selectedLandmarkId);
+                    allowedCheckpointIds = new Set(landmarkCheckpoints.map(cp => cp.id));
+                }
+
                 const daysInMonth = new Date(year, month + 1, 0).getDate();
                 for (let day = 1; day <= daysInMonth; day++) {
                     const dateStr = formatDate(new Date(year, month, day));
-                    const entries = adminData.calendarEntries[dateStr] || [];
+                    let entries = adminData.calendarEntries[dateStr] || [];
+
+                    // 如果选中了地标，只统计该地标下的检查项条目
+                    if (allowedCheckpointIds) {
+                        entries = entries.filter(entry => allowedCheckpointIds.has(entry.checkpointId));
+                    }
 
                     if (entries.length > 0) {
                         activeDays++;
