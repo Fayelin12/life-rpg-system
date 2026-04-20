@@ -3031,10 +3031,13 @@
                 select.value = landmarkId;
             }
 
-            // 刷新所有视图
+            // 刷新所有视图（根据当前视图类型）
             renderScrollArchive();
-            renderChamberGrid();
-            renderWeekView();
+            if (currentView === 'year') {
+                renderYearMatrix();
+            } else {
+                renderChamberGrid(); // 内部会根据 currentView 渲染周视图或月视图
+            }
             updateStats();
 
             showToast(`已切换到：${getLandmarkName(landmarkId)}`, 'success');
