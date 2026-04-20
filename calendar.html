@@ -7725,33 +7725,12 @@
 
                 mdContent += `\n*同步时间: ${new Date().toLocaleString()}*\n`;
 
-                // 方案1: 复制内容到剪贴板
-                let clipboardSuccess = false;
+                // 复制内容到剪贴板
                 if (navigator.clipboard) {
-                    try {
-                        await navigator.clipboard.writeText(mdContent);
-                        clipboardSuccess = true;
-                    } catch (e) {
-                        console.log('剪贴板复制失败:', e);
-                    }
-                }
-
-                // 方案2: 创建并下载文件
-                const blob = new Blob([mdContent], { type: 'text/markdown;charset=utf-8' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `${fileName}.md`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-
-                // 显示成功提示
-                if (clipboardSuccess) {
-                    showToast('周总结已复制到剪贴板并下载，可粘贴到 Obsidian', 'success');
+                    await navigator.clipboard.writeText(mdContent);
+                    showToast('周总结已复制到剪贴板，可在 Obsidian 中粘贴', 'success');
                 } else {
-                    showToast('周总结已下载，可导入到 Obsidian', 'success');
+                    showToast('剪贴板不可用，请手动复制', 'error');
                 }
 
             } catch (error) {
