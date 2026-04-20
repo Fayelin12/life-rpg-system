@@ -4452,7 +4452,7 @@
                 });
             }
 
-            // 计算全天的最大并发数（所有检查项使用统一的列数）
+            // 计算全天的最大并发数（用于确定最多需要多少列）
             // 如果全天都没有检查项，默认使用1列
             const dayMaxCols = Math.max(...timeSlices.map(s => s.maxCols), 1);
 
@@ -4461,6 +4461,8 @@
             // columns[j] 表示第j列当前被占用到的结束时间
             const columns = []; // 每列的结束时间
 
+            // 先为每个条目分配列索引
+            const entriesWithColIndex = [];
             sortedEntries.forEach(item => {
                 // 找到第一个可用列（该列的结束时间 <= 当前检查项的开始时间）
                 let colIndex = -1;
@@ -4480,10 +4482,25 @@
                 // 更新该列的结束时间为当前检查项的结束时间
                 columns[colIndex] = item.endMinutes;
 
+                entriesWithColIndex.push({
+                    ...item,
+                    colIndex
+                });
+            });
+
+            // ========== 步骤3: 为每个条目计算其时间范围内的最大并发数 ==========
+            // 这样可以让独占某个时间段的条目占满全部宽度
+            entriesWithColIndex.forEach(item => {
+                // 找出该条目存在的所有时间切片
+                const itemSlices = timeSlices.filter(slice =>
+                    item.startMinutes < slice.end && item.endMinutes > slice.start
+                );
+                // 该条目时间范围内的最大并发数
+                const itemMaxCols = Math.max(...itemSlices.map(s => s.maxCols), 1);
+
                 positionedEntries.push({
                     ...item,
-                    colIndex,
-                    totalCols: dayMaxCols  // 全天最大并发数（统一布局）
+                    totalCols: itemMaxCols  // 使用该条目时间范围内的最大并发数
                 });
             });
 
