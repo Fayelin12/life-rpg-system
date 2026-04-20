@@ -6142,6 +6142,9 @@
                 // 加载待办列表（优先使用 entry.todos，兼容旧数据 entry.description）
                 loadTodos(entry.todos || entry.description || '');
 
+                // 初始化改期按钮状态
+                updateMoveNextButtonState();
+
                 const history = getCheckpointHistory(entry.checkpointId);
                 const sortedHistory = [...history].sort((a, b) => new Date(a.date) - new Date(b.date));
                 const firstDate = sortedHistory.length > 0 ? sortedHistory[0].date : selectedDate;
@@ -6523,8 +6526,28 @@
             }
 
             if (existingEntry) {
-                // 覆盖现有记录（保留目标日期的描述，只覆盖标签）
-                existingEntry.tags = entry.tags || (entry.tag ? [entry.tag] : []);
+                // 覆盖现有记录（合并待办和标签）
+                // 1. 合并待办：将原日期的待办迁移到新日期
+                if (entry.description) {
+                    const sourceTodos = markdownToTodos(entry.description);
+                    const targetTodos = existingEntry.description ? markdownToTodos(existingEntry.description) : [];
+                    // 合并待办（去重，以文本内容为准）
+                    const existingTexts = new Set(targetTodos.map(t => t.text));
+                    const newTodos = [...targetTodos];
+                    sourceTodos.forEach(todo => {
+                        if (!existingTexts.has(todo.text)) {
+                            newTodos.push(todo);
+                        }
+                    });
+                    existingEntry.description = todosToMarkdown(newTodos);
+                }
+
+                // 2. 合并标签
+                const sourceTags = entry.tags || (entry.tag ? [entry.tag] : []);
+                const targetTags = existingEntry.tags || (existingEntry.tag ? [existingEntry.tag] : []);
+                const mergedTags = [...new Set([...targetTags, ...sourceTags])];
+                existingEntry.tags = mergedTags;
+                delete existingEntry.tag; // 删除旧格式的 tag 字段
 
                 // 确保 checkpointCompletions 中有对应的记录
                 if (!adminData.checkpointCompletions[entry.checkpointId]) {
@@ -6540,7 +6563,7 @@
                     });
                 }
             } else {
-                // 创建新记录（移动原记录的所有数据）
+                // 创建新记录（移动原记录的所有数据，包括待办和标签）
                 const movedEntry = {
                     ...entry,
                     date: nextDateStr,
@@ -6576,16 +6599,9 @@
             renderScrollArchive();
             updateStats();
 
-            // 显示成功提示
-            const btn = document.getElementById('moveNextBtn');
-            const originalText = btn.textContent;
-            btn.textContent = '✓ 已改期';
-            setTimeout(() => {
-                btn.textContent = originalText;
-            }, 1500);
-
-            // 关闭弹窗
+            // 关闭弹窗并提示成功
             closeModal();
+            showToast(`已改期到 ${nextDateStr}`, 'success');
 
             moveTempData = null;
         }
@@ -6825,6 +6841,9 @@
 
             // 更新隐藏字段的 Markdown 数据
             document.getElementById('todoData').value = todosToMarkdown(currentTodos);
+
+            // 更新改期按钮状态
+            updateMoveNextButtonState();
         }
 
         /**
@@ -6849,6 +6868,29 @@
             if (currentTodos[index]) {
                 currentTodos[index].completed = !currentTodos[index].completed;
                 renderTodoList();
+                updateMoveNextButtonState();
+            }
+        }
+
+        /**
+         * 更新改期按钮状态
+         * 如果有任意待办项被勾选，则置灰改期按钮
+         */
+        function updateMoveNextButtonState() {
+            const moveBtn = document.getElementById('moveNextBtn');
+            if (!moveBtn) return;
+
+            const hasCompletedTodo = currentTodos.some(todo => todo.completed);
+            if (hasCompletedTodo) {
+                moveBtn.disabled = true;
+                moveBtn.style.opacity = '0.5';
+                moveBtn.style.cursor = 'not-allowed';
+                moveBtn.title = '有已勾选的待办项，不支持改期';
+            } else {
+                moveBtn.disabled = false;
+                moveBtn.style.opacity = '';
+                moveBtn.style.cursor = '';
+                moveBtn.title = '';
             }
         }
 
