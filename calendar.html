@@ -3925,7 +3925,8 @@
          * @returns {Object} - { completed: number, total: number }
          */
         function getDateTodoStats(dateStr) {
-            const entries = adminData.calendarEntries[dateStr] || [];
+            const selectedLandmarkId = getSelectedLandmarkId();
+            const entries = getLandmarkCalendarEntries(selectedLandmarkId, dateStr);
             let completed = 0;
             let total = 0;
 
@@ -7336,8 +7337,9 @@
          */
         function showWeeklySummary() {
             const weekDays = getWeekDays();
+            const selectedLandmarkId = getSelectedLandmarkId();
             const summary = weekDays.map(day => {
-                const entries = adminData.calendarEntries[day.date] || [];
+                const entries = getLandmarkCalendarEntries(selectedLandmarkId, day.date);
                 let totalTodos = 0;
                 let completedTodos = 0;
                 let todos = [];
