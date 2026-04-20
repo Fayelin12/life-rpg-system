@@ -7368,17 +7368,19 @@
         let weeklySummaryData = null;
 
         /**
-         * 获取本周周一到周五的日期
+         * 获取指定日期所在周的周一到周五的日期
+         * @param {Date} baseDate - 基准日期，默认为当前日历显示的日期
          */
-        function getWeekDays() {
+        function getWeekDays(baseDate = null) {
+            const referenceDate = baseDate || currentDate;
+            const dayOfWeek = referenceDate.getDay(); // 0=周日, 1=周一, ..., 6=周六
             const today = new Date();
-            const dayOfWeek = today.getDay(); // 0=周日, 1=周一, ..., 6=周六
             const days = [];
 
             // 计算本周周一的日期
-            const monday = new Date(today);
+            const monday = new Date(referenceDate);
             const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-            monday.setDate(today.getDate() + diff);
+            monday.setDate(referenceDate.getDate() + diff);
 
             // 生成周一到周五的日期
             for (let i = 0; i < 5; i++) {
@@ -7549,7 +7551,8 @@
         function exportWeeklySummary() {
             if (!weeklySummaryData) return;
 
-            const weekDays = getWeekDays();
+            // 从 weeklySummaryData 中提取日期范围（与弹窗显示的一致）
+            const weekDays = weeklySummaryData.map(d => ({ date: d.date, dayName: d.dayName }));
             const weekRange = `${weekDays[0].date} ~ ${weekDays[4].date}`;
 
             // 按检查项重新组织数据
@@ -7635,7 +7638,8 @@
             }
 
             try {
-                const weekDays = getWeekDays();
+                // 从 weeklySummaryData 中提取日期范围（与弹窗显示的一致）
+                const weekDays = weeklySummaryData.map(d => ({ date: d.date, dayName: d.dayName }));
                 const weekRange = `${weekDays[0].date} ~ ${weekDays[4].date}`;
                 const fileName = `本周项目总结_${weekDays[0].date}_${weekDays[4].date}`;
 
