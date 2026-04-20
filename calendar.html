@@ -7398,9 +7398,17 @@
 
         /**
          * 显示周总结弹窗
+         * @param {string} baseDateStr - 基准日期字符串，默认为当前选中的日期
          */
-        function showWeeklySummary() {
-            const weekDays = getWeekDays();
+        function showWeeklySummary(baseDateStr = null) {
+            // 使用传入的日期或当前选中的日期，如果没有则使用日历当前日期
+            const referenceDateStr = baseDateStr || selectedDate;
+            let weekDays;
+            if (referenceDateStr) {
+                weekDays = getWeekDays(parseLocalDate(referenceDateStr));
+            } else {
+                weekDays = getWeekDays();
+            }
             const selectedLandmarkId = getSelectedLandmarkId();
             const summary = weekDays.map(day => {
                 const entries = getLandmarkCalendarEntries(selectedLandmarkId, day.date);
