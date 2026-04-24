@@ -7637,7 +7637,7 @@
         }
 
         /**
-         * 同步周总结到 Obsidian
+         * 同步周总结到 Obsidian（使用 URL Scheme 一键发送）
          */
         async function syncWeeklySummaryToObsidian() {
             if (!weeklySummaryData) {
@@ -7731,18 +7731,54 @@
                     projectIndex++;
                 });
 
-                mdContent += `\n*同步时间: ${new Date().toLocaleString()}*\n`;
+                mdContent += `\n*同步时间: ${new Date().toLocaleString()}*`;
 
-                // 复制内容到剪贴板
-                if (navigator.clipboard) {
-                    await navigator.clipboard.writeText(mdContent);
-                    showToast('周总结已复制到剪贴板，可在 Obsidian 中粘贴', 'success');
-                } else {
-                    showToast('剪贴板不可用，请手动复制', 'error');
-                }
+                // 构建 Obsidian URI（保存到 "周报/" 路径下）
+                const obsidianFilePath = `周报/${fileName}`;
+                // 路径按段编码，保留目录分隔符 "/"
+                const encodedFilePath = obsidianFilePath.split('/').map(seg => encodeURIComponent(seg)).join('/');
+                // 指定 vault 名称，精准投递到目标仓库
+                const vaultName = 'Faye';
+
+                // 使用 clipboard 模式：先复制内容到剪贴板，再让 Obsidian 从剪贴板读取
+                // 这样避免了把长内容编码到 URL 中
+                await navigator.clipboard.writeText(mdContent);
+
+                // 构建 obsidian://new URI（使用 clipboard 参数，不再包含 content）
+                const obsidianUrl = `obsidian://new?vault=${encodeURIComponent(vaultName)}&file=${encodedFilePath}&clipboard`;
+
+                // ========== 调试日志开始 ==========
+                console.log('===== Obsidian Sync 调试信息 =====');
+                console.log('[1] Vault 名称:', vaultName);
+                console.log('[2] 文件名:', fileName);
+                console.log('[3] Obsidian 文件路径:', obsidianFilePath);
+                console.log('[4] 编码后路径:', encodedFilePath);
+                console.log('[5] URL 总长度:', obsidianUrl.length, '字符');
+                console.log('[6] Markdown 内容长度:', mdContent.length, '字符');
+                console.log('[7] 内容已复制到剪贴板，Obsidian 将从剪贴板读取');
+                console.log('==================================');
+                // ========== 调试日志结束 ==========
+
+                // 触发 Obsidian URL Scheme（使用隐藏链接模拟点击，比 window.open 更可靠）
+                console.log('[调试] 即将触发 Obsidian 协议，URL 长度:', obsidianUrl.length);
+
+                const link = document.createElement('a');
+                link.href = obsidianUrl;
+                link.style.display = 'none';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                console.log('[调试] 已触发链接点击');
+                showToast('已唤起 Obsidian，内容通过剪贴板发送到 周报/', 'success');
 
             } catch (error) {
-                console.error('同步到 Obsidian 失败:', error);
+                console.error('===== Obsidian Sync 错误详情 =====');
+                console.error('错误消息:', error.message);
+                console.error('错误堆栈:', error.stack);
+                console.error('错误名称:', error.name);
+                console.error('完整错误对象:', error);
+                console.error('==================================');
                 showToast('同步失败: ' + error.message, 'error');
             }
         }
@@ -8069,7 +8105,7 @@
             </div>
             <div class="weekly-summary-actions">
                 <button class="rune-btn rune-btn-secondary" onclick="closeWeeklySummary()">关闭</button>
-                <button class="rune-btn rune-btn-secondary" onclick="syncWeeklySummaryToObsidian()">📝 同步到 Obsidian</button>
+                <button class="rune-btn rune-btn-secondary" onclick="syncWeeklySummaryToObsidian()">📝 发送到 Obsidian</button>
                 <button class="rune-btn" onclick="exportWeeklySummary()">📥 导出 Markdown</button>
             </div>
         </div>
