@@ -6,6 +6,6 @@ NUL
 *.backup
 *.backup.*
 
-# 临时文件
-*.tmp
-*.temp
+# 自动推送脚本（个人使用，不纳入版本管理）
+auto-push.bat
+auto-push.ps1
