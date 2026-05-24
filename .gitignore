@@ -9,3 +9,7 @@ NUL
 # 自动推送脚本（个人使用，不纳入版本管理）
 life-rpg-push.bat
 life-rpg-push.ps1
+life-rpg-backup.ps1
+
+# 本地数据备份目录
+data/
