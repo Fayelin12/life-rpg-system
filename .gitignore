@@ -7,5 +7,5 @@ NUL
 *.backup.*
 
 # 自动推送脚本（个人使用，不纳入版本管理）
-auto-push.bat
-auto-push.ps1
+life-rpg-push.bat
+life-rpg-push.ps1
