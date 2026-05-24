@@ -68,8 +68,22 @@
             const data = loadData();
             let allCSV = '';
 
+            // 标签CSV
+            allCSV += '=== 标签 ===\n';
+            allCSV += '标签ID,名称,图标,描述\n';
+            (data.tags || []).forEach(t => {
+                allCSV += `"${t.id}","${t.name || ''}","${t.icon || ''}","${(t.desc || '').replace(/"/g, '""')}"\n`;
+            });
+
+            // 地标CSV
+            allCSV += '\n=== 地标 ===\n';
+            allCSV += '地标ID,名称,图标,类型,描述,Boss\n';
+            (data.landmarks || []).forEach(lm => {
+                allCSV += `"${lm.id}","${lm.name || ''}","${lm.icon || ''}","${lm.type || ''}","${(lm.desc || '').replace(/"/g, '""')}","${lm.boss || ''}"\n`;
+            });
+
             // 检查项CSV
-            allCSV += '=== 检查项 ===\n';
+            allCSV += '\n=== 检查项 ===\n';
             allCSV += '检查项ID,ID类型,检查项名称,预计天数,已完成,关卡ID,关卡名称,任务ID,任务名称,地标\n';
             Object.entries(data.questLevels || {}).forEach(([questId, levelList]) => {
                 let questName = '';
@@ -118,6 +132,15 @@
                     (lv.checkpoints || []).forEach(cp => {
                         allCSV += `"${cp.id}","${lv.id}","${questId}","${landmarkId}","${lv.name}","${questName}","${landmarkName}"\n`;
                     });
+                });
+            });
+
+            // 检查点完成历史CSV
+            allCSV += '\n=== 检查点完成历史 ===\n';
+            allCSV += '检查点ID,日期,条目ID,已归档\n';
+            Object.entries(data.checkpointCompletions || {}).forEach(([cpId, records]) => {
+                records.forEach(r => {
+                    allCSV += `"${cpId}","${r.date || ''}","${r.entryId || ''}","${r.archived ? '是' : '否'}"\n`;
                 });
             });
 

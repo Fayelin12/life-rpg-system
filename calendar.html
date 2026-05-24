@@ -7747,21 +7747,7 @@
                 // 构建 obsidian://new URI（使用 clipboard 参数，不再包含 content）
                 const obsidianUrl = `obsidian://new?vault=${encodeURIComponent(vaultName)}&file=${encodedFilePath}&clipboard`;
 
-                // ========== 调试日志开始 ==========
-                console.log('===== Obsidian Sync 调试信息 =====');
-                console.log('[1] Vault 名称:', vaultName);
-                console.log('[2] 文件名:', fileName);
-                console.log('[3] Obsidian 文件路径:', obsidianFilePath);
-                console.log('[4] 编码后路径:', encodedFilePath);
-                console.log('[5] URL 总长度:', obsidianUrl.length, '字符');
-                console.log('[6] Markdown 内容长度:', mdContent.length, '字符');
-                console.log('[7] 内容已复制到剪贴板，Obsidian 将从剪贴板读取');
-                console.log('==================================');
-                // ========== 调试日志结束 ==========
-
-                // 触发 Obsidian URL Scheme（使用隐藏链接模拟点击，比 window.open 更可靠）
-                console.log('[调试] 即将触发 Obsidian 协议，URL 长度:', obsidianUrl.length);
-
+                // 触发 Obsidian URL Scheme
                 const link = document.createElement('a');
                 link.href = obsidianUrl;
                 link.style.display = 'none';
@@ -7769,16 +7755,10 @@
                 link.click();
                 document.body.removeChild(link);
 
-                console.log('[调试] 已触发链接点击');
                 showToast('已唤起 Obsidian，内容通过剪贴板发送到 周报/', 'success');
 
             } catch (error) {
-                console.error('===== Obsidian Sync 错误详情 =====');
-                console.error('错误消息:', error.message);
-                console.error('错误堆栈:', error.stack);
-                console.error('错误名称:', error.name);
-                console.error('完整错误对象:', error);
-                console.error('==================================');
+                console.error('Obsidian Sync 失败:', error);
                 showToast('同步失败: ' + error.message, 'error');
             }
         }

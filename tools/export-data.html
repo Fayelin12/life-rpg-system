@@ -105,6 +105,17 @@
                 _summary: {}
             };
 
+            // 统计 tags
+            summary._summary.tags = {
+                count: (data.tags || []).length,
+                items: (data.tags || []).map(t => ({
+                    id: t.id,
+                    idType: typeof t.id,
+                    name: t.name,
+                    icon: t.icon
+                }))
+            };
+
             // 统计 landmarks
             summary._summary.landmarks = {
                 count: (data.landmarks || []).length,
@@ -173,6 +184,23 @@
                 emptyCheckpointIdCount
             };
 
+            // 统计 checkpointCompletions
+            const checkpointCompletions = data.checkpointCompletions || {};
+            let totalCompletions = 0;
+            let archivedCount = 0;
+            Object.entries(checkpointCompletions).forEach(([cpId, records]) => {
+                totalCompletions += records.length;
+                records.forEach(r => {
+                    if (r.archived) archivedCount++;
+                });
+            });
+            summary._summary.checkpointCompletions = {
+                checkpointCount: Object.keys(checkpointCompletions).length,
+                totalCompletions,
+                archivedCount,
+                activeCount: totalCompletions - archivedCount
+            };
+
             // 完整的 questLevels 数据（方便检查ID匹配）
             summary.questLevels = data.questLevels || {};
 
@@ -207,10 +235,12 @@
             const data = loadData();
             let html = '<table style="width: 100%; border-collapse: collapse;">';
             html += '<tr><th style="text-align:left; padding: 8px;">字段</th><th style="text-align:left; padding: 8px;">数量</th></tr>';
+            html += `<tr><td style="padding: 8px;">tags</td><td style="padding: 8px;">${(data.tags || []).length}</td></tr>`;
             html += `<tr><td style="padding: 8px;">landmarks</td><td style="padding: 8px;">${(data.landmarks || []).length}</td></tr>`;
             html += `<tr><td style="padding: 8px;">landmarkQuests keys</td><td style="padding: 8px;">${Object.keys(data.landmarkQuests || {}).length}</td></tr>`;
             html += `<tr><td style="padding: 8px;">questLevels keys</td><td style="padding: 8px;">${Object.keys(data.questLevels || {}).length}</td></tr>`;
             html += `<tr><td style="padding: 8px;">calendarEntries dates</td><td style="padding: 8px;">${Object.keys(data.calendarEntries || {}).length}</td></tr>`;
+            html += `<tr><td style="padding: 8px;">checkpointCompletions checkpoints</td><td style="padding: 8px;">${Object.keys(data.checkpointCompletions || {}).length}</td></tr>`;
             html += '</table>';
             document.getElementById('summary').innerHTML = html;
         });
