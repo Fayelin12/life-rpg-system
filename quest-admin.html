@@ -352,8 +352,8 @@
                             </div>
                             <span class="item-type" style="background: ${typeConfig.color}20; color: ${typeConfig.color};">${typeConfig.label}</span>
                             <div class="item-actions">
-                                <button class="btn btn-secondary btn-small" onclick="editQuest(${quest.id})">编辑</button>
-                                <button class="btn btn-danger" onclick="deleteQuest(${quest.id})">删除</button>
+                                <button class="btn btn-secondary btn-small" onclick="editQuest('${quest.id}')">编辑</button>
+                                <button class="btn btn-danger" onclick="deleteQuest('${quest.id}')">删除</button>
                             </div>
                         </div>
                     `;
@@ -431,7 +431,7 @@
                 if (!currentLandmarkIdForQuest) return;
 
                 const quests = adminData.landmarkQuests[currentLandmarkIdForQuest] || [];
-                const quest = quests.find(q => q.id === id);
+                const quest = quests.find(q => q.id == id);
                 if (!quest) return;
 
                 const item = document.getElementById(`quest-${id}`);
@@ -473,8 +473,8 @@
                         </div>
                     </div>
                     <div class="item-actions">
-                        <button class="btn btn-secondary btn-small" onclick="cancelEditQuest(${id})">取消</button>
-                        <button class="btn btn-primary btn-small" onclick="saveQuest(${id})">保存</button>
+                        <button class="btn btn-secondary btn-small" onclick="cancelEditQuest('${id}')">取消</button>
+                        <button class="btn btn-primary btn-small" onclick="saveQuest('${id}')">保存</button>
                     </div>
                 `;
             } catch (error) {
@@ -497,7 +497,7 @@
                 if (!currentLandmarkIdForQuest) return;
 
                 const quests = adminData.landmarkQuests[currentLandmarkIdForQuest] || [];
-                const quest = quests.find(q => q.id === id);
+                const quest = quests.find(q => q.id == id);
                 if (!quest) return;
 
                 const newName = document.getElementById(`editQuestName-${id}`).value.trim();
@@ -511,7 +511,7 @@
                     return;
                 }
 
-                if (quests.some(q => q.name === newName && q.id !== id)) {
+                if (quests.some(q => q.name === newName && q.id != id)) {
                     showToast('该任务名称已存在', '⚠️');
                     return;
                 }
@@ -539,14 +539,14 @@
                 if (!currentLandmarkIdForQuest) return;
 
                 const quests = adminData.landmarkQuests[currentLandmarkIdForQuest] || [];
-                const quest = quests.find(q => q.id === id);
+                const quest = quests.find(q => q.id == id);
                 if (!quest) return;
 
                 if (!confirm(`确定删除任务「${quest.name}」吗？`)) {
                     return;
                 }
 
-                adminData.landmarkQuests[currentLandmarkIdForQuest] = quests.filter(q => q.id !== id);
+                adminData.landmarkQuests[currentLandmarkIdForQuest] = quests.filter(q => q.id != id);
                 saveData();
                 renderQuests();
                 onLandmarkSelect();
