@@ -5784,14 +5784,14 @@
             // 获取行索引
             const rowIndex = parseInt(rowStripes.dataset.row);
 
-            // 计算当前月的第一天是星期几
+            // 计算当前月的第一天是星期几（周一为0，周日为6，与 renderMonthView 保持一致）
             const year = currentDate.getFullYear();
             const month = currentDate.getMonth();
             const firstDay = new Date(year, month, 1);
-            const startDayOfWeek = firstDay.getDay(); // 0=周日, 1=周一...
+            const firstDayWeekday = (firstDay.getDay() + 6) % 7;
 
             // 计算该行的起始日期
-            const rowStartDayOfMonth = rowIndex * 7 - startDayOfWeek + 1;
+            const rowStartDayOfMonth = rowIndex * 7 - firstDayWeekday + 1;
 
             let targetDate;
 
@@ -5836,7 +5836,7 @@
                 let colIndex = Math.floor(relativeX / colWidth);
                 colIndex = Math.max(0, Math.min(colIndex, 6));
 
-                const dayOfMonth = rowIndex * 7 + colIndex - startDayOfWeek + 1;
+                const dayOfMonth = rowIndex * 7 + colIndex - firstDayWeekday + 1;
                 targetDate = new Date(year, month, dayOfMonth);
             }
 
