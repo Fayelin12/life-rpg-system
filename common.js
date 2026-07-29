@@ -384,7 +384,8 @@ const DBManager = {
         if (rows.length > 0) {
             for (var i = 0; i < rows[0].values.length; i++) {
                 var r = rows[0].values[i];
-                result.questLevels[r[1]] = { id: r[0], name: r[2], time: r[3], checkpoints: JSON.parse(r[4] || '[]') };
+                // questLevels 值始终为数组，兼容原数据结构
+                result.questLevels[r[1]] = [{ id: r[0], name: r[2], time: r[3], checkpoints: JSON.parse(r[4] || '[]') }];
             }
         }
 
