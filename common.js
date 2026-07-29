@@ -208,6 +208,7 @@ const DBManager = {
             // 一次性清理：之前缺少主键导致的重复数据
             this._dedupIfNeeded();
             await this._migrateIfNeeded();
+            this._debugCheckpoint('北京电商专项');
             this._ready = true;
         } catch (e) {
             console.error('DBManager init failed, using fallback:', (e && e.message) || String(e));
@@ -221,6 +222,41 @@ const DBManager = {
         try {
             this.db.run("DELETE FROM calendar_entries WHERE rowid NOT IN (SELECT MIN(rowid) FROM calendar_entries GROUP BY date, COALESCE(checkpoint_id,'___empty___'), COALESCE(description,''))");
         } catch (e) {}
+    },
+
+    /** 诊断：查看指定检查点的完整记录 */
+    _debugCheckpoint(name) {
+        var rows = this.db.exec("SELECT id FROM calendar_entries WHERE checkpoint_name LIKE ?", ['%' + name + '%']);
+        if (!rows.length || !rows[0].values.length) { console.log('[Debug] Checkpoint not found:', name); return; }
+        var cpId = null;
+        // 取第一个匹配的 checkpoint_id
+        for (var i = 0; i < rows[0].values.length; i++) {
+            var entryRows = this.db.exec("SELECT checkpoint_id, date, description, completed FROM calendar_entries WHERE id = ?", [rows[0].values[i][0]]);
+            if (entryRows.length && entryRows[0].values.length) {
+                cpId = entryRows[0].values[0][0];
+                break;
+            }
+        }
+        if (!cpId) { console.log('[Debug] No checkpoint_id found for:', name); return; }
+
+        var entries = this.db.exec("SELECT date, description, completed FROM calendar_entries WHERE checkpoint_id = ? ORDER BY date", [cpId]);
+        var completions = this.db.exec("SELECT date, entry_id, archived FROM checkpoint_completions WHERE checkpoint_id = ? ORDER BY date", [cpId]);
+
+        console.log('[Debug] Checkpoint:', name, 'ID:', cpId);
+        console.log('  Calendar entries (' + (entries.length ? entries[0].values.length : 0) + '):');
+        if (entries.length) {
+            for (var i = 0; i < entries[0].values.length; i++) {
+                var r = entries[0].values[i];
+                console.log('    ' + r[0] + ' [' + (r[2] ? 'x' : ' ') + '] ' + (r[1] || '').substring(0, 80));
+            }
+        }
+        console.log('  Completions (' + (completions.length ? completions[0].values.length : 0) + '):');
+        if (completions.length) {
+            for (var i = 0; i < completions[0].values.length; i++) {
+                var r = completions[0].values[i];
+                console.log('    ' + r[0] + ' entry=' + r[1] + ' archived=' + r[2]);
+            }
+        }
     },
 
     _initSchema() {
