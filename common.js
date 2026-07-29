@@ -228,10 +228,22 @@ const DBManager = {
 
     /** 首次运行：从 localStorage JSON 自动迁移数据到 SQLite */
     async _migrateIfNeeded() {
-        // 用 localStorage 标记是否已迁移，不依赖 OPFS
-        try {
-            if (localStorage.getItem('lifeRpgMigrated') === '1') return;
-        } catch (ignore) {}
+        // 用 localStorage 标记是否已迁移
+        var alreadyMigrated = false;
+        try { alreadyMigrated = localStorage.getItem('lifeRpgMigrated') === '1'; } catch (ignore) {}
+
+        // 如果已迁移但 DB 实际为空（之前持久化失败导致），清除标记重新迁移
+        if (alreadyMigrated) {
+            var check = this.db.exec('SELECT COUNT(*) as cnt FROM tags');
+            var hasNoData = true;
+            try { hasNoData = check[0].values[0][0] === 0; } catch (ignore) {}
+            if (hasNoData) {
+                try { localStorage.removeItem('lifeRpgMigrated'); } catch (ignore) {}
+                alreadyMigrated = false;
+            }
+        }
+
+        if (alreadyMigrated) return;
 
         var oldData = StorageManager.load(LIFE_RPG_CONFIG.STORAGE_KEY);
         if (!oldData) {
