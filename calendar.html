@@ -2896,7 +2896,14 @@
         // ============================================
         // 地标选择状态 - 新增
         // ============================================
-        let selectedLandmarkId = localStorage.getItem('lifeRpgSelectedLandmarkId') || null;
+        let selectedLandmarkId = (function() {
+            var v = localStorage.getItem('lifeRpgSelectedLandmarkId');
+            if (v && v !== 'null') {
+                var n = parseInt(v);
+                return isNaN(n) ? v : n;
+            }
+            return null;
+        })();
 
         /**
          * 获取选中的地标ID
@@ -2909,8 +2916,9 @@
          * 设置选中的地标
          */
         function setSelectedLandmarkId(landmarkId) {
-            selectedLandmarkId = landmarkId;
-            localStorage.setItem('lifeRpgSelectedLandmarkId', landmarkId || '');
+            var n = parseInt(landmarkId);
+            selectedLandmarkId = isNaN(n) ? landmarkId : n;
+            localStorage.setItem('lifeRpgSelectedLandmarkId', selectedLandmarkId);
         }
 
         /**
@@ -3756,16 +3764,16 @@
                 // 更新地标选择器
                 updateLandmarkSelect();
 
+                const selectedId = getSelectedLandmarkId();
+                console.log('[ScrollArchive] selectedId:', selectedId, 'landmarks:', (adminData.landmarks || []).length);
+
                 let html = '';
 
-                // 获取选中的地标ID
-                const selectedId = getSelectedLandmarkId();
-
-                // 只渲染选中的地标（不再显示地标标题）
                 if (selectedId) {
                     const landmark = (adminData.landmarks || []).find(l => l.id === selectedId);
                     if (landmark) {
                         const quests = adminData.landmarkQuests[landmark.id] || [];
+                        console.log('[ScrollArchive] landmark:', landmark.name, 'quests:', quests.length);
 
                         quests.forEach(quest => {
                             if (!quest.id) {
