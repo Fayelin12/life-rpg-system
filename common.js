@@ -216,31 +216,18 @@ const DBManager = {
         }
     },
 
-    /** 一次性清理因缺少主键导致的重复数据 */
+    /** 每次加载时清理重复数据 */
     _dedupIfNeeded() {
         try {
-            if (localStorage.getItem('lifeRpgDeduped') === '1') return;
-        } catch (ignore) {}
-
-        try {
-            // calendar_entries: 按 id 去重，保留 rowid 最大的
-            var calBefore = this.db.exec('SELECT COUNT(*) FROM calendar_entries');
-            this.db.run('DELETE FROM calendar_entries WHERE rowid NOT IN (SELECT MAX(rowid) FROM calendar_entries GROUP BY id)');
-            var calAfter = this.db.exec('SELECT COUNT(*) FROM calendar_entries');
-            var calRemoved = calBefore[0].values[0][0] - calAfter[0].values[0][0];
-            if (calRemoved > 0) console.log('[Dedup] Removed', calRemoved, 'duplicate calendar entries');
-
-            // 按 (checkpoint_id, date, description) 去重同日同检查点的条目
-            var before2 = this.db.exec('SELECT COUNT(*) FROM calendar_entries');
-            this.db.run('DELETE FROM calendar_entries WHERE rowid NOT IN (SELECT MIN(rowid) FROM calendar_entries GROUP BY COALESCE(checkpoint_id,\'\'), date, COALESCE(description,\'\'))');
-            var after2 = this.db.exec('SELECT COUNT(*) FROM calendar_entries');
-            var removed2 = before2[0].values[0][0] - after2[0].values[0][0];
-            if (removed2 > 0) console.log('[Dedup] Removed', removed2, 'same-checkpoint-same-date duplicates');
+            // 同一个 checkpoint 在同一天只保留最早的一条
+            var before = this.db.exec('SELECT COUNT(*) FROM calendar_entries');
+            this.db.run("DELETE FROM calendar_entries WHERE rowid NOT IN (SELECT MIN(rowid) FROM calendar_entries WHERE checkpoint_id IS NOT NULL AND checkpoint_id != '' GROUP BY checkpoint_id, date)");
+            var after = this.db.exec('SELECT COUNT(*) FROM calendar_entries');
+            var removed = before[0].values[0][0] - after[0].values[0][0];
+            if (removed > 0) console.log('[Dedup] Cleaned', removed, 'duplicate calendar entries,', after[0].values[0][0], 'remaining');
         } catch (e) {
-            console.error('Dedup failed:', (e && e.message) || String(e));
+            // 静默失败，不影响主流程
         }
-
-        try { localStorage.setItem('lifeRpgDeduped', '1'); } catch (ignore) {}
     },
 
     _initSchema() {
