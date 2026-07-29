@@ -195,10 +195,27 @@ const DBManager = {
             this.db = new this.SQL.Database(dbData);
             this.db.run('PRAGMA journal_mode=WAL');
             this._initSchema();
-            await this._migrateIfNeeded();
+            try {
+                await this._migrateIfNeeded();
+            } catch (e) {
+                console.error('Migration failed:', e.message, '- starting fresh');
+                try { this.db.run('ROLLBACK'); } catch (ignore) {}
+                // 清空所有表，从头开始
+                var tables = ['tags','landmarks','quests','levels','calendar_entries','checkpoint_completions'];
+                for (var ti = 0; ti < tables.length; ti++) {
+                    try { this.db.run('DELETE FROM ' + tables[ti]); } catch (ignore) {}
+                }
+                this.db.run("INSERT OR REPLACE INTO meta VALUES ('migrated', '1')");
+                this.db.run('COMMIT');
+            }
             this._ready = true;
         } catch (e) {
             console.error('DBManager init failed, using fallback:', e.message);
+            // 清理可能的半成品 OPFS 数据，下次重新迁移
+            try {
+                var root = await navigator.storage.getDirectory();
+                await root.removeEntry('life-rpg.db');
+            } catch (ignore) {}
             this._usingFallback = true;
             this._ready = true;
         }
