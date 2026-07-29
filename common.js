@@ -302,7 +302,10 @@ const DBManager = {
             for (var i = 0; i < qIds.length; i++) {
                 var level = oldData.questLevels[qIds[i]];
                 if (!level) continue;
-                stmt.run([self._int(level.id), self._int(qIds[i]), level.name || '', self._int(level.time), JSON.stringify(level.checkpoints || [])]);
+                // 兼容数组格式：部分数据中 questLevels[questId] 是数组
+                if (Array.isArray(level)) level = level[0] || null;
+                if (!level || !level.name) continue;
+                stmt.run([self._int(level.id), self._int(qIds[i]), level.name, self._int(level.time), JSON.stringify(level.checkpoints || [])]);
             }
             stmt.free();
         });
@@ -455,6 +458,9 @@ const DBManager = {
             var qIds = Object.keys(data.questLevels);
             for (var i = 0; i < qIds.length; i++) {
                 var level = data.questLevels[qIds[i]];
+                if (!level) continue;
+                if (Array.isArray(level)) level = level[0] || null;
+                if (!level || !level.name) continue;
                 stmt.run([this._int(level.id), this._int(qIds[i]), level.name, this._int(level.time), JSON.stringify(level.checkpoints || [])]);
             }
             stmt.free();
