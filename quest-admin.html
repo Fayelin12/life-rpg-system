@@ -245,7 +245,7 @@
          */
         function saveData() {
             try {
-                LifeRPG.data.save(adminData);
+                LifeRPG.storage.saveDebounced('lifeRpgAdminData', () => adminData);
             } catch (error) {
                 console.error('保存数据失败:', error);
                 showToast('保存失败', '⚠️');

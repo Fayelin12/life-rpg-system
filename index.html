@@ -1411,7 +1411,7 @@
          */
         function saveAdminData() {
             try {
-                LifeRPG.data.save(adminData);
+                LifeRPG.storage.saveDebounced('lifeRpgAdminData', () => adminData);
             } catch (error) {
                 console.error('保存管理数据失败:', error);
             }
@@ -1515,7 +1515,7 @@
          */
         function saveData() {
             try {
-                LifeRPG.storage.save('lifeRpgData', gameData);
+                LifeRPG.storage.saveDebounced('lifeRpgData', () => gameData);
             } catch (error) {
                 console.error('保存数据失败:', error);
             }

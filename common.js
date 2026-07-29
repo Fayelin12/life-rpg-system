@@ -112,8 +112,53 @@ const StorageManager = {
             }
         }
         return total;
+    },
+
+    /**
+     * 防抖保存 — 避免频繁触发全量 JSON 序列化和 localStorage 写入
+     * @param {string} key - 存储键
+     * @param {Function|*} getData - 获取最新数据的函数（推荐）或直接传数据对象
+     * @param {number} delay - 防抖延迟（毫秒）
+     */
+    saveDebounced(key, getData, delay) {
+        delay = delay || LIFE_RPG_CONFIG.DEBOUNCE_DELAY;
+        if (!this._debounceTimers) this._debounceTimers = {};
+        if (!this._pendingGetters) this._pendingGetters = {};
+
+        if (this._debounceTimers[key]) {
+            clearTimeout(this._debounceTimers[key]);
+        }
+        this._pendingGetters[key] = getData;
+        this._debounceTimers[key] = setTimeout(() => {
+            const data = typeof getData === 'function' ? getData() : getData;
+            this.save(key, data);
+            delete this._debounceTimers[key];
+            delete this._pendingGetters[key];
+        }, delay);
+    },
+
+    /**
+     * 立即刷新所有防抖待保存的数据（页面卸载前调用）
+     */
+    flush() {
+        if (!this._debounceTimers) return;
+        for (const key in this._debounceTimers) {
+            clearTimeout(this._debounceTimers[key]);
+            const getData = this._pendingGetters && this._pendingGetters[key];
+            if (getData) {
+                const data = typeof getData === 'function' ? getData() : getData;
+                this.save(key, data);
+            }
+            delete this._debounceTimers[key];
+            if (this._pendingGetters) delete this._pendingGetters[key];
+        }
     }
 };
+
+// 页面卸载前自动刷新所有待保存数据
+window.addEventListener('beforeunload', () => {
+    StorageManager.flush();
+});
 
 // ==================== 游戏数据管理 ====================
 const GameDataManager = {
