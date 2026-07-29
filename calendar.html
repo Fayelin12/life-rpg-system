@@ -3137,8 +3137,12 @@
             try {
                 await loadData();
 
-                // 数据迁移：为历史日历条目补全创建时间（已执行完毕，可注释掉）
-                // migrateCalendarEntries();
+                // 诊断日志
+                var entryDates = Object.keys(adminData.calendarEntries || {});
+                console.log('[Calendar] loaded', entryDates.length, 'dates, selectedLandmark:', selectedLandmarkId,
+                    ', currentView:', currentView,
+                    ', sample dates:', entryDates.slice(0, 3).join(', '),
+                    entryDates.length > 2 ? '...' + entryDates.slice(-1) : '');
 
                 // 如果没有选中的地标，默认选中第一个
                 if (!selectedLandmarkId && adminData.landmarks && adminData.landmarks.length > 0) {
