@@ -3775,6 +3775,17 @@
                         const quests = adminData.landmarkQuests[landmark.id] || [];
                         console.log('[ScrollArchive] landmark:', landmark.name, 'quests:', quests.length);
 
+                        var totalCheckpoints = 0;
+                        var allCpNames = [];
+                        quests.forEach(quest => {
+                            const levels = adminData.questLevels[quest.id] || [];
+                            levels.forEach(level => {
+                                totalCheckpoints += (level.checkpoints || []).length;
+                                (level.checkpoints || []).forEach(cp => allCpNames.push(cp.name));
+                            });
+                        });
+                        console.log('[ScrollArchive] total checkpoints:', totalCheckpoints, 'names:', JSON.stringify(allCpNames));
+
                         quests.forEach(quest => {
                             if (!quest.id) {
                                 return;
