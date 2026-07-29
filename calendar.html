@@ -3145,13 +3145,6 @@
             try {
                 await loadData();
 
-                // 诊断日志
-                var entryDates = Object.keys(adminData.calendarEntries || {});
-                console.log('[Calendar] loaded', entryDates.length, 'dates, selectedLandmark:', selectedLandmarkId,
-                    ', currentView:', currentView,
-                    ', sample dates:', entryDates.slice(0, 3).join(', '),
-                    entryDates.length > 2 ? '...' + entryDates.slice(-1) : '');
-
                 // 如果没有选中的地标，默认选中第一个
                 if (!selectedLandmarkId && adminData.landmarks && adminData.landmarks.length > 0) {
                     setSelectedLandmarkId(adminData.landmarks[0].id);
@@ -3761,11 +3754,9 @@
                 const container = document.getElementById('scrollCollection');
                 if (!container) return;
 
-                // 更新地标选择器
                 updateLandmarkSelect();
 
                 const selectedId = getSelectedLandmarkId();
-                console.log('[ScrollArchive] selectedId:', selectedId, 'landmarks:', (adminData.landmarks || []).length);
 
                 let html = '';
 
@@ -3773,18 +3764,6 @@
                     const landmark = (adminData.landmarks || []).find(l => l.id === selectedId);
                     if (landmark) {
                         const quests = adminData.landmarkQuests[landmark.id] || [];
-                        console.log('[ScrollArchive] landmark:', landmark.name, 'quests:', quests.length);
-
-                        var totalCheckpoints = 0;
-                        var allCpNames = [];
-                        quests.forEach(quest => {
-                            const levels = adminData.questLevels[quest.id] || [];
-                            levels.forEach(level => {
-                                totalCheckpoints += (level.checkpoints || []).length;
-                                (level.checkpoints || []).forEach(cp => allCpNames.push(cp.name));
-                            });
-                        });
-                        console.log('[ScrollArchive] total checkpoints:', totalCheckpoints, 'names:', JSON.stringify(allCpNames));
 
                         quests.forEach(quest => {
                             if (!quest.id) {
