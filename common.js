@@ -224,9 +224,18 @@ const DBManager = {
 
         try {
             // calendar_entries: 按 id 去重，保留 rowid 最大的
+            var calBefore = this.db.exec('SELECT COUNT(*) FROM calendar_entries');
             this.db.run('DELETE FROM calendar_entries WHERE rowid NOT IN (SELECT MAX(rowid) FROM calendar_entries GROUP BY id)');
-            // checkpoint_completions: 按 (checkpoint_id, date, entry_id) 去重
-            this.db.run('DELETE FROM checkpoint_completions WHERE rowid NOT IN (SELECT MAX(rowid) FROM checkpoint_completions GROUP BY checkpoint_id, date, COALESCE(entry_id, \'\'))');
+            var calAfter = this.db.exec('SELECT COUNT(*) FROM calendar_entries');
+            var calRemoved = calBefore[0].values[0][0] - calAfter[0].values[0][0];
+            if (calRemoved > 0) console.log('[Dedup] Removed', calRemoved, 'duplicate calendar entries');
+
+            // 按 (checkpoint_id, date, description) 去重同日同检查点的条目
+            var before2 = this.db.exec('SELECT COUNT(*) FROM calendar_entries');
+            this.db.run('DELETE FROM calendar_entries WHERE rowid NOT IN (SELECT MIN(rowid) FROM calendar_entries GROUP BY COALESCE(checkpoint_id,\'\'), date, COALESCE(description,\'\'))');
+            var after2 = this.db.exec('SELECT COUNT(*) FROM calendar_entries');
+            var removed2 = before2[0].values[0][0] - after2[0].values[0][0];
+            if (removed2 > 0) console.log('[Dedup] Removed', removed2, 'same-checkpoint-same-date duplicates');
         } catch (e) {
             console.error('Dedup failed:', (e && e.message) || String(e));
         }
