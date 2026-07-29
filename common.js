@@ -219,15 +219,23 @@ const DBManager = {
     /** 每次加载时清理重复数据 */
     _dedupIfNeeded() {
         try {
-            // 同一个 checkpoint 在同一天只保留最早的一条
             var before = this.db.exec('SELECT COUNT(*) FROM calendar_entries');
-            this.db.run("DELETE FROM calendar_entries WHERE rowid NOT IN (SELECT MIN(rowid) FROM calendar_entries WHERE checkpoint_id IS NOT NULL AND checkpoint_id != '' GROUP BY checkpoint_id, date)");
+            // 同一个 date + 同一个 checkpoint_id（含空值）+ 相同描述 = 重复，只保留最早
+            this.db.run("DELETE FROM calendar_entries WHERE rowid NOT IN (SELECT MIN(rowid) FROM calendar_entries GROUP BY date, COALESCE(checkpoint_id,'___empty___'), COALESCE(description,''))");
             var after = this.db.exec('SELECT COUNT(*) FROM calendar_entries');
             var removed = before[0].values[0][0] - after[0].values[0][0];
-            if (removed > 0) console.log('[Dedup] Cleaned', removed, 'duplicate calendar entries,', after[0].values[0][0], 'remaining');
-        } catch (e) {
-            // 静默失败，不影响主流程
-        }
+            if (removed > 0) console.log('[Dedup] Cleaned', removed, 'duplicates,', after[0].values[0][0], 'remaining');
+
+            // 诊断：列出重复最多的日期
+            var top = this.db.exec("SELECT date, COUNT(*) as cnt FROM calendar_entries GROUP BY date HAVING cnt > 3 ORDER BY cnt DESC LIMIT 5");
+            if (top.length > 0 && top[0].values.length > 0) {
+                console.log('[Dedup] Dates with >3 entries:');
+                for (var i = 0; i < top[0].values.length; i++) {
+                    var r = top[0].values[i];
+                    console.log('  ' + r[0] + ': ' + r[1] + ' entries');
+                }
+            }
+        } catch (e) {}
     },
 
     _initSchema() {
