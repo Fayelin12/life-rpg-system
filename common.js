@@ -348,7 +348,7 @@ const DBManager = {
 
         safeRun('checkpointCompletions', function() {
             if (!oldData.checkpointCompletions) return;
-            var stmt = self.db.prepare('INSERT OR REPLACE INTO checkpoint_completions VALUES (?, ?, ?, ?)');
+            var stmt = self.db.prepare('INSERT OR REPLACE INTO checkpoint_completions (checkpoint_id, date, entry_id, archived) VALUES (?, ?, ?, ?)');
             var cpIds = Object.keys(oldData.checkpointCompletions);
             for (var i = 0; i < cpIds.length; i++) {
                 var comps = oldData.checkpointCompletions[cpIds[i]];
@@ -504,7 +504,7 @@ const DBManager = {
 
         this.db.run('DELETE FROM checkpoint_completions');
         if (data.checkpointCompletions) {
-            var stmt = this.db.prepare('INSERT INTO checkpoint_completions VALUES (?, ?, ?, ?)');
+            var stmt = this.db.prepare('INSERT INTO checkpoint_completions (checkpoint_id, date, entry_id, archived) VALUES (?, ?, ?, ?)');
             var cpIds = Object.keys(data.checkpointCompletions);
             for (var i = 0; i < cpIds.length; i++) {
                 var comps = data.checkpointCompletions[cpIds[i]];
