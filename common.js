@@ -198,15 +198,15 @@ const DBManager = {
             try {
                 await this._migrateIfNeeded();
             } catch (e) {
-                console.error('Migration failed:', e.message, '- starting fresh');
-                try { this.db.run('ROLLBACK'); } catch (ignore) {}
-                // 清空所有表，从头开始
-                var tables = ['tags','landmarks','quests','levels','calendar_entries','checkpoint_completions'];
-                for (var ti = 0; ti < tables.length; ti++) {
-                    try { this.db.run('DELETE FROM ' + tables[ti]); } catch (ignore) {}
-                }
-                this.db.run("INSERT OR REPLACE INTO meta VALUES ('migrated', '1')");
-                this.db.run('COMMIT');
+                console.error('Migration failed:', (e && e.message) || String(e), '- starting fresh');
+                // 不 rollback（migrate 内部已处理），只清理 OPFS 残数据
+                try {
+                    var root2 = await navigator.storage.getDirectory();
+                    await root2.removeEntry('life-rpg.db');
+                } catch (ignore2) {}
+                this._usingFallback = true;
+                this._ready = true;
+                return;
             }
             this._ready = true;
         } catch (e) {
@@ -244,77 +244,95 @@ const DBManager = {
             return;
         }
 
+        var self = this;
+        function logStep(step) { console.log('[Migrate] Step:', step); }
+        function safeRun(label, fn) {
+            try { logStep(label); fn(); }
+            catch (e) { console.error('[Migrate] FAIL at', label, ':', (e && e.message) || String(e)); throw e; }
+        }
+
         this.db.run('BEGIN TRANSACTION');
 
-        if (oldData.tags) {
-            var stmt = this.db.prepare('INSERT OR REPLACE INTO tags VALUES (?, ?, ?, ?)');
+        safeRun('tags', function() {
+            if (!oldData.tags || !oldData.tags.length) return;
+            var stmt = self.db.prepare('INSERT OR REPLACE INTO tags VALUES (?, ?, ?, ?)');
             for (var i = 0; i < oldData.tags.length; i++) {
                 var t = oldData.tags[i];
-                stmt.run([this._int(t.id), t.name, t.icon || '', t.desc || '']);
+                stmt.run([self._int(t.id), t.name || '', t.icon || '', t.desc || '']);
             }
             stmt.free();
-        }
+        });
 
-        if (oldData.landmarks) {
-            var stmt = this.db.prepare('INSERT OR REPLACE INTO landmarks VALUES (?, ?, ?, ?, ?, ?)');
+        safeRun('landmarks', function() {
+            if (!oldData.landmarks || !oldData.landmarks.length) return;
+            var stmt = self.db.prepare('INSERT OR REPLACE INTO landmarks VALUES (?, ?, ?, ?, ?, ?)');
             for (var i = 0; i < oldData.landmarks.length; i++) {
                 var lm = oldData.landmarks[i];
-                stmt.run([this._int(lm.id), lm.name, lm.icon || '', lm.type || '', lm.desc || '', lm.boss || '']);
+                stmt.run([self._int(lm.id), lm.name || '', lm.icon || '', lm.type || '', lm.desc || '', lm.boss || '']);
             }
             stmt.free();
-        }
+        });
 
-        if (oldData.landmarkQuests) {
-            var stmt = this.db.prepare('INSERT OR REPLACE INTO quests VALUES (?, ?, ?, ?, ?, ?, ?)');
+        safeRun('landmarkQuests', function() {
+            if (!oldData.landmarkQuests) return;
+            var stmt = self.db.prepare('INSERT OR REPLACE INTO quests VALUES (?, ?, ?, ?, ?, ?, ?)');
             var lmIds = Object.keys(oldData.landmarkQuests);
             for (var i = 0; i < lmIds.length; i++) {
                 var quests = oldData.landmarkQuests[lmIds[i]];
+                if (!quests || !quests.length) continue;
                 for (var j = 0; j < quests.length; j++) {
                     var q = quests[j];
-                    stmt.run([this._int(q.id), this._int(lmIds[i]), q.name, q.type || 'main', q.rewardType || '', this._int(q.rewardAmount), q.desc || '']);
+                    stmt.run([self._int(q.id), self._int(lmIds[i]), q.name || '', q.type || 'main', q.rewardType || '', self._int(q.rewardAmount), q.desc || '']);
                 }
             }
             stmt.free();
-        }
+        });
 
-        if (oldData.questLevels) {
-            var stmt = this.db.prepare('INSERT OR REPLACE INTO levels VALUES (?, ?, ?, ?, ?)');
+        safeRun('questLevels', function() {
+            if (!oldData.questLevels) return;
+            var stmt = self.db.prepare('INSERT OR REPLACE INTO levels VALUES (?, ?, ?, ?, ?)');
             var qIds = Object.keys(oldData.questLevels);
             for (var i = 0; i < qIds.length; i++) {
                 var level = oldData.questLevels[qIds[i]];
-                stmt.run([this._int(level.id), this._int(qIds[i]), level.name, this._int(level.time), JSON.stringify(level.checkpoints || [])]);
+                if (!level) continue;
+                stmt.run([self._int(level.id), self._int(qIds[i]), level.name || '', self._int(level.time), JSON.stringify(level.checkpoints || [])]);
             }
             stmt.free();
-        }
+        });
 
-        if (oldData.calendarEntries) {
-            var stmt = this.db.prepare('INSERT OR REPLACE INTO calendar_entries VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+        safeRun('calendarEntries', function() {
+            if (!oldData.calendarEntries) return;
+            var stmt = self.db.prepare('INSERT OR REPLACE INTO calendar_entries VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
             var dates = Object.keys(oldData.calendarEntries);
             for (var i = 0; i < dates.length; i++) {
                 var entries = oldData.calendarEntries[dates[i]];
+                if (!entries || !entries.length) continue;
                 for (var j = 0; j < entries.length; j++) {
                     var e = entries[j];
-                    stmt.run([e.id || '', dates[i], e.checkpointId || '', e.checkpointName || '', this._int(e.levelId), this._int(e.questId), e.landmarkName || '', e.description || '', e.completed ? 1 : 0, e.createdAt || e.created_at || '']);
+                    stmt.run([e.id || '', dates[i], e.checkpointId || '', e.checkpointName || '', self._int(e.levelId), self._int(e.questId), e.landmarkName || '', e.description || '', e.completed ? 1 : 0, e.createdAt || e.created_at || '']);
                 }
             }
             stmt.free();
-        }
+        });
 
-        if (oldData.checkpointCompletions) {
-            var stmt = this.db.prepare('INSERT OR REPLACE INTO checkpoint_completions VALUES (?, ?, ?, ?)');
+        safeRun('checkpointCompletions', function() {
+            if (!oldData.checkpointCompletions) return;
+            var stmt = self.db.prepare('INSERT OR REPLACE INTO checkpoint_completions VALUES (?, ?, ?, ?)');
             var cpIds = Object.keys(oldData.checkpointCompletions);
             for (var i = 0; i < cpIds.length; i++) {
                 var comps = oldData.checkpointCompletions[cpIds[i]];
+                if (!comps || !comps.length) continue;
                 for (var j = 0; j < comps.length; j++) {
                     var c = comps[j];
                     stmt.run([cpIds[i], c.date || '', c.entryId || '', c.archived ? 1 : 0]);
                 }
             }
             stmt.free();
-        }
+        });
 
         this.db.run("INSERT OR REPLACE INTO meta VALUES ('migrated', '1')");
         this.db.run('COMMIT');
+        console.log('[Migrate] SUCCESS - data migrated to SQLite');
         await this._persistNow();
     },
 
