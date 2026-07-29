@@ -174,6 +174,7 @@ const DBManager = {
     /**
      * 初始化数据库 — 加载 WASM、打开/创建 DB、执行自动迁移
      * 每个页面在 init() 时调用一次
+     * 持久化策略：优先 OPFS，不可用时降级 localStorage base64
      */
     async init() {
         if (this._ready) return;
@@ -181,7 +182,7 @@ const DBManager = {
         try {
             this.SQL = await initSqlJs();
 
-            // 尝试从 OPFS 加载已有数据库
+            // 尝试加载已有数据库（OPFS > localStorage）
             var dbData = null;
             try {
                 var root = await navigator.storage.getDirectory();
@@ -189,33 +190,25 @@ const DBManager = {
                 var file = await fh.getFile();
                 dbData = new Uint8Array(await file.arrayBuffer());
             } catch (e) {
-                // 首次使用，数据库文件不存在
+                // OPFS 不可用或文件不存在，尝试 localStorage
+                var b64 = null;
+                try { b64 = localStorage.getItem('lifeRpgSqliteDb'); } catch (ignore) {}
+                if (b64) {
+                    try {
+                        var binary = atob(b64);
+                        dbData = new Uint8Array(binary.length);
+                        for (var i = 0; i < binary.length; i++) dbData[i] = binary.charCodeAt(i);
+                    } catch (ignore) {}
+                }
             }
 
             this.db = new this.SQL.Database(dbData);
             this.db.run('PRAGMA journal_mode=WAL');
             this._initSchema();
-            try {
-                await this._migrateIfNeeded();
-            } catch (e) {
-                console.error('Migration failed:', (e && e.message) || String(e), '- starting fresh');
-                // 不 rollback（migrate 内部已处理），只清理 OPFS 残数据
-                try {
-                    var root2 = await navigator.storage.getDirectory();
-                    await root2.removeEntry('life-rpg.db');
-                } catch (ignore2) {}
-                this._usingFallback = true;
-                this._ready = true;
-                return;
-            }
+            await this._migrateIfNeeded();
             this._ready = true;
         } catch (e) {
-            console.error('DBManager init failed, using fallback:', e.message);
-            // 清理可能的半成品 OPFS 数据，下次重新迁移
-            try {
-                var root = await navigator.storage.getDirectory();
-                await root.removeEntry('life-rpg.db');
-            } catch (ignore) {}
+            console.error('DBManager init failed, using fallback:', (e && e.message) || String(e));
             this._usingFallback = true;
             this._ready = true;
         }
@@ -233,14 +226,16 @@ const DBManager = {
         this.db.run('CREATE INDEX IF NOT EXISTS idx_comp_cp ON checkpoint_completions(checkpoint_id)');
     },
 
-    /** 首次运行：从 localStorage 自动迁移数据到 SQLite */
+    /** 首次运行：从 localStorage JSON 自动迁移数据到 SQLite */
     async _migrateIfNeeded() {
-        var rows = this.db.exec("SELECT value FROM meta WHERE key = 'migrated'");
-        if (rows.length > 0 && rows[0].values.length > 0) return;
+        // 用 localStorage 标记是否已迁移，不依赖 OPFS
+        try {
+            if (localStorage.getItem('lifeRpgMigrated') === '1') return;
+        } catch (ignore) {}
 
         var oldData = StorageManager.load(LIFE_RPG_CONFIG.STORAGE_KEY);
         if (!oldData) {
-            this.db.run("INSERT OR REPLACE INTO meta VALUES ('migrated', '1')");
+            try { localStorage.setItem('lifeRpgMigrated', '1'); } catch (ignore) {}
             return;
         }
 
@@ -332,6 +327,7 @@ const DBManager = {
 
         this.db.run("INSERT OR REPLACE INTO meta VALUES ('migrated', '1')");
         this.db.run('COMMIT');
+        try { localStorage.setItem('lifeRpgMigrated', '1'); } catch (ignore) {}
         console.log('[Migrate] SUCCESS - data migrated to SQLite');
         await this._persistNow();
     },
@@ -491,18 +487,36 @@ const DBManager = {
         return this.save(data);
     },
 
-    /** 立即写入 OPFS */
+    /** 持久化 DB：优先 OPFS，不可用时降级 localStorage base64 */
     async _persistNow() {
         if (!this.db) return;
+        var data = this.db.export();
+        var persisted = false;
+
+        // 优先尝试 OPFS
         try {
-            var data = this.db.export();
             var root = await navigator.storage.getDirectory();
             var fh = await root.getFileHandle('life-rpg.db', { create: true });
             var writable = await fh.createWritable();
             await writable.write(data);
             await writable.close();
+            persisted = true;
         } catch (e) {
-            console.error('OPFS persist failed:', e);
+            // OPFS 不可用（如 file://），不打印错误
+        }
+
+        // 始终存一份 localStorage base64 备份
+        try {
+            var b64 = '';
+            for (var i = 0; i < data.length; i++) {
+                b64 += String.fromCharCode(data[i]);
+            }
+            b64 = btoa(b64);
+            if (b64.length < LIFE_RPG_CONFIG.MAX_STORAGE_SIZE) {
+                localStorage.setItem('lifeRpgSqliteDb', b64);
+            }
+        } catch (e) {
+            if (!persisted) console.error('DB persist failed entirely:', (e && e.message) || String(e));
         }
     },
 
