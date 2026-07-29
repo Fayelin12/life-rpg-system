@@ -243,7 +243,6 @@ const DBManager = {
         this.db.run('CREATE TABLE IF NOT EXISTS calendar_entries (id TEXT PRIMARY KEY, date TEXT NOT NULL, checkpoint_id TEXT, checkpoint_name TEXT, level_id INTEGER, quest_id INTEGER, landmark_name TEXT, description TEXT, completed INTEGER DEFAULT 0, created_at TEXT)');
         this.db.run('CREATE INDEX IF NOT EXISTS idx_cal_date ON calendar_entries(date)');
         this.db.run('CREATE TABLE IF NOT EXISTS checkpoint_completions (id INTEGER PRIMARY KEY AUTOINCREMENT, checkpoint_id TEXT NOT NULL, date TEXT NOT NULL, entry_id TEXT, archived INTEGER DEFAULT 0)');
-        this.db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_comp_unique ON checkpoint_completions(checkpoint_id, date, entry_id)');
         this.db.run('CREATE INDEX IF NOT EXISTS idx_comp_cp ON checkpoint_completions(checkpoint_id)');
     },
 
