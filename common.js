@@ -221,6 +221,7 @@ const DBManager = {
     _dedupIfNeeded() {
         try {
             this.db.run("DELETE FROM calendar_entries WHERE rowid NOT IN (SELECT MIN(rowid) FROM calendar_entries GROUP BY date, COALESCE(checkpoint_id,'___empty___'), COALESCE(description,''))");
+            this.db.run("DELETE FROM checkpoint_completions WHERE rowid NOT IN (SELECT MIN(rowid) FROM checkpoint_completions GROUP BY checkpoint_id, date, COALESCE(entry_id,''))");
         } catch (e) {}
     },
 
