@@ -227,12 +227,16 @@ const DBManager = {
             if (removed > 0) console.log('[Dedup] Cleaned', removed, 'duplicates,', after[0].values[0][0], 'remaining');
 
             // 诊断：列出重复最多的日期
-            var top = this.db.exec("SELECT date, COUNT(*) as cnt FROM calendar_entries GROUP BY date HAVING cnt > 3 ORDER BY cnt DESC LIMIT 5");
+            var top = this.db.exec("SELECT date, COUNT(*) as cnt FROM calendar_entries GROUP BY date ORDER BY cnt DESC LIMIT 1");
             if (top.length > 0 && top[0].values.length > 0) {
-                console.log('[Dedup] Dates with >3 entries:');
-                for (var i = 0; i < top[0].values.length; i++) {
-                    var r = top[0].values[i];
-                    console.log('  ' + r[0] + ': ' + r[1] + ' entries');
+                var busyDate = top[0].values[0][0];
+                var sample = this.db.exec("SELECT checkpoint_name, description, completed FROM calendar_entries WHERE date = ? LIMIT 15", [busyDate]);
+                console.log('[Dedup] Busiest date:', busyDate, '(' + top[0].values[0][1] + ' entries):');
+                if (sample.length > 0) {
+                    for (var i = 0; i < sample[0].values.length; i++) {
+                        var r = sample[0].values[i];
+                        console.log('  [' + (r[2] ? 'x' : ' ') + '] ' + (r[0] || '(no name)') + ' | ' + (r[1] || '').substring(0, 50));
+                    }
                 }
             }
         } catch (e) {}
