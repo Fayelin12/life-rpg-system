@@ -168,6 +168,9 @@ const DBManager = {
     _persistTimer: null,
     _usingFallback: false,
 
+    /** 安全转整数，避免 asm.js 的 datatype mismatch */
+    _int: function(v) { var n = parseInt(v); return isNaN(n) ? 0 : n; },
+
     /**
      * 初始化数据库 — 加载 WASM、打开/创建 DB、执行自动迁移
      * 每个页面在 init() 时调用一次
@@ -230,7 +233,7 @@ const DBManager = {
             var stmt = this.db.prepare('INSERT OR REPLACE INTO tags VALUES (?, ?, ?, ?)');
             for (var i = 0; i < oldData.tags.length; i++) {
                 var t = oldData.tags[i];
-                stmt.run([t.id, t.name, t.icon || '', t.desc || '']);
+                stmt.run([this._int(t.id), t.name, t.icon || '', t.desc || '']);
             }
             stmt.free();
         }
@@ -239,7 +242,7 @@ const DBManager = {
             var stmt = this.db.prepare('INSERT OR REPLACE INTO landmarks VALUES (?, ?, ?, ?, ?, ?)');
             for (var i = 0; i < oldData.landmarks.length; i++) {
                 var lm = oldData.landmarks[i];
-                stmt.run([lm.id, lm.name, lm.icon || '', lm.type || '', lm.desc || '', lm.boss || '']);
+                stmt.run([this._int(lm.id), lm.name, lm.icon || '', lm.type || '', lm.desc || '', lm.boss || '']);
             }
             stmt.free();
         }
@@ -251,7 +254,7 @@ const DBManager = {
                 var quests = oldData.landmarkQuests[lmIds[i]];
                 for (var j = 0; j < quests.length; j++) {
                     var q = quests[j];
-                    stmt.run([q.id, parseInt(lmIds[i]), q.name, q.type || 'main', q.rewardType || '', q.rewardAmount || 0, q.desc || '']);
+                    stmt.run([this._int(q.id), this._int(lmIds[i]), q.name, q.type || 'main', q.rewardType || '', this._int(q.rewardAmount), q.desc || '']);
                 }
             }
             stmt.free();
@@ -262,7 +265,7 @@ const DBManager = {
             var qIds = Object.keys(oldData.questLevels);
             for (var i = 0; i < qIds.length; i++) {
                 var level = oldData.questLevels[qIds[i]];
-                stmt.run([level.id, parseInt(qIds[i]), level.name, level.time || 0, JSON.stringify(level.checkpoints || [])]);
+                stmt.run([this._int(level.id), this._int(qIds[i]), level.name, this._int(level.time), JSON.stringify(level.checkpoints || [])]);
             }
             stmt.free();
         }
@@ -274,7 +277,7 @@ const DBManager = {
                 var entries = oldData.calendarEntries[dates[i]];
                 for (var j = 0; j < entries.length; j++) {
                     var e = entries[j];
-                    stmt.run([e.id || '', dates[i], e.checkpointId || '', e.checkpointName || '', e.levelId || 0, e.questId || 0, e.landmarkName || '', e.description || '', e.completed ? 1 : 0, e.createdAt || e.created_at || '']);
+                    stmt.run([e.id || '', dates[i], e.checkpointId || '', e.checkpointName || '', this._int(e.levelId), this._int(e.questId), e.landmarkName || '', e.description || '', e.completed ? 1 : 0, e.createdAt || e.created_at || '']);
                 }
             }
             stmt.free();
@@ -374,7 +377,7 @@ const DBManager = {
             var stmt = this.db.prepare('INSERT INTO tags VALUES (?, ?, ?, ?)');
             for (var i = 0; i < data.tags.length; i++) {
                 var t = data.tags[i];
-                stmt.run([t.id, t.name, t.icon || '', t.desc || '']);
+                stmt.run([this._int(t.id), t.name, t.icon || '', t.desc || '']);
             }
             stmt.free();
         }
@@ -384,7 +387,7 @@ const DBManager = {
             var stmt = this.db.prepare('INSERT INTO landmarks VALUES (?, ?, ?, ?, ?, ?)');
             for (var i = 0; i < data.landmarks.length; i++) {
                 var lm = data.landmarks[i];
-                stmt.run([lm.id, lm.name, lm.icon || '', lm.type || '', lm.desc || '', lm.boss || '']);
+                stmt.run([this._int(lm.id), lm.name, lm.icon || '', lm.type || '', lm.desc || '', lm.boss || '']);
             }
             stmt.free();
         }
@@ -397,7 +400,7 @@ const DBManager = {
                 var quests = data.landmarkQuests[lmIds[i]];
                 for (var j = 0; j < quests.length; j++) {
                     var q = quests[j];
-                    stmt.run([q.id, parseInt(lmIds[i]), q.name, q.type || 'main', q.rewardType || '', q.rewardAmount || 0, q.desc || '']);
+                    stmt.run([this._int(q.id), this._int(lmIds[i]), q.name, q.type || 'main', q.rewardType || '', this._int(q.rewardAmount), q.desc || '']);
                 }
             }
             stmt.free();
@@ -409,7 +412,7 @@ const DBManager = {
             var qIds = Object.keys(data.questLevels);
             for (var i = 0; i < qIds.length; i++) {
                 var level = data.questLevels[qIds[i]];
-                stmt.run([level.id, parseInt(qIds[i]), level.name, level.time || 0, JSON.stringify(level.checkpoints || [])]);
+                stmt.run([this._int(level.id), this._int(qIds[i]), level.name, this._int(level.time), JSON.stringify(level.checkpoints || [])]);
             }
             stmt.free();
         }
@@ -422,7 +425,7 @@ const DBManager = {
                 var entries = data.calendarEntries[dates[i]];
                 for (var j = 0; j < entries.length; j++) {
                     var e = entries[j];
-                    stmt.run([e.id || '', dates[i], e.checkpointId || '', e.checkpointName || '', e.levelId || 0, e.questId || 0, e.landmarkName || '', e.description || '', e.completed ? 1 : 0, e.createdAt || e.created_at || '']);
+                    stmt.run([e.id || '', dates[i], e.checkpointId || '', e.checkpointName || '', this._int(e.levelId), this._int(e.questId), e.landmarkName || '', e.description || '', e.completed ? 1 : 0, e.createdAt || e.created_at || '']);
                 }
             }
             stmt.free();
