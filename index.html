@@ -9,6 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Noto+Serif+SC:wght@400;600;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="common.css">
+    <script src="lib/sql-js/sql-wasm-browser.js"></script>
     <script src="common.js"></script>
     <style>
         /* 世界地图视图 - 页面特有样式 */
@@ -944,9 +945,9 @@
         /**
          * 初始化应用
          */
-        function init() {
+        async function init() {
             try {
-                loadAdminData();
+                await loadAdminData();
                 loadData();
                 syncLandmarksToTerritory();
                 renderTerritories();
@@ -984,9 +985,9 @@
         /**
          * 从管理页面加载数据
          */
-        function loadAdminData() {
+        async function loadAdminData() {
             try {
-                const savedData = LifeRPG.data.load();
+                const savedData = await LifeRPG.data.load();
                 if (savedData) {
                     adminData = {
                         ...adminData,

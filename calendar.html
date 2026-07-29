@@ -11,6 +11,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Noto+Serif+SC:wght@400;600;900&display=block" rel="stylesheet">
     <link rel="stylesheet" href="common.css">
+    <script src="lib/sql-js/sql-wasm-browser.js"></script>
     <script src="common.js"></script>
     <style>
         /* 页面特有样式 - 时间圣殿主题 */
@@ -3132,9 +3133,9 @@
             // Grid 布局会自动处理条带位置，无需重新计算
         }
 
-        function init() {
+        async function init() {
             try {
-                loadData();
+                await loadData();
 
                 // 数据迁移：为历史日历条目补全创建时间（已执行完毕，可注释掉）
                 // migrateCalendarEntries();
@@ -3206,9 +3207,9 @@
         /**
          * 加载数据
          */
-        function loadData() {
+        async function loadData() {
             try {
-                const savedData = LifeRPG.data.load();
+                const savedData = await LifeRPG.data.load();
                 if (savedData) {
                     adminData = {
                         ...adminData,
