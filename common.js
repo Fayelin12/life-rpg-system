@@ -616,6 +616,12 @@ const GameDataManager = {
         }
         if (!DBManager._usingFallback) {
             var saved = DBManager.load();
+            console.log('[DB] Loaded from SQLite: tags=' + (saved ? (saved.tags ? saved.tags.length : 0) : 'null') +
+                ' landmarks=' + (saved ? (saved.landmarks ? saved.landmarks.length : 0) : 'null') +
+                ' quests=' + (saved && saved.landmarkQuests ? Object.keys(saved.landmarkQuests).length : 0) +
+                ' levels=' + (saved && saved.questLevels ? Object.keys(saved.questLevels).length : 0) +
+                ' entries=' + (saved && saved.calendarEntries ? Object.keys(saved.calendarEntries).length : 0) +
+                ' completions=' + (saved && saved.checkpointCompletions ? Object.keys(saved.checkpointCompletions).length : 0));
             if (saved) {
                 return {
                     ...this.defaultData,
