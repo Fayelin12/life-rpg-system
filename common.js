@@ -205,6 +205,8 @@ const DBManager = {
             this.db = new this.SQL.Database(dbData);
             this.db.run('PRAGMA journal_mode=WAL');
             this._initSchema();
+            // 一次性清理：之前缺少主键导致的重复数据
+            this._dedupIfNeeded();
             await this._migrateIfNeeded();
             this._ready = true;
         } catch (e) {
@@ -214,15 +216,34 @@ const DBManager = {
         }
     },
 
+    /** 一次性清理因缺少主键导致的重复数据 */
+    _dedupIfNeeded() {
+        try {
+            if (localStorage.getItem('lifeRpgDeduped') === '1') return;
+        } catch (ignore) {}
+
+        try {
+            // calendar_entries: 按 id 去重，保留 rowid 最大的
+            this.db.run('DELETE FROM calendar_entries WHERE rowid NOT IN (SELECT MAX(rowid) FROM calendar_entries GROUP BY id)');
+            // checkpoint_completions: 按 (checkpoint_id, date, entry_id) 去重
+            this.db.run('DELETE FROM checkpoint_completions WHERE rowid NOT IN (SELECT MAX(rowid) FROM checkpoint_completions GROUP BY checkpoint_id, date, COALESCE(entry_id, \'\'))');
+        } catch (e) {
+            console.error('Dedup failed:', (e && e.message) || String(e));
+        }
+
+        try { localStorage.setItem('lifeRpgDeduped', '1'); } catch (ignore) {}
+    },
+
     _initSchema() {
         this.db.run('CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT)');
         this.db.run('CREATE TABLE IF NOT EXISTS tags (id INTEGER PRIMARY KEY, name TEXT NOT NULL, icon TEXT, desc TEXT)');
         this.db.run('CREATE TABLE IF NOT EXISTS landmarks (id INTEGER PRIMARY KEY, name TEXT NOT NULL, icon TEXT, type TEXT, desc TEXT, boss TEXT)');
         this.db.run('CREATE TABLE IF NOT EXISTS quests (id INTEGER PRIMARY KEY, landmark_id INTEGER NOT NULL, name TEXT NOT NULL, type TEXT DEFAULT \'main\', reward_type TEXT, reward_amount INTEGER DEFAULT 0, desc TEXT)');
         this.db.run('CREATE TABLE IF NOT EXISTS levels (id INTEGER PRIMARY KEY, quest_id INTEGER NOT NULL, name TEXT NOT NULL, time INTEGER, checkpoints_json TEXT)');
-        this.db.run('CREATE TABLE IF NOT EXISTS calendar_entries (id TEXT, date TEXT NOT NULL, checkpoint_id TEXT, checkpoint_name TEXT, level_id INTEGER, quest_id INTEGER, landmark_name TEXT, description TEXT, completed INTEGER DEFAULT 0, created_at TEXT)');
+        this.db.run('CREATE TABLE IF NOT EXISTS calendar_entries (id TEXT PRIMARY KEY, date TEXT NOT NULL, checkpoint_id TEXT, checkpoint_name TEXT, level_id INTEGER, quest_id INTEGER, landmark_name TEXT, description TEXT, completed INTEGER DEFAULT 0, created_at TEXT)');
         this.db.run('CREATE INDEX IF NOT EXISTS idx_cal_date ON calendar_entries(date)');
-        this.db.run('CREATE TABLE IF NOT EXISTS checkpoint_completions (checkpoint_id TEXT NOT NULL, date TEXT NOT NULL, entry_id TEXT, archived INTEGER DEFAULT 0)');
+        this.db.run('CREATE TABLE IF NOT EXISTS checkpoint_completions (id INTEGER PRIMARY KEY AUTOINCREMENT, checkpoint_id TEXT NOT NULL, date TEXT NOT NULL, entry_id TEXT, archived INTEGER DEFAULT 0)');
+        this.db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_comp_unique ON checkpoint_completions(checkpoint_id, date, entry_id)');
         this.db.run('CREATE INDEX IF NOT EXISTS idx_comp_cp ON checkpoint_completions(checkpoint_id)');
     },
 
