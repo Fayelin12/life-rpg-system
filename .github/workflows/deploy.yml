@@ -1,0 +1,28 @@
+name: Deploy Life RPG System to GitHub Pages
+
+on:
+  push:
+    branches: [ master ]
+    paths-ignore:
+      - 'README.md'
+      - '.gitignore'
+      - '.skills/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to fayelin12.github.io/life-rpg-system
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          personal_token: ${{ secrets.PAGES_TOKEN }}
+          external_repository: fayelin12/fayelin12.github.io
+          publish_branch: main
+          publish_dir: .
+          destination_dir: life-rpg-system
+          exclude_assets: '.github,.gitignore,README.md,.skills'
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com'
+          commit_message: '自动部署人生RPG系统: ${{ github.event.head_commit.message }}'
