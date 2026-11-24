@@ -22,7 +22,7 @@ jobs:
           publish_branch: main
           publish_dir: .
           destination_dir: life-rpg-system
-          exclude_assets: '.github,.gitignore,README.md,.skills'
+          exclude_assets: '.github,.gitignore,README.md,.skills,data,*.ps1'
           user_name: 'github-actions[bot]'
           user_email: 'github-actions[bot]@users.noreply.github.com'
           commit_message: '自动部署人生RPG系统: ${{ github.event.head_commit.message }}'

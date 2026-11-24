@@ -21,6 +21,10 @@
 
 ---
 
+## 发布与真源
+
+本仓是唯一源码真源。`master` 分支推送后，由 `.github/workflows/deploy.yml` 发布到 `https://fayelin12.github.io/life-rpg-system/`；公开产物排除 `data/`、备份脚本、README 和技能目录，个人数据不进入 Pages。`github-pages` 总站不再保留第二份副本。
+
 ## Quick Start
 
 直接在浏览器里打开 `index.html` 就行了。不需要 Node、不需要构建、不需要安装任何东西。
