@@ -1,5 +1,9 @@
 # 🗺️ 人生开放系统 · Life Open World
 
+> ⚠️ **状态：休眠（2026-11-04 判定）** — 日常待办职责已移交 **TimeBar 桌面时间轴**（本机桌面工具）。
+> **判定依据**：本机 Chrome / Edge 两个 profile 的 Local Storage 与 IndexedDB/OPFS 全扫，**无任何 `life-rpg.db` 或 `lifeRpg*` 键**；GitHub Pages 源的库表结构存在但** 0 行**。最新数据快照停在 **2026-05-24**（`data/life-rpg-backup-2026-05-24.json`，194 条日历条目）。
+> **顺带修的坑**：`life-rpg-backup.ps1` 原第 1 行指向已不存在的旧盘目录（仓库后迁 `E:\DEV\life-rpg-system`），导致脚本静默失败、**约五个月没有产出任何备份**；路径已改正并加了存在性硬校验。若将来重新启用，先确认数据在哪台设备/哪个浏览器源，再谈备份——**别直接跑备份脚本**，它会导出一份空库、制造"已备份过"的错觉。
+
 <p align="center">
   <img src="https://img.shields.io/badge/version-1.1.0-gold" alt="version">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="license">
